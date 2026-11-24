@@ -1,0 +1,30 @@
+# Files Herdr generates inside a mod folder. sync.sh already leaves them out;
+# this keeps them out if a mod folder is copied in by hand.
+gpui-kit.d.ts
+jsconfig.json
+.cache/
+.bak-update-*
+
+# install.sh backups normally live in ~/.config/herdr-app, not here
+.awsome-herdr-backup-*/
+
+# OS and editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Secrets and local state. This repo is public: never commit these.
+.env
+.env.*
+*.pem
+*.key
+
+# Local agent state
+.claude/settings.local.json
+.harness/
+
+# Dependencies and logs (the mods are plain JS, there is nothing to install)
+node_modules/
+*.log

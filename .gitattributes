@@ -1,0 +1,7 @@
+# Keep line endings as LF everywhere. install.sh and sync.sh run under a POSIX
+# shell, and a CRLF checkout on Windows would break them.
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary
