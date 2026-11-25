@@ -201,7 +201,7 @@ export default class AwsomeConfig extends View {
     const note = `${name}:${field.key}`;
     try {
       const [raw, keptRaw] = await Promise.all([readTextFile(path), readTextFile(keptPath)]);
-      const next = rebind(JSON.parse(raw ?? "{}"), JSON.parse(keptRaw ?? "{}"), field.action, key);
+      const next = rebind(JSON.parse(raw ?? "{}"), JSON.parse(keptRaw ?? "{}"), field.action, key, field.section);
       await writeTextFile(path, `${JSON.stringify(next.keys, null, 2)}\n`, raw);
       const kept = `${JSON.stringify(next.displaced, null, 2)}\n`;
       if (kept !== (keptRaw ?? "{}\n")) {

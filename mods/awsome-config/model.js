@@ -119,6 +119,7 @@ export function fieldsOf(schema, settings) {
       step: typeof spec["x-step"] === "number" && spec["x-step"] > 0 ? spec["x-step"] : 1,
       unit: typeof spec["x-unit"] === "string" ? spec["x-unit"] : "",
       action: typeof spec["x-action"] === "string" ? spec["x-action"] : null,
+      section: typeof spec["x-section"] === "string" ? spec["x-section"] : "global",
     };
   });
   const known = new Set(fields.map((f) => f.key));
@@ -292,22 +293,24 @@ export function filterInstalled(rows, tab, query) {
 // keys.json with `action` moved onto `key` in its global section. A key that did something
 // else is taken, and what it did goes in `displaced` ({ key: action }); when the action
 // moves off a key again, what that key did before comes back.
-export function rebind(keys, displaced, action, key) {
+export function rebind(keys, displaced, action, key, section = "global") {
   keys = isObject(keys) ? { ...keys } : {};
   displaced = isObject(displaced) ? { ...displaced } : {};
-  const global = isObject(keys.global) ? { ...keys.global } : {};
-  for (const old of Object.keys(global).filter((k) => equal(global[k], action))) {
-    delete global[old];
-    if (old in displaced) {
-      global[old] = displaced[old];
-      delete displaced[old];
+  // A section other than "global" (e.g. "mod:awsome-filetree") keeps what it displaced under "<section> <key>".
+  const slot = (k) => (section === "global" ? k : `${section} ${k}`);
+  const binds = isObject(keys[section]) ? { ...keys[section] } : {};
+  for (const old of Object.keys(binds).filter((k) => equal(binds[k], action))) {
+    delete binds[old];
+    if (slot(old) in displaced) {
+      binds[old] = displaced[slot(old)];
+      delete displaced[slot(old)];
     }
   }
   let took = null;
   if (key) {
-    if (key in global && !equal(global[key], action)) took = displaced[key] = global[key];
-    global[key] = action;
+    if (key in binds && !equal(binds[key], action)) took = displaced[slot(key)] = binds[key];
+    binds[key] = action;
   }
-  keys.global = global;
+  keys[section] = binds;
   return { keys, displaced, took };
 }

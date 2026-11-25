@@ -76,14 +76,14 @@
             },
             "drag_delay": {
               "title": "Drag delay",
-              "description": "How long a press must last before a tab can be dragged.",
+              "description": "How long a press must last before a tab can be dragged. 0: moving the pointer 6px starts a drag.",
               "type": [
                 "string",
                 "integer"
               ],
               "format": "duration",
               "pattern": "^\\s*\\d+(\\.\\d+)?\\s*(ms|s|m|h)\\s*$",
-              "default": "400ms"
+              "default": "0ms"
             },
             "auto_name": {
               "title": "Name tabs",

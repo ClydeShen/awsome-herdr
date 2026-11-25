@@ -7,8 +7,8 @@ import { hideToolbarAction, tabMoveIndex } from "../actions/toolbar.js";
 
 export const DRAG_KEY = "awsome-tabs.action-drag";
 export const DRAG_TIMEOUT_MS = 15000;
-const DRAG_DELAY_MS = 400;
-const DRAG_DISTANCE = 12; // A slow click can slip this far and still be a click.
+const DRAG_DELAY_MS = 0; // No hold needed: moving the pointer starts a drag, as on a desktop.
+const DRAG_DISTANCE = 6; // A click can slip this far and still be a click (shared rule for every awsome-* drag).
 
 const afterMiddle = (event) =>
   (event.local_position?.x ?? 0) > (event.bounds?.width ?? Infinity) / 2;

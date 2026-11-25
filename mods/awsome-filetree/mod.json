@@ -1,1 +1,8 @@
-{ "place": "none", "overlay": { "width": 210, "height": 206 } }
+{
+  "$schema": "./mod.schema.json",
+  "place": "none",
+  "overlay": {
+    "width": 210,
+    "height": 206
+  }
+}

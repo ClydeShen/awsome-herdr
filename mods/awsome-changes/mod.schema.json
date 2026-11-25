@@ -72,7 +72,7 @@
           "additionalProperties": false,
           "properties": {
             "status": {
-              "title": "Git refresh",
+              "title": "Changes list refresh",
               "description": "How often Git is read for changes.",
               "type": [
                 "string",

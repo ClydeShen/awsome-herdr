@@ -7,7 +7,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState, InputState, Input, Scrollbar, v_virtual_list, VirtualListScrollHandle, TextView } from "gpui-base";
 import { fileIcon as packIcon, followFileIcons } from "./file-icons.js"; // identical copy of awsome-icons' loader (mods cannot import across folders)
-import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared } from "herdr";
+import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
 
 const NAME = "awsome-filetree";
 const ICON = (name) => `mods/${NAME}/${name}.svg`;
@@ -287,6 +287,7 @@ export default class FileTree extends View {
     this.input.on("focus", (_e, cx) => { this.typing = true; cx.notify(); });
     this.input.on("blur", (_e, cx) => { this.typing = false; cx.notify(); });
     this.reset(null, null);
+    cx.spawn(async (cx) => { for (;;) this.command(await nextCommand(), cx); });
     cx.spawn(async (cx) => {
       try {
         const text = await readTextFile(`${appHome()}/mods/${NAME}/config.json`);
@@ -831,6 +832,17 @@ export default class FileTree extends View {
     this.follow = false; this.pinned = join(this.root, rel); this.pinnedOn = this.on; this.cursor = "";
   }
 
+  // Key commands bound in keys.json's "mod:awsome-filetree" section (defaults in mod.schema.json).
+  command(name, cx) {
+    const c = String(name ?? "").replace(/^awsome-filetree[.:]/, "");
+    if (c === "up") this.goUp();
+    else if (c === "into") {
+      const cur = this.rows().find((r) => r.rel === this.cursor);
+      if (cur?.e?.dir) this.enterFolder(cur.rel, cx);
+    } else return;
+    cx.notify();
+  }
+
   key(e, cx) {
     const k = e.key, rows = this.rows(), cur = rows.find((r) => r.rel === this.cursor);
     if (this.typing) {
@@ -845,14 +857,7 @@ export default class FileTree extends View {
       else return;
       cx.stop_propagation(); cx.notify(); return;
     }
-    // Up a folder: Ctrl+Alt+Backspace (also Backspace, Ctrl+Alt+Up). Into the selected folder: Ctrl+Alt+Enter (also Shift+Enter, Ctrl+Alt+Down).
-    // (Alt+Up/Down are Herdr's own agent.prev/next, so they are not used.)
-    {
-      const m = e.modifiers ?? {};
-      const plain = !m.alt && !m.control && !m.platform, ctrlAlt = m.control && m.alt && !m.shift && !m.platform;
-      if ((plain && !m.shift && k === "backspace") || (ctrlAlt && (k === "backspace" || k === "up"))) { this.goUp(); cx.stop_propagation(); cx.notify(); return; }
-      if (((plain && m.shift && k === "enter") || (ctrlAlt && (k === "enter" || k === "down"))) && cur?.e?.dir) { this.enterFolder(cur.rel, cx); cx.stop_propagation(); cx.notify(); return; }
-    }
+    // Up a folder and into a folder come as commands from keys.json (see command()), so they can be rebound.
     const shift = e.modifiers?.shift;
     if (k === "up" || k === "k") this.move(rows, -1);
     else if (k === "down" || k === "j") this.move(rows, 1);

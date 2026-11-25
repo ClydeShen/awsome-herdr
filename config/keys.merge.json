@@ -1,5 +1,9 @@
 {
   "global": {
     "alt-~": "mod.open:awsome-config"
+  },
+  "mod:awsome-filetree": {
+    "ctrl-alt-backspace": "awsome-filetree.up",
+    "ctrl-alt-enter": "awsome-filetree.into"
   }
 }

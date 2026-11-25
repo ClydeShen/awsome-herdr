@@ -53,9 +53,9 @@
           "id": "sidebar-footer",
           "type": "block",
           "content": {
-            "mod": "workspace-chrome",
+            "mod": "awsome-sidebar",
             "props": {
-              "footer": true
+              "view": "footer"
             }
           },
           "size": {
