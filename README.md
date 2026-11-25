@@ -2,7 +2,7 @@
 
 My [Herdr](https://herdr.dev/) setup in one repo: a set of mods, a layout that uses them, and one script that puts it all on a new machine.
 
-一键安装我的 Herdr 配置：6 个 mod（5 个界面 mod + 1 个图标包）、一个布局和一个设置。
+一键安装我的 Herdr 配置：7 个 mod（5 个界面 mod、1 个设置对话框、1 个图标包）、一个布局和一个设置。
 
 ## Install
 
@@ -33,6 +33,7 @@ It was tested against a throwaway Herdr folder (backups, merging, `herdr-app che
 | `awsome-changes` | Git changes panel and diff tabs. Diffs open **side by side** by default. The list shows at most **200 files** (`limits.files`); see Known rough edges. | `better-changes` (munza/herdr-mods) |
 | `awsome-viewer` | Read-only file viewer tabs (preview, Keep tab, Open in editor). Its own tree is not shown. | `better-files` (munza/herdr-mods) |
 | `awsome-filetree` | The Files panel: Git colours, line counts, filter, Recent. **Patched** so a click opens an Awsome Viewer tab. | `filetree` ([cybertron288/herdr-mods](https://github.com/cybertron288/herdr-mods)) |
+| `awsome-config` | Not a panel: one dialog (**Alt+Shift+,**) that shows every mod's settings, checks them, saves them into each mod's own `mod.json`, and can bind a setting to a key. | `better-config` (munza/herdr-mods) |
 | `awsome-icons` | Not a panel: holds the Material icon set that the other five read by path (a mod cannot import from another's folder). | `better-icons` (munza/herdr-mods) |
 
 `better-search` and `file-icons` are no longer used.

@@ -6,7 +6,7 @@ Everything under `mods/` was written by other people and is redistributed here u
 
 | Folder in `mods/` | Started from | Upstream | Commit copied | Licence |
 | --- | --- | --- | --- | --- |
-| `awsome-icons`, `awsome-sidebar`, `awsome-viewer`, `awsome-changes`, `awsome-tabs` | `better-icons`, `better-sidebar`, `better-files`, `better-changes`, `better-tabs` | https://github.com/munza/herdr-mods | `bad7512b6148b7092068cd3a6478c45706731c18` (2026-11-23) | Apache-2.0, see `licenses/LICENSE-munza-herdr-mods` and `licenses/NOTICE-munza-herdr-mods` |
+| `awsome-icons`, `awsome-config`, `awsome-sidebar`, `awsome-viewer`, `awsome-changes`, `awsome-tabs` | `better-icons`, `better-config`, `better-sidebar`, `better-files`, `better-changes`, `better-tabs` | https://github.com/munza/herdr-mods | `bad7512b6148b7092068cd3a6478c45706731c18` (2026-11-23) | Apache-2.0, see `licenses/LICENSE-munza-herdr-mods` and `licenses/NOTICE-munza-herdr-mods` |
 | `awsome-filetree` | `filetree` | https://github.com/cybertron288/herdr-mods | `34e7c3348e954fd0a1147b846898db8c3e37e526` (2026-11-03) | MIT, see `licenses/LICENSE-cybertron288-herdr-mods` and `licenses/THIRD_PARTY_NOTICES-cybertron288.md` |
 
 `better-search` (munza) and `file-icons` (cybertron288) were in the first version of this repo and have been removed.
@@ -17,6 +17,7 @@ The icons come from the Material Icon Theme for VS Code (MIT). Its licence text 
 
 Changed files are marked here, as the Apache licence asks. Changes are made in this repo; these mods no longer follow upstream.
 
+- `mods/awsome-config` was added later (2026-11-25) from `better-config` (same upstream commit), renamed the same way; the only other change is its name.
 - **Renamed** (2026-11-25), with every internal reference changed to match (mod names, titles, class names, shared-state keys such as `awsome-viewer.viewers`): `better-icons` to `awsome-icons`, `better-sidebar` to `awsome-sidebar`, `better-files` to `awsome-viewer`, `better-changes` to `awsome-changes`, `better-tabs` to `awsome-tabs`, `filetree` to `awsome-filetree`. This touched the `.js`, `.json` and `.ts` files of all six.
 - `mods/awsome-filetree/main.js`: added `openViewer()`, which opens a file in an Awsome Viewer tab instead of previewing it in the panel, and made `wanted()`/`location()` keep the current folder while the focused tab has no terminal. A new value for `open` in `config.json`, `"awsome-viewer"`, switches the first behaviour on. Its own icon matching was replaced by the shared `file-icons.js` loader, reading the icons from `awsome-icons`; its bundled `icons.js` table was removed.
 - `mods/awsome-filetree/config.json`: `"open": "awsome-viewer"` (upstream default is `"preview"`).

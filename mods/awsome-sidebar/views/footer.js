@@ -10,7 +10,7 @@ export class Footer {
   init(_given, cx) {
     this.hasConfig = false;
     // shortcut: checked once, so installing Better Config shows the button after the next reload.
-    readTextFile(`${appHome()}/mods/better-config/mod.json`)
+    readTextFile(`${appHome()}/mods/awsome-config/mod.json`)
       .then((raw) => {
         this.hasConfig = raw !== null;
         cx?.notify();
@@ -56,7 +56,7 @@ export class Footer {
       )
       .when(this.hasConfig, (el) =>
         el.child(
-          this.button("mod-settings", "Mod settings", () => run("mod.open", { name: "better-config" }), t, [
+          this.button("mod-settings", "Mod settings", () => run("mod.open", { name: "awsome-config" }), t, [
             Icon("sliders"),
           ]),
         ),
