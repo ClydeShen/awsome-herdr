@@ -120,6 +120,7 @@ export function fieldsOf(schema, settings) {
       unit: typeof spec["x-unit"] === "string" ? spec["x-unit"] : "",
       action: typeof spec["x-action"] === "string" ? spec["x-action"] : null,
       section: typeof spec["x-section"] === "string" ? spec["x-section"] : "global",
+      placeholder: typeof spec["x-placeholder"] === "string" ? spec["x-placeholder"] : null,
     };
   });
   const known = new Set(fields.map((f) => f.key));

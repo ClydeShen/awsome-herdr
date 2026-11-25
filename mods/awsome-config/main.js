@@ -45,6 +45,13 @@ function keyCaps(stroke, mac) {
 }
 const actionName = (a) => (isPlainObject(a) ? a.command : String(a ?? ""));
 
+// The dialog's look (design/tokens.json settings; docs/REQUIREMENTS.md 3): grouped bordered cards
+// after shadcn Item/Field and macOS / Windows 11 Settings, icon buttons, one reset column.
+const S = { navWidth: 200, navInset: 8, navRow: 28, navGap: 4, navLabel: 32, pagePadX: 28, pagePadY: 8, headerRow: 32, headingIndent: 16,
+  sectionGap: 24, sectionTitle: 11, sectionTitleGap: 8, cardRadius: 10, rowPadY: 12, rowPadX: 16, rowGap: 16, titleText: 13, descText: 12,
+  descLine: 18, titleDescGap: 6, iconButton: 24, icon: 16, iconRadius: 6, changedDot: 6, resetSlot: 24 };
+const UI = (name) => `mods/awsome-icons/ui/${name}.svg`;
+
 const I = (name) => `mods/awsome-config/icons/${name}.svg`;
 const POLL_MS = 3000;
 // The Installed page's place in the list; no mod folder can have this name.
@@ -231,6 +238,23 @@ export default class AwsomeConfig extends View {
     return { block: false, text: hit.section === section ? `Already used by ${what}. Saving moves it here.` : `Already used by ${what} in ${hit.section}.` };
   }
 
+  // An icon button: 24px, a 16px muted icon, a tooltip always; disabled ones fade and do nothing.
+  iconButton(t, id, icon, tip, onClick, disabled = false) {
+    return div()
+      .id(id)
+      .size(S.iconButton)
+      .flex_none()
+      .rounded(S.iconRadius)
+      .flex()
+      .items_center()
+      .justify_center()
+      .tooltip(tip)
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .when(disabled, (el) => el.opacity(0.5))
+      .when(!disabled, (el) => el.cursor_pointer().hover((s) => s.bg(t.hover)).on_click((_e, cx) => onClick(cx)))
+      .child(svg(UI(icon)).size(S.icon).text_color(t.muted));
+  }
+
   kbd(t, label) {
     // shadcn Kbd: h-5 min-w-5 px-1 rounded-sm bg-muted text-xs font-medium text-muted-foreground
     return div().h(20).min_w(20).px(4).rounded(6).bg(t.raised).flex().items_center().justify_center()
@@ -260,8 +284,9 @@ export default class AwsomeConfig extends View {
       .on_click((_e, cx) => (rec ? null : this.startRecording(mod, field, cx)))
       .children(caps.map((c) => this.kbd(t, c)))
       .when(!caps.length, (el) => el.child(div().px(2).text_size(12.5).text_color(t.muted).child(rec ? "Press a shortcut" : "None")));
-    const button = this.button(t, `bc-keybtn-${id}`, rec ? "Cancel" : "Change", (cx) => (rec ? this.stopRecording(cx) : this.startRecording(mod, field, cx)))
-      .on_mouse_down("left", (_e, cx) => cx.stop_propagation());
+    const button = rec
+      ? this.iconButton(t, `bc-keybtn-${id}`, "x", "Cancel (Esc)", (cx) => this.stopRecording(cx))
+      : this.iconButton(t, `bc-keybtn-${id}`, "pencil-simple", "Change shortcut", (cx) => this.startRecording(mod, field, cx));
     return h_flex().gap(8).items_center().child(box).child(button);
   }
 
@@ -423,11 +448,14 @@ export default class AwsomeConfig extends View {
       .child(div().w(16).h(16).rounded(8).bg(on ? t.accent_foreground : t.muted));
   }
 
+  // 28px tall like every other control, so rows line up (docs/REQUIREMENTS.md 3).
   segments(t, id, choices, now, onPick) {
     return h_flex()
+      .h(28)
       .p(2)
       .gap(2)
-      .rounded(8)
+      .items_center()
+      .rounded(7)
       .border_1()
       .border_color(t.border)
       .bg(t.background)
@@ -435,9 +463,11 @@ export default class AwsomeConfig extends View {
         Object.entries(choices).map(([value, label]) =>
           div()
             .id(`${id}-${value}`)
-            .px(12)
-            .py(4)
-            .rounded(6)
+            .h_full()
+            .px(10)
+            .flex()
+            .items_center()
+            .rounded(5)
             .text_size(13)
             .cursor_pointer()
             .when(now === value, (el) => el.bg(t.raised).text_color(t.foreground).border_1().border_color(t.border))
@@ -584,7 +614,7 @@ export default class AwsomeConfig extends View {
     const id = `${name}:${field.key}`;
     if (this.inputs[id]) return;
     const value = getPath(this.mods.find((m) => m.name === name)?.manifest?.settings, field.key);
-    const state = InputState.new({ placeholder: field.default === undefined ? "" : showValue(field.default) });
+    const state = InputState.new({ placeholder: field.placeholder ?? (field.default === undefined ? "" : showValue(field.default)) });
     state.set_value(showValue(value));
     const box = (this.inputs[id] = { state, focused: false, shown: showValue(value) });
     // Saves on Enter or when the box loses focus.
@@ -658,59 +688,57 @@ export default class AwsomeConfig extends View {
     return this.textBox(t, mod, field, value);
   }
 
-  // One setting: what it is on the left, the control on the right, any problem under it.
-  row(t, mod, field) {
+  // One setting: title (and only if needed one line) on the left; the control, then a fixed reset
+  // slot, on the right, so every control and every reset icon share one right edge.
+  row(t, mod, field, last) {
+    const id = `${mod.name}:${field.key}`;
     const value = getPath(mod.manifest.settings, field.key);
-    const problem = this.notes[`${mod.name}:${field.key}`] ?? problemWith(field, value);
+    const problem = this.notes[id] ?? problemWith(field, value);
     const changed = isChanged(field, value);
-    const about = field.description;
+    const recording = this.rec?.id === id ? this.keyProblem(this.rec) ?? { text: "Enter to save \u00b7 Esc to cancel", hint: true } : null;
     return h_flex()
       .w_full()
-      .gap(16)
-      .py(12)
+      .min_h(S.rowPadY * 2 + 28) // every row as tall as one with a 28px control, whatever its control
+      .px(S.rowPadX)
+      .py(S.rowPadY)
+      .gap(S.rowGap)
       .items_center()
-      .border_b(1)
-      .border_color(t.border)
+      .when(!last, (el) => el.border_b(1).border_color(t.border))
       .child(
         v_flex()
           .flex_1()
           .min_w(0)
-          .gap(3)
+          .gap(S.titleDescGap)
           .child(
             h_flex()
               .gap(8)
               .items_center()
-              .child(div().text_size(14).text_color(t.foreground).child(field.title))
-              .when(changed, (el) => el.child(div().w(6).h(6).rounded(3).bg(t.accent))),
+              .child(div().id(`bc-title-${id}`).text_size(S.titleText).font_medium().text_color(t.foreground).tooltip(field.key).child(field.title))
+              .when(changed, (el) => el.child(div().size(S.changedDot).rounded_full().bg(t.accent))),
           )
-          .when(Boolean(about), (el) =>
-            el.child(div().text_size(12.5).line_height("18px").text_color(t.dim).child(about)),
+          .when(Boolean(field.description), (el) =>
+            el.child(div().text_size(S.descText).line_height(`${S.descLine}px`).text_color(t.muted).child(field.description)),
           )
-          .child(div().text_size(11.5).text_color(t.dim).font_family("JetBrains Mono").child(field.key))
-          .when(Boolean(problem), (el) => el.child(div().text_size(12.5).text_color(t.ansi1).child(problem)))
-          .when(this.rec?.id === `${mod.name}:${field.key}`, (el) => {
-            const p = this.keyProblem(this.rec);
-            return el.child(div().text_size(12.5).text_color(p ? (p.block ? t.blocked : t.working) : t.muted).child(p ? p.text : "Enter to save \u00b7 Esc to cancel"));
-          }),
+          .when(Boolean(problem), (el) => el.child(div().text_size(S.descText).text_color(t.blocked).child(problem)))
+          .when(Boolean(recording), (el) =>
+            el.child(div().text_size(S.descText).text_color(recording.hint ? t.muted : recording.block ? t.blocked : t.working).child(recording.text)),
+          ),
       )
-      .when(changed, (el) =>
-        el.child(
-          div()
-            .id(`bc-reset-${mod.name}-${field.key}`)
-            .flex_none()
-            .px(6)
-            .py(3)
-            .rounded(5)
-            .text_size(12)
-            .text_color(t.dim)
-            .cursor_pointer()
-            .hover((s) => s.bg(t.hover).text_color(t.foreground))
-            .tooltip(`Back to ${showValue(field.default) || "the default"}`)
-            .on_click((_e, cx) => this.reset(mod, field, cx))
-            .child("Reset"),
-        ),
-      )
-      .child(div().flex_none().child(this.control(t, mod, field, value)));
+      .child(
+        h_flex()
+          .flex_none()
+          .gap(8)
+          .items_center()
+          .child(this.control(t, mod, field, value))
+          .child(
+            div()
+              .w(S.resetSlot)
+              .flex_none()
+              .when(changed, (el) =>
+                el.child(this.iconButton(t, `bc-reset-${id}`, "arrow-counter-clockwise", `Reset to ${showValue(field.default) || "the default"}`, (cx) => this.reset(mod, field, cx))),
+              ),
+          ),
+      );
   }
 
   // When an update put the shipped values back over the person's own.
@@ -916,67 +944,68 @@ export default class AwsomeConfig extends View {
     if (this.section === INSTALLED) return this.installedPage(t);
     const fields = mod.manifest ? mod.fields : [];
     const changed = fields.filter((f) => isChanged(f, getPath(mod.manifest.settings, f.key)));
-    // Grouped by the first part of the key; one-part keys go first, with no heading.
-    const groups = [];
+    // Grouped by the first part of the key. Ungrouped settings and one-setting groups share the
+    // first card, with no heading (docs/REQUIREMENTS.md 3: no heading for a group of one).
+    const named = new Map();
     for (const field of fields) {
       const name = field.key.includes(".") ? field.key.split(".")[0] : "";
-      let group = groups.find((g) => g.name === name);
-      if (!group) groups.push((group = { name, fields: [] }));
-      group.fields.push(field);
+      if (!named.has(name)) named.set(name, []);
+      named.get(name).push(field);
     }
-    groups.sort((a, b) => (a.name === "" ? -1 : b.name === "" ? 1 : 0));
+    const general = [];
+    const groups = [];
+    for (const [name, list] of named) {
+      if (!name || list.length < 2) general.push(...list);
+      else groups.push({ name, title: mod.schema?.properties?.settings?.properties?.[name]?.title ?? name.replaceAll("_", " "), fields: list });
+    }
+    if (general.length) groups.unshift({ name: "", title: "", fields: general });
     const saveNote = this.notes[`${mod.name}:*`];
+    const where = `mods/${mod.name}/mod.json${mod.manifest?.version ? ` \u00b7 ${mod.manifest.version}` : ""}`;
     return v_flex()
+      .gap(S.sectionGap)
       .child(
         h_flex()
-          .h(30)
-          .gap(10)
+          .h(S.headerRow)
+          .px(S.headingIndent)
           .items_center()
-          .child(div().text_size(18).font_semibold().text_color(t.foreground).child(this.titleOf(mod)))
-          .when(Boolean(mod.manifest?.version), (el) =>
-            el.child(div().text_size(12.5).text_color(t.dim).child(mod.manifest.version)),
-          )
-          .child(div().flex_1())
-          .when(changed.length > 0, (el) =>
-            el.child(
-              this.button(t, `bc-reset-all-${mod.name}`, "Reset all", (cx) =>
-                this.change(mod.name, changed.map((f) => [f.key, f.default]), cx),
-              ),
-            ),
+          .child(div().id("bc-page-title").flex_1().min_w(0).truncate().text_size(15).font_semibold().text_color(t.foreground).tooltip(where).child(this.titleOf(mod)))
+          .child(
+            this.iconButton(t, `bc-reset-all-${mod.name}`, "arrow-counter-clockwise", changed.length ? "Reset all settings to their defaults" : "Nothing to reset",
+              (cx) => this.change(mod.name, changed.map((f) => [f.key, f.default]), cx), changed.length === 0),
           ),
       )
-      .child(
-        div()
-          .pt(4)
-          .text_size(12.5)
-          .text_color(t.dim)
-          .child(`Saved to mods/${mod.name}/mod.json, which the mod reloads at once.`),
-      )
-      .when(Boolean(mod.error), (el) => el.child(div().pt(14).text_size(13).text_color(t.ansi1).child(mod.error)))
-      .when(Boolean(saveNote), (el) => el.child(div().pt(14).text_size(13).text_color(t.ansi1).child(saveNote)))
+      .when(Boolean(mod.error), (el) => el.child(div().px(S.headingIndent).text_size(13).text_color(t.blocked).child(mod.error)))
+      .when(Boolean(saveNote), (el) => el.child(div().px(S.headingIndent).text_size(13).text_color(t.blocked).child(saveNote)))
       .when(Object.keys(mod.lost).length > 0, (el) => el.child(this.lostBanner(t, mod)))
       .children(
         groups.map((g) =>
           v_flex()
-            .when(Boolean(g.name), (el) => el.child(this.heading(t, g.name.replaceAll("_", " "))))
-            .when(!g.name, (el) => el.pt(10))
-            .children(g.fields.map((f) => this.row(t, mod, f))),
+            .gap(S.sectionTitleGap)
+            .when(Boolean(g.title), (el) => el.child(div().px(S.headingIndent).text_size(S.sectionTitle).font_medium().text_color(t.muted).child(g.title)))
+            .child(
+              v_flex()
+                .rounded(S.cardRadius)
+                .border_1()
+                .border_color(t.border)
+                .bg(t.popover)
+                .children(g.fields.map((f, i) => this.row(t, mod, f, i === g.fields.length - 1))),
+            ),
         ),
       );
   }
 
+  // The pages on the left, as sidebar rows; the current one has the indicator bar (docs/REQUIREMENTS.md 2.3).
   nav(t) {
     return v_flex()
       .flex_none()
-      .w(190)
+      .w(S.navWidth)
       .h_full()
-      .p(10)
-      .gap(2)
+      .p(S.navInset)
+      .gap(S.navGap)
+      .bg(t.chrome)
       .border_r(1)
       .border_color(t.border)
-      .child(div().px(10).pt(6).pb(12).text_size(16).font_semibold().text_color(t.foreground).child("Mod settings"))
-      .child(this.navItem(t, INSTALLED, "Installed mods", false))
-      .child(div().mx(10).my(6).h(1).bg(t.border))
+      .child(h_flex().h(S.navLabel).flex_none().px(8).items_center().text_size(S.sectionTitle).font_medium().text_color(t.muted).child("Mods"))
       .child(
         div()
           .id("bc-nav")
@@ -985,40 +1014,39 @@ export default class AwsomeConfig extends View {
           .overflow_y_scroll()
           .child(
             v_flex()
-              .gap(2)
-              .children(
-                this.mods.map((mod) =>
-                  this.navItem(t, mod.name, this.titleOf(mod), mod.error || Object.keys(mod.lost).length > 0),
-                ),
-              ),
+              .gap(S.navGap)
+              .children(this.mods.map((mod) => this.navItem(t, mod.name, this.titleOf(mod), mod.error || Object.keys(mod.lost).length > 0))),
           ),
       )
-      .child(this.button(t, "bc-herdr", "Herdr settings", () => {
-        this.close();
-        run("app.settings");
-      }));
+      .child(this.navItem(t, INSTALLED, "Installed mods", false, "package"))
+      .child(this.navItem(t, "herdr", "Herdr settings", false, "gear-six", () => { this.close(); run("app.settings"); }));
   }
 
-  // One entry in the list on the left: a mod's settings, or the Installed page.
-  navItem(t, section, label, attention) {
-    const on = section === this.section;
+  // One row on the left: a mod's page, the Installed page, or (with act) an action.
+  navItem(t, section, label, attention, icon = null, act = null) {
+    const on = !act && section === this.section;
     return h_flex()
       .id(section === INSTALLED ? "bc-s-installed" : `bc-s-${section}`)
-      .gap(10)
-      .px(10)
-      .py(7)
+      .relative()
+      .flex_none()
+      .h(S.navRow)
+      .px(8)
+      .gap(8)
       .items_center()
-      .rounded(7)
+      .rounded(8)
       .cursor_pointer()
-      .bg(on ? t.raised : "#00000000")
-      .hover((s) => s.bg(t.raised))
+      .when(on, (el) => el.bg(t.selected))
+      .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
       .on_click((_e, cx) => {
+        if (act) return act();
         this.section = section;
         this.handle.focus();
         cx.notify();
       })
-      .child(div().flex_1().min_w(0).truncate().text_size(13.5).text_color(on ? t.foreground : t.muted).child(label))
-      .when(Boolean(attention), (el) => el.child(div().w(7).h(7).rounded(4).bg(t.ansi1)));
+      .when(Boolean(icon), (el) => el.child(svg(UI(icon)).size(S.icon).flex_none().text_color(t.muted)))
+      .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(on ? t.foreground : t.muted).child(label))
+      .when(Boolean(attention), (el) => el.child(div().size(S.changedDot).rounded_full().bg(t.blocked)))
+      .when(on, (el) => el.child(div().absolute().left(0).top((S.navRow - 24) / 2).w(4).h(24).rounded(6).bg(t.accent)));
   }
 
   render(cx) {
@@ -1070,8 +1098,9 @@ export default class AwsomeConfig extends View {
               .overflow_y_scroll()
               .child(
                 div()
-                  .px(28)
-                  .py(22)
+                  .px(S.pagePadX)
+                  .pt(S.pagePadY)
+                  .pb(24)
                   .child(this.loaded ? this.page(t, mod) : div().text_size(13).text_color(t.dim).child("Loading…")),
               ),
           )

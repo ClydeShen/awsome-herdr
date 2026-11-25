@@ -73,7 +73,6 @@
           "properties": {
             "up": {
               "title": "Up a folder",
-              "description": "Moves the tree's root to its parent folder. Works while the file tree has focus.",
               "type": "string",
               "format": "key",
               "x-action": "awsome-filetree.up",
@@ -81,8 +80,7 @@
               "default": "ctrl-alt-backspace"
             },
             "into": {
-              "title": "Into the folder",
-              "description": "Makes the selected folder the tree's root. Works while the file tree has focus.",
+              "title": "Into a folder",
               "type": "string",
               "format": "key",
               "x-action": "awsome-filetree.into",
@@ -90,15 +88,15 @@
               "default": "ctrl-alt-enter"
             },
             "follow": {
-              "title": "Back to the focused pane",
-              "description": "Makes the tree follow the focused pane's folder again, after Up a folder or Into the folder. Works while the file tree has focus.",
+              "title": "Follow the terminal again",
               "type": "string",
               "format": "key",
               "x-action": "awsome-filetree.follow",
               "x-section": "mod:awsome-filetree",
               "default": "ctrl-alt-home"
             }
-          }
+          },
+          "title": "Shortcuts"
         }
       }
     }

@@ -66,8 +66,7 @@
           "additionalProperties": false,
           "properties": {
             "retry_after": {
-              "title": "Sidebar branch check",
-              "description": "How long a failed Git read waits before it's tried again.",
+              "title": "Retry failed Git reads",
               "type": [
                 "string",
                 "integer"
@@ -76,23 +75,22 @@
               "pattern": "^\\s*\\d+(\\.\\d+)?\\s*(ms|s|m|h)\\s*$",
               "default": "15s"
             }
-          }
+          },
+          "title": "Git"
         },
         "combined": {
-          "title": "Spaces and agents in tabs",
-          "description": "In a block showing both lists (view: lists), put them under tabs: Spaces with each space's tabs and agents beneath it, and Agents. Off: spaces above agents.",
+          "title": "Spaces and agents as tabs",
           "type": "boolean",
           "default": true
         },
         "pull_request_status": {
           "title": "Pull request status",
-          "description": "Colour spaces by their pull request's state, through the GitHub CLI. Turn off if you don't have gh.",
+          "description": "Needs the GitHub CLI.",
           "type": "boolean",
           "default": true
         },
         "agent_name": {
           "title": "Agent names",
-          "description": "What each agent row is called: its tab's name, as Herdr's tab bar shows it, or the terminal's live title, which agents set to what they're doing. Either falls back to the other.",
           "enum": [
             "tab",
             "title"

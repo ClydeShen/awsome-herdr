@@ -151,7 +151,6 @@
         }
       ],
       "ours": "Nav list on the left (sidebar rows, current page with the indicator bar). Each page: title and one short line; groups under 11px headings; each group one bordered card (radius 10) with rows separated by 1px lines; row = title 13 medium and one-line description 12 muted on the left, control and a fixed 24px slot for its reset icon on the right; a changed setting shows a 6px accent dot after its title and the reset icon. Icon buttons (24px, 16px icons, tooltips) instead of text buttons. The setting's key path only in the title's tooltip.",
-      "planned": true,
       "code": {
         "awsome-config": [
           "arrow-counter-clockwise",

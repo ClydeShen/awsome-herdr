@@ -67,7 +67,6 @@
           "properties": {
             "max_width": {
               "title": "Tab width",
-              "description": "The widest a tab gets.",
               "type": "integer",
               "minimum": 60,
               "x-step": 10,
@@ -75,8 +74,7 @@
               "default": 170
             },
             "drag_delay": {
-              "title": "Drag delay",
-              "description": "How long a press must last before a tab can be dragged. 0: moving the pointer 6px starts a drag.",
+              "title": "Hold before dragging",
               "type": [
                 "string",
                 "integer"
@@ -86,18 +84,17 @@
               "default": "0ms"
             },
             "auto_name": {
-              "title": "Name tabs",
-              "description": "Tabs follow what runs in them: an agent's topic, else its name, a shell's folder, another program's name. Your own names stay; renaming a tab to nothing hands it back.",
+              "title": "Name tabs automatically",
               "type": "boolean",
               "default": true
             },
             "middle_click_close": {
-              "title": "Close tabs with the middle mouse button",
-              "description": "Middle-click a tab to close it, as in a browser.",
+              "title": "Close tabs with middle-click",
               "type": "boolean",
               "default": true
             }
-          }
+          },
+          "title": "Tabs"
         },
         "menu": {
           "type": "object",
@@ -105,14 +102,14 @@
           "properties": {
             "width": {
               "title": "Menu width",
-              "description": "The width of the ⋮ menu.",
               "type": "integer",
               "minimum": 120,
               "x-step": 10,
               "x-unit": "px",
               "default": 240
             }
-          }
+          },
+          "title": "Menu"
         }
       }
     }

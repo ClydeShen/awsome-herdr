@@ -72,8 +72,7 @@
           "additionalProperties": false,
           "properties": {
             "status": {
-              "title": "Changes list refresh",
-              "description": "How often Git is read for changes.",
+              "title": "Git refresh",
               "type": [
                 "string",
                 "integer"
@@ -82,31 +81,29 @@
               "pattern": "^\\s*\\d+(\\.\\d+)?\\s*(ms|s|m|h)\\s*$",
               "default": "10s"
             }
-          }
+          },
+          "title": "Refresh"
         },
         "limits": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
             "files": {
-              "title": "Files shown",
-              "description": "The most files a list shows.",
+              "title": "Max files listed",
               "type": "integer",
               "minimum": 1,
               "x-step": 100,
               "default": 1000
             },
             "diff_lines": {
-              "title": "Diff lines",
-              "description": "The most lines a diff shows, Full file included.",
+              "title": "Max diff lines",
               "type": "integer",
               "minimum": 1,
               "x-step": 100,
               "default": 1500
             },
             "line_length": {
-              "title": "Line length",
-              "description": "Longer lines in a diff are cut here.",
+              "title": "Max line length",
               "type": "integer",
               "minimum": 1,
               "x-step": 500,
@@ -114,13 +111,13 @@
             },
             "commits_per_page": {
               "title": "Commits per page",
-              "description": "How many commits load at a time.",
               "type": "integer",
               "minimum": 1,
               "x-step": 10,
               "default": 50
             }
-          }
+          },
+          "title": "Limits"
         },
         "default": {
           "type": "object",
@@ -128,7 +125,6 @@
           "properties": {
             "view": {
               "title": "File list",
-              "description": "How file lists start, until you choose in the ⋮ menu.",
               "type": "string",
               "enum": [
                 "tree",
@@ -141,8 +137,7 @@
               "default": "tree"
             },
             "diff": {
-              "title": "Diff",
-              "description": "How diffs start, until you choose in the ⋮ menu.",
+              "title": "Diff layout",
               "type": "string",
               "enum": [
                 "inline",
@@ -154,19 +149,20 @@
               },
               "default": "inline"
             }
-          }
+          },
+          "title": "Defaults"
         },
         "panel": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
             "toggle": {
-              "title": "Key closes the panel",
-              "description": "Lets the panel key close an open panel, instead of leaving it alone.",
+              "title": "Panel key closes the panel",
               "type": "boolean",
               "default": false
             }
-          }
+          },
+          "title": "Panel"
         }
       }
     }

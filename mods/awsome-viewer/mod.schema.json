@@ -67,7 +67,6 @@
           "properties": {
             "tree": {
               "title": "Tree refresh",
-              "description": "How often the tree rereads, on top of watching the folder. Never closer than 1 second.",
               "type": [
                 "string",
                 "integer"
@@ -78,7 +77,6 @@
             },
             "file": {
               "title": "File refresh",
-              "description": "How often an open file is checked for changes. Never closer than 500ms.",
               "type": [
                 "string",
                 "integer"
@@ -87,11 +85,12 @@
               "pattern": "^\\s*\\d+(\\.\\d+)?\\s*(ms|s|m|h)\\s*$",
               "default": "2s"
             }
-          }
+          },
+          "title": "Refresh"
         },
         "editors": {
           "title": "More editors",
-          "description": "macOS app IDs to add to Open in, such as dev.zed.Zed. Shown only if installed.",
+          "description": "macOS app IDs, such as dev.zed.Zed.",
           "type": "array",
           "items": {
             "type": "string"
@@ -103,32 +102,32 @@
           "additionalProperties": false,
           "properties": {
             "name": {
-              "title": "File manager's name",
-              "description": "What Show in and the folder menu's Open in call the file manager command below. Empty: file manager.",
+              "title": "Name",
               "type": "string",
-              "default": ""
+              "default": "",
+              "x-placeholder": "File manager"
             },
             "command": {
-              "title": "File manager command",
-              "description": "A program for Show in and the folder menu's Open in, in place of Finder, Explorer or the desktop's file manager: the program and its first arguments, such as [\"nautilus\", \"--select\"]; the file or folder goes after them. This computer only. Empty: the platform's own.",
+              "title": "Command",
               "type": "array",
               "items": {
                 "type": "string",
                 "minLength": 1
               },
-              "default": []
+              "default": [],
+              "x-placeholder": "open -a Finder"
             }
-          }
+          },
+          "title": "File manager"
         },
         "gutter": {
           "title": "Changed lines",
-          "description": "Tint changed lines. Off uses Herdr's own editor instead: selection, folding and a real grammar, but no line colours, and no TypeScript or Vue grammar.",
+          "description": "Off uses Herdr's editor, with selection and folding.",
           "type": "boolean",
           "default": true
         },
         "markdown": {
           "title": "Markdown opens as",
-          "description": "How a Markdown file first shows: Preview renders it, Code shows its text with changed lines. Each tab remembers the last choice from the toggle.",
           "type": "string",
           "enum": [
             "preview",

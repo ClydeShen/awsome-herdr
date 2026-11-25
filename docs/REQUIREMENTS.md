@@ -186,7 +186,7 @@
   - **录制**：点按键块或 `Change` 进入；框变成 `accent` 描边，写 `Press a shortcut`；按住修饰键时按键块实时出现；按下完整组合后显示录到的组合。**Enter 保存；Esc 或点框外面取消，恢复原来的键**；录制时 `Change` 的位置变成 `Cancel`（不再并排两个按钮，原型里 Save 溢出了）。带修饰键的 Enter / Esc（如 `Ctrl+Alt+Enter`）照常录入。
   - **已占用**：录到的组合如果已经绑定了别的功能，提示 `Already used by <功能>. Saving moves it here.`（`working` 色）。`Ctrl+Alt+Shift+Escape`（Herdr 紧急重置）不能录。
   - **怎么收到已被 Herdr 占用的键**（实测 2026-11-26）：获得焦点的界面收不到 `keys.json` 里已绑定的键（Herdr 先执行它们，`Alt+↑` 还会切走焦点关掉对话框）。办法是在 `keys.json` 里维护一个 `mod:awsome-config` 分区（只在设置对话框有焦点时生效），把其他分区里已绑定的键都转给录制框（`awsome-config.cap:<键>`）；不在录制时，录制框照常执行这个键原本的功能，所以平时行为不变。原型验证过 `Alt+↑`、`Ctrl+Alt+Backspace` 能这样收到。
-**设置对话框重新设计**（⬜ 版式和图标按钮的预览已确认 2026-11-26，文字按"克制"原则再精简；惯例见 `design/conventions.json` 的 `settings-page`，数值在 `design/tokens.json` 的 `settings`）
+**设置对话框重新设计**（✅ 2026-11-26 已实现；惯例见 `design/conventions.json` 的 `settings-page`，数值在 `design/tokens.json` 的 `settings`）
 - **为什么改**：文字挤在一起、按钮是文字、每行都露出设置路径、单项重置几乎看不见（一个很小的灰色 `Reset` 文字），说明又长又带术语。
 - **版式**（来源：shadcn `Item` / `Field`，macOS 系统设置和 Windows 11 设置的分组写法）：
   - **左侧导航** 200 宽，和侧边栏同一种行（高 28、左右 8、圆角 8、行间 4）；当前页用 `selected` 叠层加左侧指示条。底部两行带图标：`Installed mods`（package 图标）、`Herdr settings`（gear 图标）。

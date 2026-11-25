@@ -73,23 +73,24 @@
           "properties": {
             "hide": {
               "title": "Hidden terminals",
-              "description": "Terminal names to leave out of the menu, as the menu shows them (for example Command Prompt).",
               "type": "array",
               "items": {
                 "type": "string"
               },
-              "default": []
+              "default": [],
+              "x-placeholder": "Command Prompt"
             },
             "extra": {
               "title": "More terminals",
-              "description": "Terminals to add, one per line as Name: command (for example Nushell: nu).",
               "type": "array",
               "items": {
                 "type": "string"
               },
-              "default": []
+              "default": [],
+              "x-placeholder": "Nushell: nu"
             }
-          }
+          },
+          "title": "Terminals"
         }
       }
     }
