@@ -140,7 +140,7 @@
 
 **反馈**：
 - 后台完成的动作用 Herdr 的 `notify` 发一个短 toast（`Moved 3 items to the Recycle Bin`）；出错留在原处显示（对话框里、行内），不弹额外的警告框。
-- 加载中写 `Loading…`；空状态写一句话说明怎么开始。
+- 加载中写 `Loading…`；**空状态默认不写文字**，空白本身就说明是空的（2026-11-26，用户；和 §2.1 的"文字克制"一致）。
 - **撤销只给低风险的文件操作**（新建、重命名、移动）；删除进回收站，不提供撤销；侧边栏的整理（分组、颜色）用拖拽或菜单就能改回，不做撤销。
 
 ### 2.7 各面板的布局（要点）
@@ -386,23 +386,16 @@
 | 打开 | `Focus` | `agent.focus {terminal}` | 总有 |
 | 打开 | `Open in its own tab` | `terminal.keep {terminal, place:"tab"}` | 只对**没有 pane 的子 agent** 显示 |
 | 编辑 | `Rename pane` `F2` | 行内编辑，写 `pane.rename {pane, name}` | 没有 pane 的子 agent 灰掉，tooltip `It has no pane to rename` |
-| 编辑 | `Rename session` | 在该 agent 的输入框里填入 `/rename `，**不回车** | 见下面"会话命令" |
-| 编辑 | `Fork session` | 填入 `/branch`，**不回车** | 同上 |
-| 编辑 | `Resume session` | 填入 `/resume`，**不回车** | 同上；是 Fork 的"回"：弹出会话选择器，选回原会话 |
 | 整理 | `Pin` / `Unpin` | `terminal.pin {terminal, pinned}` | 总有，按当前状态换字 |
 | 整理 | `Send back` | `terminal.park {terminal}` | 只对**有 pane** 的显示（agent 继续运行，只收起 pane） |
 | 复制 | `Copy working directory` | 写剪贴板，toast `Copied` | 有 `cwd` 时 |
 | 危险 | `Close agent…` | `terminal.kill {terminal}` | 总有，红色、放最后 |
 
-- **会话命令**（`Rename session`、`Fork session`、`Resume session`）：
-  - 做法同文件树的 `sendToAgent`：文本写进剪贴板，`pane.focus` 到该 agent，再 `terminal.paste`，之后还原剪贴板；**不自动回车**，让用户看一眼再按 Enter（agent 正在工作时，自动回车会把命令塞进待处理队列或打断它的输入）。
-  - 命令来自一张"程序 → 命令"表（`programs.json` 的 `key`）；现在只有 `claude`：`/rename`、`/branch`、`/resume`（Claude Code 文档 code.claude.com/docs/en/sessions）。`/rename` 和 `/fork` 别名没在文档里查到，**`/rename` 实现前再核对一次**，别名不用。
-  - 表里没有的 agent，这三项**变灰**，tooltip 写 `Not supported for <agent>`；不盲发。
-  - `/branch` 的效果是**在同一个终端里切进新分支**，原会话留在会话选择器里，不新开 tab。
+- **只用 Herdr 自己的命令**：对所有 agent 一样有效。`/rename`、`/branch`（fork）、`/resume` 是各家 agent CLI 自己的命令，目前只在 Claude Code 的文档里查实，**其余 agent 没把握，所以不做**（2026-11-26 你定的）。以后某个 agent 的命令查实了，再单独加，并按"程序 → 命令"表逐个启用。
 - **Rename pane 的行内编辑**：和 space、组一样（惯例 `inline-rename`）：行里的名字变成输入框并全选，Enter 保存、Esc 取消、点别处保存、留空 = 保持原名；`F2` 在 agent 行有焦点时同样触发。
 - **Close agent… 的确认**（惯例 `agent-close-confirm`）：agent 是 `idle` 或 `done` → 直接关；`working` 或 `blocked` → 先用 Herdr 自带的 `confirm`：标题 `Close <name>?`，正文 `It is working. Closing stops it.`（`blocked` 写 `It is waiting for you. Closing stops it.`），红色按钮 `Close agent`，Enter 确认、Esc 取消。没有 `Don’t ask again`（关掉的 agent 找不回运行状态）。
-- **有去有回**（`design/flows.json`）：菜单 ⇄ 点空白处、Esc；Rename pane ⇄ Enter / Esc / 点别处；Fork ⇄ Resume。
-- **不做**：多选 agent 的批量操作、自动回车、读会话文件找会话 id、命令行 `--fork-session` 方式（取"当前目录最近一次会话"，同目录多个 agent 会分叉错）。
+- **有去有回**（`design/flows.json`）：菜单 ⇄ 点空白处、Esc；Rename pane ⇄ Enter / Esc / 点别处。
+- **不做**：Rename session、Fork session、Resume session（见上）；多选 agent 的批量操作；读会话文件找会话 id；命令行 `--fork-session`（取"当前目录最近一次会话"，同目录多个 agent 会分叉错）。
 
 ### 4.3 awsome-filetree：视觉和基础操作 🟡
 

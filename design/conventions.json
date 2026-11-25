@@ -169,10 +169,10 @@
         },
         {
           "app": "Chrome / Edge (tab context menu)",
-          "behavior": "Right-click a tab: Reload, Duplicate, Pin, Mute, then Close last. Duplicate makes a copy next to the original and the original stays."
+          "behavior": "Right-click a tab: Reload, Duplicate, Pin, Mute, then Close last. Pin keeps the tab at the start of the strip."
         }
       ],
-      "ours": "Right-click an agent row: Focus, Open in its own tab | Rename pane (F2), Rename session, Fork session, Resume session | Pin, Send back | Copy working directory | Close agent (red, last). Fork is our Duplicate; Resume brings the original session back.",
+      "ours": "Right-click an agent row: Focus, Open in its own tab | Rename pane (F2) | Pin, Send back | Copy working directory | Close agent (red, last). Only Herdr's own commands, so every agent works the same; commands that belong to one agent's CLI (fork, rename session) are left out.",
       "code": {
         "awsome-menu": [
           "scope === \"agent\""
@@ -214,7 +214,7 @@
           "behavior": "F2 (Enter in Finder) edits the name in place; Enter saves, Esc cancels."
         }
       ],
-      "ours": "Rename pane on an agent row edits the name in the row, same as spaces and groups: Enter saves, Esc cancels, clicking away saves, empty keeps the old name. Rename session does not edit in place: it types /rename into the agent for the person to finish.",
+      "ours": "Rename pane on an agent row edits the name in the row, same as spaces and groups: Enter saves, Esc cancels, clicking away saves, empty keeps the old name.",
       "code": {
         "awsome-sidebar": [
           "rename"

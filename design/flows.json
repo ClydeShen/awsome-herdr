@@ -244,21 +244,6 @@
         "keys": "Enter saves, Esc cancels",
         "code": []
       }
-    },
-    {
-      "id": "agent-fork",
-      "mod": "awsome-menu",
-      "to": "a forked branch of the agent's session",
-      "forward": {
-        "mouse": "menu: Fork session (types /branch)",
-        "keys": "",
-        "code": []
-      },
-      "back": {
-        "mouse": "menu: Resume session (types /resume, pick the original)",
-        "keys": "",
-        "code": []
-      }
     }
   ]
 }
