@@ -5,63 +5,137 @@
       "id": "key-recording",
       "what": "Setting a keyboard shortcut",
       "references": [
-        { "app": "VS Code (Keyboard Shortcuts editor)", "behavior": "Double-click a row: 'Press desired key combination and then press ENTER'; the keys show as keycaps while pressed; Esc cancels; a note says how many commands already use that key." },
-        { "app": "Windows Settings / macOS System Settings", "behavior": "Click the shortcut field, press the keys once, they are recorded and shown as keycaps; no typing of key names." }
+        {
+          "app": "VS Code (Keyboard Shortcuts editor)",
+          "behavior": "Double-click a row: 'Press desired key combination and then press ENTER'; the keys show as keycaps while pressed; Esc cancels; a note says how many commands already use that key."
+        },
+        {
+          "app": "Windows Settings / macOS System Settings",
+          "behavior": "Click the shortcut field, press the keys once, they are recorded and shown as keycaps; no typing of key names."
+        }
       ],
       "ours": "Click the keycaps or Change; the box shows 'Press a shortcut' and keycaps (shadcn Kbd) appear as keys are held; Enter saves, Esc or a click outside cancels; a key used elsewhere shows 'Already used by ...'. Keys Herdr already binds are caught through a mod:awsome-config section of keys.json, since a focused view never receives them.",
-      "planned": true,
-      "code": { "awsome-config": ["on_modifiers_changed", "Press a shortcut", "Already used by"] }
+      "code": {
+        "awsome-config": [
+          "on_modifiers_changed",
+          "Press a shortcut",
+          "Already used by"
+        ]
+      }
     },
     {
       "id": "submenu",
       "what": "A menu item that leads to more items",
       "references": [
-        { "app": "Windows Explorer / VS Code context menus", "behavior": "The item shows a chevron; hovering or pressing Right opens the submenu beside it; Left or hovering another item closes it; the parent menu stays." },
-        { "app": "macOS menus", "behavior": "Same: submenus open to the side and keep the parent menu in place." }
+        {
+          "app": "Windows Explorer / VS Code context menus",
+          "behavior": "The item shows a chevron; hovering or pressing Right opens the submenu beside it; Left or hovering another item closes it; the parent menu stays."
+        },
+        {
+          "app": "macOS menus",
+          "behavior": "Same: submenus open to the side and keep the parent menu in place."
+        }
       ],
       "ours": "menu.js `submenu`: › on the right; hover, Right or Enter opens it beside the item; Left, Esc or hovering another item closes it.",
-      "code": { "awsome-menu": ["submenu:", "menuNav("], "awsome-filetree": ["submenu"] }
+      "code": {
+        "awsome-menu": [
+          "submenu:",
+          "menuNav("
+        ],
+        "awsome-filetree": [
+          "submenu"
+        ]
+      }
     },
     {
       "id": "context-menu",
       "what": "Right-click menu",
       "references": [
-        { "app": "VS Code", "behavior": "Right-click opens at the pointer; items grouped by separators; keys shown on the right; arrows move; Enter runs; Esc closes; Shift+F10 opens it from the keyboard." },
-        { "app": "Windows Explorer / macOS Finder", "behavior": "Right-click (or the Menu key / Shift+F10) opens it; destructive items last; unavailable items greyed." }
+        {
+          "app": "VS Code",
+          "behavior": "Right-click opens at the pointer; items grouped by separators; keys shown on the right; arrows move; Enter runs; Esc closes; Shift+F10 opens it from the keyboard."
+        },
+        {
+          "app": "Windows Explorer / macOS Finder",
+          "behavior": "Right-click (or the Menu key / Shift+F10) opens it; destructive items last; unavailable items greyed."
+        }
       ],
       "ours": "menu.js: groups in a fixed order with separators, keys on the right, arrows/Enter/Esc, danger last in red, unavailable items greyed with the reason as a tooltip. Keyboard opening (Shift+F10) is pending the user's decision.",
-      "code": { "awsome-filetree": ["menuView(", "menuKey("], "awsome-menu": ["menuView(", "menuNav("] }
+      "code": {
+        "awsome-filetree": [
+          "menuView(",
+          "menuKey("
+        ],
+        "awsome-menu": [
+          "menuView(",
+          "menuNav("
+        ]
+      }
     },
     {
       "id": "close-tab-middle-click",
       "what": "Closing a tab with the middle mouse button",
       "references": [
-        { "app": "Chrome / Firefox / Edge", "behavior": "Middle-click on a tab closes it, on release." },
-        { "app": "VS Code", "behavior": "Middle-click on an editor tab closes it." }
+        {
+          "app": "Chrome / Firefox / Edge",
+          "behavior": "Middle-click on a tab closes it, on release."
+        },
+        {
+          "app": "VS Code",
+          "behavior": "Middle-click on an editor tab closes it."
+        }
       ],
       "ours": "Middle-click (on release) runs the same close as the tab's x button; the x tooltip says 'Close tab (middle-click)'.",
-      "code": { "awsome-tabs": ["on_mouse_up(\"middle\"", "Close tab (middle-click)"] }
+      "code": {
+        "awsome-tabs": [
+          "on_mouse_up(\"middle\"",
+          "Close tab (middle-click)"
+        ]
+      }
     },
     {
       "id": "folder-navigation",
       "what": "Going up and into folders in a tree",
       "references": [
-        { "app": "Windows Explorer", "behavior": "Alt+Up goes up; Enter opens a folder; Backspace goes back; the folder you came from stays selected after going up." },
-        { "app": "macOS Finder", "behavior": "Cmd+Up goes up; Cmd+Down opens the selected folder." }
+        {
+          "app": "Windows Explorer",
+          "behavior": "Alt+Up goes up; Enter opens a folder; Backspace goes back; the folder you came from stays selected after going up."
+        },
+        {
+          "app": "macOS Finder",
+          "behavior": "Cmd+Up goes up; Cmd+Down opens the selected folder."
+        }
       ],
       "ours": "Ctrl+Alt+Backspace up, Ctrl+Alt+Enter into the selected folder (Alt+Up is Herdr's agent.prev; plain Enter already expands), Ctrl+Alt+Home back to following the focused pane; going up selects the folder you left.",
       "deviation": "Ctrl+Alt instead of Alt / Cmd, because Herdr owns Alt+Up/Down and plain Enter expands a folder in the tree; chosen by the user.",
-      "code": { "awsome-filetree": ["goUp()", "enterFolder(", "followPane()"] }
+      "code": {
+        "awsome-filetree": [
+          "goUp()",
+          "enterFolder(",
+          "followPane()"
+        ]
+      }
     },
     {
       "id": "confirm-dialog",
       "what": "Confirming a destructive action",
       "references": [
-        { "app": "Herdr's own confirm", "behavior": "Enter confirms, Esc cancels." },
-        { "app": "Windows Explorer delete / macOS Finder", "behavior": "A question with the count, the action named on the button, Enter on the default button, Esc cancels." }
+        {
+          "app": "Herdr's own confirm",
+          "behavior": "Enter confirms, Esc cancels."
+        },
+        {
+          "app": "Windows Explorer delete / macOS Finder",
+          "behavior": "A question with the count, the action named on the button, Enter on the default button, Esc cancels."
+        }
       ],
       "ours": "confirm.js: a question with the count as the title, names listed (8 then +N more), Cancel and a red button that names the action, Enter confirms, Esc cancels.",
-      "code": { "awsome-filetree": ["confirmView(", "confirmKey("] }
+      "code": {
+        "awsome-filetree": [
+          "confirmView(",
+          "confirmKey("
+        ]
+      }
     }
   ]
 }

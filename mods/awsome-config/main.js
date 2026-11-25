@@ -6,7 +6,7 @@
 // update wiped can be put back.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, Scrollbar, InputState, Input, Select, Popup, Checkbox } from "gpui-base";
-import { appHome, home, exec, readTextFile, writeTextFile, theme, props, closeOverlay, run, window, layout } from "herdr";
+import { appHome, home, exec, readTextFile, writeTextFile, theme, props, closeOverlay, run, window, layout, keys as boundKeys, commands, nextCommand, shared } from "herdr";
 import {
   fieldsOf,
   getPath,
@@ -26,6 +26,24 @@ import {
   rebind,
 } from "./model.js";
 import { pickListMods, pickMkdir } from "./shell.js";
+
+// ── Shortcut recorder (docs/REQUIREMENTS.md 3, design/conventions.json key-recording) ──
+// Press the keys once; they show as keycaps (shadcn Kbd). Keys Herdr already binds never reach a
+// focused view, so CAPTURE, a keys.json section that only applies while this dialog has focus,
+// hands every bound key to this mod as "cap:<key>"; when not recording, the key's own action runs.
+const CAPTURE = "mod:awsome-config";
+const RESERVED = "ctrl-alt-shift-escape"; // Herdr's emergency reset
+const MODIFIERS = ["ctrl", "alt", "shift", "cmd", "fn", "control", "platform", "function"];
+const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const keyParts = (stroke) => (!stroke ? [] : stroke.endsWith("--") ? [...stroke.slice(0, -2).split("-"), "-"] : stroke.split("-"));
+const bareKey = (stroke) => !keyParts(stroke).some((p) => p === "ctrl" || p === "alt" || p === "cmd");
+const WORDS = { ctrl: "Ctrl", alt: "Alt", shift: "Shift", cmd: "Win", fn: "Fn", enter: "Enter", escape: "Esc", backspace: "Backspace", delete: "Delete",
+  tab: "Tab", space: "Space", up: "\u2191", down: "\u2193", left: "\u2190", right: "\u2192", home: "Home", end: "End", pageup: "PgUp", pagedown: "PgDn" };
+const MAC_WORDS = { ctrl: "\u2303", alt: "\u2325", shift: "\u21e7", cmd: "\u2318" };
+function keyCaps(stroke, mac) {
+  return keyParts(stroke).map((p) => (mac && MAC_WORDS[p]) || WORDS[p] || (p.length === 1 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1)));
+}
+const actionName = (a) => (isPlainObject(a) ? a.command : String(a ?? ""));
 
 const I = (name) => `mods/awsome-config/icons/${name}.svg`;
 const POLL_MS = 3000;
@@ -54,6 +72,17 @@ export default class AwsomeConfig extends View {
     this.triggerFocus = cx.focus_handle();
     this.openMenu = null; // the dropdown that's open
     this.menuIndex = 0;
+    this.rec = null; // the shortcut being recorded: { id, mod, field, held, captured }
+    cx.spawn(async (cx) => {
+      for (;;) {
+        const c = String(await nextCommand()).replace(/^awsome-config[.]/, "");
+        const m = /^cap:(.+)$/.exec(c);
+        if (!m) continue;
+        if (this.rec) { this.rec.captured = m[1]; this.rec.held = []; }
+        else this.passOn(m[1]);
+        cx.notify();
+      }
+    });
     cx.spawn(async (cx) => {
       await this.load();
       cx.notify();
@@ -126,7 +155,114 @@ export default class AwsomeConfig extends View {
     this.loaded = true;
     if (this.section !== INSTALLED && !mods.some((m) => m.name === this.section)) this.section = mods[0]?.name ?? INSTALLED;
     this.makeInputs();
+    await this.ensureCapture().catch(() => {});
     return before !== shape(mods, installed, keys, shown);
+  }
+
+  // CAPTURE lists every key bound in another section, so recording receives it.
+  async ensureCapture() {
+    const path = `${appHome()}/keys.json`;
+    const raw = await readTextFile(path);
+    if (raw === null) return;
+    let k;
+    try { k = JSON.parse(raw); } catch { return; }
+    if (!isPlainObject(k)) return;
+    const want = {};
+    for (const [section, binds] of Object.entries(k)) {
+      if (section === CAPTURE || !isPlainObject(binds)) continue;
+      for (const key of Object.keys(binds)) if (key !== RESERVED) want[key] = `awsome-config.cap:${key}`;
+    }
+    const sorted = Object.fromEntries(Object.keys(want).sort().map((key) => [key, want[key]]));
+    if (JSON.stringify(k[CAPTURE] ?? {}) === JSON.stringify(sorted)) return;
+    k[CAPTURE] = sorted;
+    await writeTextFile(path, `${JSON.stringify(k, null, 2)}\n`, raw);
+  }
+
+  // Not recording: a caught key does what it does elsewhere (layout section first, then global).
+  passOn(key) {
+    const all = (boundKeys() ?? []).filter((b) => b.keys === key && b.section !== CAPTURE);
+    const hit = all.find((b) => b.section === `layout:${shared("layout")}`) ?? all.find((b) => b.section === "global");
+    if (hit) this.runAction(hit.action);
+  }
+
+  runAction(action) {
+    try {
+      if (isPlainObject(action)) return run(action.command, action.args ?? {});
+      const s = String(action ?? "");
+      if (!s || s === "terminal" || s.startsWith("send:")) return;
+      const at = s.indexOf(":");
+      if (at < 0) return run(s, {});
+      const name = s.slice(0, at), value = s.slice(at + 1);
+      const arg = ((commands() ?? []).find((c) => c.name === name)?.args ?? [])[0]?.name;
+      run(name, arg ? { [arg]: /^[0-9]+$/.test(value) ? Number(value) : value } : {});
+    } catch {}
+  }
+
+  startRecording(mod, field, cx) {
+    this.rec = { id: `${mod.name}:${field.key}`, mod: mod.name, field, held: [], captured: null };
+    this.handle.focus();
+    cx.notify();
+  }
+
+  stopRecording(cx) {
+    this.rec = null;
+    cx.notify();
+  }
+
+  saveRecording(cx) {
+    const r = this.rec;
+    if (!r?.captured) return this.stopRecording(cx);
+    if (this.keyProblem(r)?.block) return cx.notify();
+    this.rec = null;
+    this.change(r.mod, [[r.field.key, r.captured]], cx);
+    cx.notify();
+  }
+
+  // What is wrong with the recorded key, if anything. block: it can't be saved.
+  keyProblem(r) {
+    const k = r?.captured;
+    if (!k) return null;
+    if (k === RESERVED) return { block: true, text: "Herdr keeps this key for its emergency reset. Pick another." };
+    const section = r.field.section ?? "global";
+    if (section === "global" && bareKey(k)) return { block: true, text: "Without Ctrl, Alt or Cmd this key would stop typing in terminals. Add one." };
+    const hit = (boundKeys() ?? []).find((b) => b.keys === k && b.section !== CAPTURE && actionName(b.action) !== r.field.action);
+    if (!hit) return null;
+    const what = actionName(hit.action);
+    return { block: false, text: hit.section === section ? `Already used by ${what}. Saving moves it here.` : `Already used by ${what} in ${hit.section}.` };
+  }
+
+  kbd(t, label) {
+    // shadcn Kbd: h-5 min-w-5 px-1 rounded-sm bg-muted text-xs font-medium text-muted-foreground
+    return div().h(20).min_w(20).px(4).rounded(6).bg(t.raised).flex().items_center().justify_center()
+      .text_size(11).font_medium().text_color(t.muted).child(label);
+  }
+
+  keyField(t, mod, field, value) {
+    const id = `${mod.name}:${field.key}`;
+    const rec = this.rec?.id === id ? this.rec : null;
+    const current = value === undefined ? field.default : value;
+    const shown = rec ? (rec.captured ?? (rec.held.length ? rec.held.join("-") : null)) : current;
+    const caps = keyCaps(shown, window()?.platform === "macos");
+    const box = h_flex()
+      .id(`bc-key-${id}`)
+      .h(28)
+      .min_w(160)
+      .px(6)
+      .gap(4)
+      .items_center()
+      .rounded(7)
+      .border_1()
+      .border_color(rec ? t.accent : t.border)
+      .bg(t.background)
+      .cursor_pointer()
+      .tooltip(rec ? "Enter to save, Esc to cancel" : "Click and press the new shortcut")
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => (rec ? null : this.startRecording(mod, field, cx)))
+      .children(caps.map((c) => this.kbd(t, c)))
+      .when(!caps.length, (el) => el.child(div().px(2).text_size(12.5).text_color(t.muted).child(rec ? "Press a shortcut" : "None")));
+    const button = this.button(t, `bc-keybtn-${id}`, rec ? "Cancel" : "Change", (cx) => (rec ? this.stopRecording(cx) : this.startRecording(mod, field, cx)))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation());
+    return h_flex().gap(8).items_center().child(box).child(button);
   }
 
   // A JSON file, or null when it's missing or unreadable.
@@ -439,6 +575,7 @@ export default class AwsomeConfig extends View {
   usesBox(field, value) {
     const shown = value === undefined ? field.default : value;
     if (field.type === "boolean") return false;
+    if (field.type === "key") return false; // recorded, never typed
     if (field.type === "choice" && field.choices) return false;
     return !(field.type === "number" && typeof shown === "number");
   }
@@ -505,6 +642,7 @@ export default class AwsomeConfig extends View {
     const set = (v, cx) => this.change(mod.name, [[field.key, v]], cx);
     const shown = value === undefined ? field.default : value;
     if (field.type === "boolean") return this.toggle(t, id, shown === true, (cx) => set(!(shown === true), cx));
+    if (field.type === "key") return this.keyField(t, mod, field, value);
     if (field.type === "choice" && field.choices)
       return Object.keys(field.choices).length <= 4
         ? this.segments(t, id, field.choices, shown, (v, cx) => set(v, cx))
@@ -549,7 +687,11 @@ export default class AwsomeConfig extends View {
             el.child(div().text_size(12.5).line_height("18px").text_color(t.dim).child(about)),
           )
           .child(div().text_size(11.5).text_color(t.dim).font_family("JetBrains Mono").child(field.key))
-          .when(Boolean(problem), (el) => el.child(div().text_size(12.5).text_color(t.ansi1).child(problem))),
+          .when(Boolean(problem), (el) => el.child(div().text_size(12.5).text_color(t.ansi1).child(problem)))
+          .when(this.rec?.id === `${mod.name}:${field.key}`, (el) => {
+            const p = this.keyProblem(this.rec);
+            return el.child(div().text_size(12.5).text_color(p ? (p.block ? t.blocked : t.working) : t.muted).child(p ? p.text : "Enter to save \u00b7 Esc to cancel"));
+          }),
       )
       .when(changed, (el) =>
         el.child(
@@ -890,9 +1032,29 @@ export default class AwsomeConfig extends View {
       .items_start()
       .bg(t.popover)
       .on_key_down((e, cx) => {
+        if (this.rec) {
+          cx.stop_propagation();
+          const bare = !keyParts(e.keystroke).some((p) => MODIFIERS.includes(p));
+          if (bare && e.key === "escape") return this.stopRecording(cx);
+          if (bare && e.key === "enter") return this.saveRecording(cx);
+          if (MODIFIERS.includes(e.key)) return cx.notify();
+          this.rec.captured = e.keystroke;
+          this.rec.held = [];
+          return cx.notify();
+        }
         if (e.key !== "escape") return;
         cx.stop_propagation();
         this.close();
+      })
+      .on_modifiers_changed((e, cx) => {
+        if (!this.rec || this.rec.captured) return;
+        const m = e.modifiers ?? {};
+        this.rec.held = [m.control && "ctrl", m.alt && "alt", m.shift && "shift", m.platform && "cmd"].filter(Boolean);
+        cx.notify();
+      })
+      // A click anywhere else cancels recording, the way back with the mouse.
+      .on_mouse_down("left", (_e, cx) => {
+        if (this.rec) this.stopRecording(cx);
       })
       .child(this.nav(t))
       .child(

@@ -1,5 +1,6 @@
 {
   "$schema": "./mod.schema.json",
+  "title": "Awsome Filetree",
   "place": "none",
   "overlay": {
     "width": 210,

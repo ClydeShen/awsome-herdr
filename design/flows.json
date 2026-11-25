@@ -195,6 +195,25 @@
           "this.close()"
         ]
       }
+    },
+    {
+      "id": "key-recording",
+      "mod": "awsome-config",
+      "to": "recording a new shortcut for a setting",
+      "forward": {
+        "mouse": "click the keycaps or Change",
+        "keys": "",
+        "code": [
+          "startRecording("
+        ]
+      },
+      "back": {
+        "mouse": "Cancel, or click anywhere else in the dialog",
+        "keys": "Esc (Enter saves)",
+        "code": [
+          "stopRecording(cx)"
+        ]
+      }
     }
   ]
 }

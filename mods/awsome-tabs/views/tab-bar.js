@@ -98,6 +98,7 @@ export const tabBarMethods = {
       .on_mouse_up("left", (event, cx) => this.finishTabDrag(tab, event, cx))
       // Middle-click closes the tab, as in a browser: on release, the same as the close button.
       .on_mouse_up("middle", (_e, cx) => {
+        if (this.settings.tabs.middle_click_close === false) return;
         cx.stop_propagation();
         this.closeTab(tab, cx);
       })
@@ -132,7 +133,7 @@ export const tabBarMethods = {
   },
 
   closeTabButton(tab) {
-    return this.simple(`close-${tab.id}`, Icon("close", 12), "Close tab (middle-click)", (_e, cx) => this.closeTab(tab, cx))
+    return this.simple(`close-${tab.id}`, Icon("close", 12), this.settings.tabs.middle_click_close === false ? "Close tab" : "Close tab (middle-click)", (_e, cx) => this.closeTab(tab, cx))
       .on_mouse_up("left", (_e, cx) => cx.stop_propagation());
   },
 

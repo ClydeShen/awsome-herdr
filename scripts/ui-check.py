@@ -324,7 +324,67 @@ def c12_conventions():
                     fail("C12", "L8", f"convention {cid}: {needle!r} is not in {mod}", "build it as written, or correct design/conventions.json")
 
 
-CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions]
+def js_object(src, name):
+    """The object literal after `name = ` in JS source, as Python data (plain literals only)."""
+    m = re.search(name + r"\s*=\s*\{", src)
+    if not m:
+        return None
+    i, depth = m.end() - 1, 0
+    for j in range(i, len(src)):
+        depth += {"{": 1, "}": -1}.get(src[j], 0)
+        if depth == 0:
+            text = src[i:j + 1]
+            break
+    else:
+        return None
+    text = re.sub(r"([{,]\s*)([A-Za-z_]\w*)\s*:", r'\1"\2":', text)
+    text = re.sub(r",(\s*[}\]])", r"\1", text)
+    return json.loads(text)
+
+
+def leaves(obj, prefix=""):
+    out = {}
+    for k, v in (obj or {}).items():
+        key = f"{prefix}{k}"
+        if isinstance(v, dict) and v:
+            out.update(leaves(v, key + "."))
+        else:
+            out[key] = v
+    return out
+
+
+def schema_defaults(node, prefix=""):
+    out = {}
+    for k, v in ((node or {}).get("properties") or {}).items():
+        key = f"{prefix}{k}"
+        if "default" in v and v.get("type") != "object":
+            out[key] = v["default"]
+        out.update(schema_defaults(v, key + "."))
+    return out
+
+
+def c13_defaults():
+    """A mod's code defaults and the defaults its mod.schema.json promises are the same."""
+    for mod in sorted(os.listdir(P("mods"))):
+        schema_path = P("mods", mod, "mod.schema.json")
+        if not os.path.isfile(schema_path):
+            continue
+        sources = [src for path, src in mod_js() if path.startswith(f"mods/{mod}/") and "DEFAULT_SETTINGS = " in src]
+        if not sources:
+            continue
+        try:
+            code = leaves(js_object(strip_comments(sources[0]), "DEFAULT_SETTINGS"))
+        except Exception as e:
+            fail("C13", "L9", f"mods/{mod}: could not read DEFAULT_SETTINGS ({e})", "keep DEFAULT_SETTINGS a plain object literal")
+            continue
+        promised = schema_defaults(load("mods", mod, "mod.schema.json").get("properties", {}).get("settings"))
+        for key, want in promised.items():
+            if key in code and code[key] != want:
+                fail("C13", "L9", f"mods/{mod}: setting {key} defaults to {code[key]!r} in code but {want!r} in mod.schema.json",
+                     "make them the same; the code's value is what really happens")
+
+
+CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions, c13_defaults]
 
 
 def main():

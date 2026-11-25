@@ -20,7 +20,7 @@ import { menuMethods } from "./views/menu.js";
 import { nameMethods } from "./actions/names.js";
 
 // Preferences a person may change in the installed mod.json under `settings`.
-const DEFAULT_SETTINGS = { tabs: { max_width: 170, drag_delay: "400ms", auto_name: true }, menu: { width: 240 } };
+const DEFAULT_SETTINGS = { tabs: { max_width: 170, drag_delay: "0ms", auto_name: true, middle_click_close: true }, menu: { width: 240 } };
 
 const DEFAULTS = {
   rememberPanels: { container: "panel", stack: "panel-body" },
