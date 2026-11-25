@@ -264,6 +264,51 @@
 - **为什么不真的搬进一个 tab**：Herdr 没有"把 pane 移到另一个 tab"的命令，只能 `terminal.park` + `terminal.keep {place: right|down}` 拼，**原来的分屏比例恢复不了**，搬走最后一个 pane 时原 tab 可能被关。以后需要再加 `Gather into a tab`。
 - **先做小验证**：同一个终端同时出现在原 pane 和浮窗里是否正常；键盘焦点、Esc 是否被终端吃掉；快捷键是否可用。验证不过就停下来和你商量。
 
+#### 4.2.6 P1 规格：侧边栏和 space 右键菜单（✅ 预览已确认 2026-11-25）
+
+> 数值都在 `design/tokens.json` 的 `sidebar`、`menu` 里，来源是 shadcn/ui 的 Sidebar 和 ContextMenu；字号统一换算（shadcn `text-sm` → 13，`text-xs` → 11）。颜色只用主题令牌（§2.4）。
+
+**区块（Spaces、Agents 各是一个区块）**
+
+| 部件 | 规格 | 来源 |
+|---|---|---|
+| 区块 | 四周留 8px | `SidebarGroup p-2` |
+| 区块标题 | 高 32，左右 8，字号 11、中等粗细、`muted`；右侧操作按钮 20×20、图标 16，悬停才有底色 | `SidebarGroupLabel`、`SidebarGroupAction` |
+| 行与行 | 间隔 4 | `SidebarMenu gap-1` |
+
+**space 行**
+
+| 部件 | 规格 |
+|---|---|
+| 行 | 高 28，左右 8，图标与文字间隔 8，圆角 8；悬停叠 `hover` |
+| 当前 space | 叠 `selected` + 左侧指示条（4×24，`accent`，§2.3） |
+| 左侧 | space 图标或 8px 小圆点，占 16 宽（P1b 才有图标和颜色，P1 先是圆点） |
+| 名字 | 13，`foreground`，JetBrains Mono（标识类文字，§2.2），过长省略 |
+| 右侧 | 分支名 11、Mono、`muted`，最多占行宽的 45%；领先 / 落后用小徽标（高 20、左右 4、圆角 8、字号 11、等宽数字，`muted`，如 `↑2`） |
+| 需要你 | 名字右侧一个 8px 的 `blocked` 圆点；悬停提示 `An agent needs you` |
+
+**Agents 区（按 space 分组）**
+
+| 部件 | 规格 |
+|---|---|
+| 分组标题 | space 名，高 28，字号 11、中等粗细、`muted`、Mono |
+| agent 行 | 和 space 行同尺寸。左侧 8px 状态点 + 16px 程序图标（Herdr 自带）；名字 13；右侧状态文字 11 |
+| 状态 | 工作中：`working` 点 + `muted` 的时长（`2m`）；需要你：`blocked` 点 + `blocked` 色 `needs you`；完成：`done` 点 + `done`；空闲：`dim` 点 + `dim` 的 `idle` |
+| sub agent | 每级缩进 12，左侧 1px `border` 参考线（和 Files 树一样，§2.2；不用 shadcn 的 25px 缩进） |
+| 当前 agent | 叠 `selected`（不加指示条，指示条只给导航的当前项） |
+| 点击 | agent → `agent.focus`；没有 pane 的 sub agent → `terminal.keep` 开一个新 pane |
+
+**space 右键菜单 / 标签栏 `+` 菜单（共用 `awsome-menu`，基于 `menu.js`）**
+
+| 部件 | 规格 |
+|---|---|
+| 分组标题 | `Terminals`、`Agents`：占一行高，13、中等粗细（`ContextMenuLabel`），不可点 |
+| 终端 | 图标用 Herdr 的 `shell.svg`；名字如 `PowerShell 7`、`Git Bash`、`Ubuntu`；右侧淡色 `Default` / `WSL` |
+| agent | Herdr 的程序图标；右侧数字 `1`…`9`，菜单打开时按数字直接启动；没安装的整行半透明、右侧写 `Not installed` |
+| 其余 | `New worktree…`、`Open worktree…`｜`Rename`（`F2`）、`Reveal in File Explorer`、`Copy path`｜`Close space…`（红色，Herdr 自带确认）。`Appearance…`、`Group ▸` 在 P1b 加，`Tile agents` 在 P1c 加 |
+| 标签栏 `+` | 同一个菜单，只有 Terminals、Agents、worktree 三组，作用于当前 space |
+| 键盘 | ↑ ↓ 移动（跳过标题和不可用项）、Enter 执行、Esc 关闭、数字键启动 agent |
+
 ### 4.3 awsome-filetree：视觉和基础操作 🟡
 
 **原型已做（未提交，已同步到你的 Herdr）**：标题栏（根文件夹名 + Tree / Recent 切换 + 5 个 Phosphor 图标按钮：上一级、跟随终端、显示隐藏文件、显示大小、全部折叠，开着的有底色）；汇总（分支 +N −N、2px 细条、计数）；过滤框独立一行；树行高 22、缩进 12、缩进参考线；右键文件夹 `Open as root`。

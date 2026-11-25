@@ -4,11 +4,12 @@
 // greyed with the reason as a tooltip. Byte-identical copies live in each mod that uses
 // it (mods cannot import from each other); change one, copy it to the others.
 //
-// An entry is "-" (a separator) or
-//   { id, label, icon?, keys?, danger?, disabled?, reason?, run(cx) }
-// icon is an svg path ("mods/awsome-icons/ui/copy.svg"); keys is shown on the right.
+// An entry is "-" (a separator), a group title { title: "Terminals" }, or
+//   { id, label, icon?, image?, keys?, danger?, disabled?, reason?, run(cx) }
+// icon is a one-color svg path ("mods/awsome-icons/ui/copy.svg"), drawn muted; image is a
+// full-color picture (a program's own icon). keys is the muted text on the right.
 
-import { div, svg } from "gpui-kit";
+import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { theme, keys as boundKeys } from "herdr";
 
@@ -24,7 +25,7 @@ export function menuHeight(entries) {
   return MENU.margin * 2 + 2 + MENU.pad * 2 + rows * MENU.row + seps * MENU.sep;
 }
 export function menuWidth(entries) {
-  const items = entries.filter((e) => e !== "-");
+  const items = entries.filter((e) => e !== "-").map((e) => (e.title ? { label: e.title } : e));
   const label = Math.max(0, ...items.map((e) => e.label.length)) * 7.2;
   const keys = Math.max(0, ...items.map((e) => (e.keys ? e.keys.length * 7.4 + 24 : 0)));
   const w = MENU.margin * 2 + 2 + MENU.pad * 2 + MENU.px * 2 + MENU.icon + MENU.gap + label + keys;
@@ -55,9 +56,9 @@ export function keyFor(action, mac) {
 // ↑/↓ move between enabled items, Enter runs, Esc closes. Returns the new cursor, or
 // null when the key isn't a menu key.
 export function menuKey(entries, at, key, run, close) {
-  const live = entries.map((e, i) => (e !== "-" && !e.disabled ? i : -1)).filter((i) => i >= 0);
+  const live = entries.map((e, i) => (e !== "-" && !e.title && !e.disabled ? i : -1)).filter((i) => i >= 0);
   if (key === "escape") { close(); return at; }
-  if (key === "enter") { const e = entries[at]; if (e && e !== "-" && !e.disabled) run(e); return at; }
+  if (key === "enter") { const e = entries[at]; if (e && e !== "-" && !e.title && !e.disabled) run(e); return at; }
   if (key !== "up" && key !== "down") return null;
   if (!live.length) return at;
   const k = live.indexOf(at);
@@ -71,14 +72,15 @@ const darkTheme = (t) => { const c = String(t.popover).slice(1, 7); return parse
 
 // The popup body. `at` is the keyboard cursor (-1: none); `run(entry, cx)` is called on click.
 // Open it with openOverlay({ kind: "popup", frame: "none", width: menuWidth(e), height: menuHeight(e) }).
-export function menuView({ id, entries, at, run, mono }) {
-  const t = theme();
+export function menuView({ id, entries, at, run, mono, t: given }) {
+  const t = given ?? theme();
   const dangerBg = alpha(t.blocked, darkTheme(t) ? 0.2 : 0.1);
   return div().id(id).size_full().p(MENU.margin).child(
     v_flex().size_full().p(MENU.pad).rounded(MENU.radius).border_1().border_color(t.border).bg(t.popover).shadow_md()
       .text_color(t.foreground).text_size(MENU.text)
       .children(entries.map((e, i) => {
         if (e === "-") return div().flex_none().mx(-MENU.pad).my(4).h(1).bg(t.border);
+        if (e.title) return div().h(MENU.row).flex_none().flex().items_center().px(MENU.px).font_medium().child(e.title);
         const hot = e.danger ? dangerBg : t.hover;
         return h_flex().id(`${id}-${e.id}`).h(MENU.row).flex_none().px(MENU.px).gap(MENU.gap).items_center().rounded(MENU.itemRadius)
           .text_color(e.danger ? t.blocked : t.foreground)
@@ -86,7 +88,8 @@ export function menuView({ id, entries, at, run, mono }) {
           .when(!e.disabled, (el) => el.cursor_pointer().hover((s) => s.bg(hot)).on_click((_ev, cx) => run(e, cx)))
           .when(i === at && !e.disabled, (el) => el.bg(hot))
           .when(Boolean(e.disabled && e.reason), (el) => el.tooltip(e.reason))
-          .child(e.icon ? svg(e.icon).size(MENU.icon).flex_none().text_color(e.danger ? t.blocked : t.muted) : div().w(MENU.icon).flex_none())
+          .child(e.image ? image(e.image).size(MENU.icon).flex_none()
+            : e.icon ? svg(e.icon).size(MENU.icon).flex_none().text_color(e.danger ? t.blocked : t.muted) : div().w(MENU.icon).flex_none())
           .child(div().flex_1().min_w(0).truncate().child(e.label))
           .when(Boolean(e.keys), (el) => el.child(div().flex_none().ml(16).text_size(MENU.keys).font_family(mono ?? "JetBrains Mono").text_color(t.muted).child(e.keys)));
       })));
