@@ -8,6 +8,7 @@ import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState, InputState, Input, Scrollbar, v_virtual_list, VirtualListScrollHandle, TextView } from "gpui-base";
 import { fileIcon as packIcon, followFileIcons } from "./file-icons.js";
 import { menuView, menuHeight, menuWidth, menuKey, keyFor, tidy } from "./menu.js"; // shared awsome-* menu (identical copies in each mod) // identical copy of awsome-icons' loader (mods cannot import across folders)
+import { confirmView, confirmHeight, confirmKey, CONFIRM } from "./confirm.js"; // shared awsome-* confirmation (identical copies in each mod)
 import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
 
 const NAME = "awsome-filetree";
@@ -20,6 +21,17 @@ function menuEntries(m, self) {
   const platform = window()?.platform, mac = platform === "macos";
   const reveal = mac ? "Reveal in Finder" : platform === "windows" ? "Reveal in File Explorer" : "Open in file manager";
   const say = (title) => (e) => notify({ title, body: String(e?.message ?? e), level: "error" });
+  // Several rows selected (docs/REQUIREMENTS.md section 4.3b): only what holds for all of them.
+  // `copyOnly` is the selection bar's "Copy path" menu.
+  if (m.paths) {
+    const abs = m.paths.map((p) => join(m.root, p));
+    return tidy([
+      !m.copyOnly && { id: "send", label: "Send to agent", icon: UI("paper-plane-right"), keys: "A", run: (cx) => askSend(cx, abs) },
+      !m.copyOnly && "-",
+      { id: "rel", label: "Copy relative path", icon: UI("copy"), keys: "Y", run: (cx) => copy(cx, m.paths.join("\n")) },
+      { id: "abs", label: "Copy absolute path", icon: UI("copy"), keys: mac ? "⇧Y" : "Shift+Y", run: (cx) => copy(cx, abs.join("\n")) },
+    ]);
+  }
   return tidy([
     !m.dir && { id: "preview", label: "Preview", icon: UI("eye"), keys: "P", run: () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() }) },
     !m.dir && { id: "open", label: "Open in default app", icon: UI("arrow-square-out"), disabled: !m.local, reason: "The file is on another machine", run: () => openExternal(m.abs).catch(say("Could not open the file")) },
@@ -268,14 +280,15 @@ function copy(cx, text) {
 }
 // Types "@path " into the agent of the shown tab, through the clipboard, then puts the
 // clipboard back. The agent's pane takes the keyboard so the question can follow.
+// `abs` is one path or a list; the paths go in one message, separated by spaces.
 function sendToAgent(cx, abs) {
+  const list = [].concat(abs);
   const f = focused(), fp = f?.pane ? panes().find((p) => p.pane === f.pane) : null;
   const inTab = agents().filter((a) => a.tab === f?.tab);
   const address = (fp?.status && fp.terminal) || (inTab.find((a) => a.focused) ?? inTab[0])?.address || agents().find((a) => a.focused)?.address;
   if (!address) { notify({ title: "No agent in this tab", body: "Start one, then send the path again", level: "warning", timeout: 3000 }); return; }
   const cwd = panes().find((p) => p.terminal === address)?.cwd;
-  const rel = relTo(cwd, abs), path = rel || abs;
-  const text = `@${/\s/.test(path) ? `"${path}"` : path} `;
+  const text = list.map((a) => { const path = relTo(cwd, a) || a; return `@${/\s/.test(path) ? `"${path}"` : path}`; }).join(" ") + " ";
   const before = cx.read_from_clipboard();
   cx.write_to_clipboard(text);
   run("pane.focus", { terminal: address });
@@ -283,10 +296,27 @@ function sendToAgent(cx, abs) {
   cx.timer.after(600, (cx) => { if (before !== undefined) cx.write_to_clipboard(before); });
 }
 
+// More than this many paths in one message asks first (docs/REQUIREMENTS.md section 4.4a).
+const SEND_LIMIT = 100;
+const sendAsk = (abs) => ({ title: `Send ${abs.length} paths to the agent?`, names: abs.map(baseOf), action: "Send paths", danger: false });
+function askSend(cx, abs) {
+  if (abs.length <= SEND_LIMIT) { sendToAgent(cx, abs); return; }
+  const text = sendAsk(abs);
+  openOverlay({ mod: NAME, kind: "dialog", frame: "none", width: CONFIRM.width, height: confirmHeight(text), props: { ask: { abs } } });
+}
+
 export default class FileTree extends View {
+  // The keyboard cursor. Setting it selects just that row, so every place that moves the cursor
+  // (arrows, going up a folder, jumping to a hit) also leaves a one-row selection; the selection
+  // code below (Ctrl / Shift / the bar) sets `sel` itself afterwards. docs/REQUIREMENTS.md 4.4a.
+  get cursor() { return this._cursor ?? ""; }
+  set cursor(rel) { this._cursor = rel; this.sel = rel ? new Set([rel]) : new Set(); }
+
   init(_props, cx) {
     this.menu = props()?.menu ?? null;
-    if (this.menu) { this.handle = cx.focus_handle(); this.handle.focus(); this.at = -1; return; }
+    this.ask = props()?.ask ?? null;
+    if (this.menu || this.ask) { this.handle = cx.focus_handle(); this.handle.focus(); this.at = -1; return; }
+    this.sel = new Set(); this.anchor = ""; this.lastDown = null;
     this.handle = cx.focus_handle();
     followFileIcons(this, cx);
     this.scroll = VirtualListScrollHandle.new();
@@ -329,9 +359,49 @@ export default class FileTree extends View {
     try { localStorage.setItem("prefs", JSON.stringify({ showHidden: this.showHidden, showSize: this.showSize, view: this.view })); } catch {}
   }
 
+  // Several rows selected: the way back. Esc, a click on empty space, the bar's x and any plain
+  // click all end up here or in the cursor setter. `keep` leaves the cursor row selected.
+  clearSelection(keep = false) {
+    this.sel = keep && this.cursor ? new Set([this.cursor]) : new Set();
+    this.anchor = keep ? this.cursor : "";
+    if (!keep) this._cursor = "";
+  }
+
+  // Ctrl (Cmd on macOS) adds a row to the selection or takes it out, without opening it.
+  toggleSelect(rel) {
+    const next = new Set(this.sel);
+    if (!this.sel.size && this.cursor) next.add(this.cursor);
+    if (next.has(rel)) next.delete(rel); else next.add(rel);
+    this.sel = next; this.anchor = rel; this._cursor = rel;
+  }
+
+  // Shift: every visible row from the anchor to this one, in the order they are drawn.
+  extendSelection(rel, rows) {
+    const from = this.anchor || this.cursor || rel;
+    const i = rows.findIndex((r) => r.rel === from), j = rows.findIndex((r) => r.rel === rel);
+    if (j < 0) return;
+    if (i < 0) { this.sel = new Set([rel]); this.anchor = rel; this._cursor = rel; return; }
+    const [lo, hi] = i < j ? [i, j] : [j, i];
+    this.sel = new Set(rows.slice(lo, hi + 1).map((r) => r.rel));
+    this.anchor = from; this._cursor = rel;
+  }
+
+  // Two or more rows: the selection bar shows, the menu is the several-rows one.
+  paths() { return [...this.sel]; }
+
+  // A file deleted or renamed outside leaves the selection. A row whose folder isn't loaded is
+  // kept: nothing says it is gone. Fewer than two rows left and the bar goes by itself.
+  pruneSelection() {
+    if (!this.sel.size) return;
+    const gone = (rel) => { const list = this.entries.get(dirOf(rel)); return Boolean(list) && !list.some((e) => e.name === baseOf(rel)); };
+    const keep = [...this.sel].filter((rel) => !gone(rel));
+    if (keep.length !== this.sel.size) this.sel = new Set(keep);
+  }
+
   setView(view, cx) {
     if (view === this.view) return;
     this.view = view;
+    this.clearSelection(true);
     this.savePrefs();
     this.hits = null; this.searchSeq++;
     if (view === "tree" && this.query.trim()) this.search(this.query, cx);
@@ -383,6 +453,7 @@ export default class FileTree extends View {
         await this.readGit(ctx);
         if (!this.current(ctx)) return;
         this.error = null;
+        this.pruneSelection();
         this.watch(cx);
       } catch (e) { if (this.current(ctx)) this.error = String(e?.message ?? e); }
       finally {
@@ -806,15 +877,28 @@ export default class FileTree extends View {
     openOverlay({ mod: NAME, kind: "popup", frame: "none", width: menuWidth(entries), height: menuHeight(entries), props: { menu: m } });
   }
 
+  // The menu for the selected rows. `copyOnly` is the selection bar's Copy path menu.
+  openManyMenu(copyOnly = false) {
+    const m = { root: this.root, paths: this.paths(), copyOnly, local: !this.on };
+    const entries = menuEntries(m, null);
+    openOverlay({ mod: NAME, kind: "popup", frame: "none", width: menuWidth(entries), height: menuHeight(entries), props: { menu: m } });
+  }
+
   // A virtual list's rows can't hold handlers, so the list reports the row and
   // a second press on the same row within 450 ms is the double-click.
   press(rel, cx) {
-    const r = this.rows().find((x) => x.rel === rel);
+    const rows = this.rows(), r = rows.find((x) => x.rel === rel);
     if (!r) return;
-    const now = Date.now(), double = this.lastPress?.rel === rel && now - this.lastPress.at < 450;
-    this.lastPress = double ? null : { rel, at: now };
+    // The list reports no modifiers, so the mouse-down above it noted them (see render).
+    const down = this.lastDown ?? {}, m = down.mods ?? {};
+    this.lastDown = null;
     this.handle.focus();
-    this.cursor = rel;
+    // Ctrl (Cmd on macOS) and Shift only change the selection: nothing opens, nothing expands.
+    if (m.shift) { this.extendSelection(rel, rows); cx.notify(); return; }
+    if (window()?.platform === "macos" ? m.platform : m.control) { this.toggleSelect(rel); cx.notify(); return; }
+    const now = Date.now(), double = (down.count ?? 1) >= 2 || (this.lastPress?.rel === rel && now - this.lastPress.at < 450);
+    this.lastPress = double ? null : { rel, at: now };
+    this.cursor = rel; this.anchor = rel;
     if (r.flat && r.e.dir) this.revealInTree(rel, cx);
     else if (r.e.dir) { if (this.hits) this.jump(cx); else if (!double) this.toggle(rel, cx); }
     else if (this.config.open === "awsome-viewer") this.openViewer(rel, double, cx);
@@ -866,7 +950,8 @@ export default class FileTree extends View {
     else if (c === "menu") {
       // Shift+F10, as in Windows and VS Code: the menu of the row under the keyboard cursor.
       const cur = this.rows().find((r) => r.rel === this.cursor);
-      if (cur && !cur.flat) this.openMenu(cur.rel, Boolean(cur.e?.dir));
+      if (this.sel.size > 1) this.openManyMenu();
+      else if (cur && !cur.flat) this.openMenu(cur.rel, Boolean(cur.e?.dir));
     }
     else if (c === "into") {
       const cur = this.rows().find((r) => r.rel === this.cursor);
@@ -890,16 +975,27 @@ export default class FileTree extends View {
       cx.stop_propagation(); cx.notify(); return;
     }
     // Up a folder and into a folder come as commands from keys.json (see command()), so they can be rebound.
-    const shift = e.modifiers?.shift;
-    if (k === "up" || k === "k") this.move(rows, -1);
-    else if (k === "down" || k === "j") this.move(rows, 1);
-    else if (k === "pageup") this.move(rows, -10);
-    else if (k === "pagedown") this.move(rows, 10);
-    else if (k === "home") this.move(rows, -rows.length);
-    else if (k === "end") this.move(rows, rows.length);
+    const shift = e.modifiers?.shift, add = window()?.platform === "macos" ? e.modifiers?.platform : e.modifiers?.control;
+    // Moving the cursor: plain selects that row; with Shift the range from the anchor follows it.
+    const nav = (delta) => {
+      const from = this.anchor || this.cursor;
+      this.move(rows, delta);
+      if (shift) { this.anchor = from; this.extendSelection(this.cursor, rows); } else this.anchor = this.cursor;
+    };
+    const many = this.sel.size > 1;
+    if (k === "up" || k === "k") nav(-1);
+    else if (k === "down" || k === "j") nav(1);
+    else if (k === "pageup") nav(-10);
+    else if (k === "pagedown") nav(10);
+    else if (k === "home") nav(-rows.length);
+    else if (k === "end") nav(rows.length);
+    else if (k === "space" && add && cur) this.toggleSelect(cur.rel);
     else if (k === "/") { this.input.focus(); }
     else if (k === ".") { this.showHidden = !this.showHidden; this.savePrefs(); }
-    else if (k === "escape") { if (this.query) this.clearSearch(cx); else this.cursor = ""; }
+    else if (k === "escape") { if (this.query) this.clearSearch(cx); else this.clearSelection(); }
+    else if (many && k === "y") copy(cx, shift ? this.paths().map((p) => join(this.root, p)).join("\n") : this.paths().join("\n"));
+    else if (many && k === "a") askSend(cx, this.paths().map((p) => join(this.root, p)));
+    else if (many && (k === "enter" || k === "space" || k === "p" || k === "right" || k === "l" || k === "left" || k === "h")) return;
     else if (/^[1-9]$/.test(k) && VIEWS[Number(k) - 1]) this.setView(VIEWS[Number(k) - 1][0], cx);
     else if (!cur) return;
     else if (cur.flat && (k === "right" || k === "l")) this.revealInTree(cur.rel, cx);
@@ -925,18 +1021,43 @@ export default class FileTree extends View {
       .child(label);
   }
 
+  // The keyboard cursor: a 1px accent ring inside the row, only while this list has the keyboard
+  // (docs/REQUIREMENTS.md section 2.3).
+  ringed(rel) { return rel === this.cursor && !this.file && !this.typing && this.handle.is_focused(); }
+  ring(t, R) { return div().absolute().inset_0().rounded(R).border_1().border_color(t.accent); }
+
+  // Two or more rows selected: how many, and what can be done to all of them. docs/REQUIREMENTS.md
+  // section 4.4a: 32 high (the title row's grid), 24px ghost buttons, 8px sides, 4px between.
+  selectionBar(t) {
+    const pill = (id, label, caret, fn) => h_flex().id(id).h(24).px(8).gap(4).items_center().flex_none().rounded(6).cursor_pointer()
+      .text_size(12).text_color(t.foreground).hover((s) => s.bg(t.hover))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => { fn(cx); cx.notify(); })
+      .child(label).when(caret, (el) => el.child(svg(UI("caret-down")).size(12).text_color(t.muted)));
+    return h_flex().id("ft-selbar").h(32).flex_none().px(8).gap(4).items_center().border_b(1).border_color(t.border)
+      .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.foreground).child(`${this.sel.size} selected`))
+      .child(pill("ft-sel-send", "Send to agent", false, (cx) => askSend(cx, this.paths().map((p) => join(this.root, p)))))
+      .child(pill("ft-sel-copy", "Copy path", true, () => this.openManyMenu(true)))
+      .child(div().id("ft-sel-clear").size(24).flex_none().flex().items_center().justify_center().rounded(6).cursor_pointer()
+        .hover((s) => s.bg(t.hover)).tooltip("Clear selection (Esc)")
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click((_e, cx) => { this.clearSelection(true); cx.notify(); })
+        .child(svg(UI("x")).size(16).text_color(t.muted)));
+  }
+
   pill(letter, color, R) {
     return div().size(16).flex_none().flex().items_center().justify_center().rounded(Math.min(R, 3)).bg(alpha(color, 0.15)).text_color(color).text_size(10).font_semibold().child(letter);
   }
 
   // A row of Recent: a status pill, the name, then what happened to it.
   flatRow(r, t, R, now) {
-    const { rel, e } = r, tone = tones(t), selected = rel === this.cursor;
+    const { rel, e } = r, tone = tones(t), selected = this.sel.has(rel);
     const fl = this.flashOf(rel, true, now), lit = fl ? tone[fl.tone] : null;
     const pulse = (el) => el.loop("opacity", { from: 0.35, to: 1, period: 900 });
     const h = r.recent, color = h.kind === "read" ? tone.purple : h.kind === "commit" ? tone.green : tone.orange;
-    return h_flex().id(`ft-${rel}`).h(ROW).flex_none().pl(8).pr(10).gap(7).items_center().rounded(R).cursor_pointer()
+    return h_flex().id(`ft-${rel}`).h(ROW).flex_none().relative().pl(8).pr(10).gap(7).items_center().rounded(R).cursor_pointer()
       .when(selected, (el) => el.bg(t.selected)).when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
+      .when(this.ringed(rel), (el) => el.child(this.ring(t, R)))
       .when(Boolean(fl?.bright), (el) => el.bg(alpha(lit, 0.13)))
       .child(this.pill(h.kind === "read" ? "R" : h.kind === "commit" ? "C" : "W", color, R))
       .child(div().flex_none().max_w(Math.max(80, this.width * 0.5)).truncate().font_family(codeFont()).text_color(lit ?? t.foreground).when(Boolean(fl?.bright), pulse).child(e.name))
@@ -957,11 +1078,12 @@ export default class FileTree extends View {
     const meta = this.showSize
       ? (e.dir ? (this.sizes.has(rel) ? formatSize(this.sizes.get(rel)) : "…") : formatSize(e.size))
       : (!e.dir && !loc && this.width > 250 ? stamp(e.mtime) : "");
-    const selected = rel === this.cursor;
+    const selected = this.sel.has(rel);
     const pulse = (el) => el.loop("opacity", { from: 0.35, to: 1, period: 900 });
     return h_flex().id(`ft-${rel}`).h(ROW).flex_none().relative().pl(4 + depth * 12).pr(8).gap(4).items_center().rounded(Math.min(R, 4)).cursor_pointer()
       .when(selected, (el) => el.bg(t.selected)).when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
       .when(Boolean(fl?.bright), (el) => el.bg(alpha(lit, 0.13)))
+      .when(this.ringed(rel), (el) => el.child(this.ring(t, Math.min(R, 4))))
       .children(Array.from({ length: depth }, (_, d) => div().absolute().left(4 + d * 12 + 6).top(0).bottom(0).w(1).bg(alpha(t.border, 0.7))))
       .child(e.dir ? svg(UI(`caret-${open ? "down" : "right"}`)).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
       .child(image(iconOf(this.fileIcons, rel, e.dir, open, settings().dark !== false)).size(16).flex_none().when(Boolean(fl?.bright), pulse))
@@ -1021,6 +1143,15 @@ export default class FileTree extends View {
         .when(Boolean(hash), (d) => d.child(div().text_color(t.dim).child(hash)))));
   }
 
+  renderAsk() {
+    const close = () => closeOverlay(props().overlay);
+    const text = sendAsk(this.ask.abs);
+    const yes = (cx) => { close(); sendToAgent(cx, this.ask.abs); };
+    return div().size_full().track_focus(this.handle)
+      .on_key_down((ev, cx) => { if (confirmKey(ev.key, () => yes(cx), close)) cx.stop_propagation(); })
+      .child(confirmView({ id: `${NAME}-send`, ...text, onConfirm: yes, onCancel: close, mono: codeFont() }));
+  }
+
   renderMenu(cx) {
     const entries = menuEntries(this.menu, this);
     const close = () => closeOverlay(props().overlay);
@@ -1035,6 +1166,7 @@ export default class FileTree extends View {
   }
 
   render(cx) {
+    if (this.ask) return this.renderAsk();
     if (this.menu) return this.renderMenu(cx);
     this.sync(cx);
     const req = shared(`${NAME}.preview`);
@@ -1045,7 +1177,7 @@ export default class FileTree extends View {
     const want = shared(`${NAME}.view`);
     if (want && want.n !== this.seenView) {
       this.seenView = want.n;
-      if (VIEWS.some(([v]) => v === want.view) && want.view !== this.view) { this.view = want.view; this.hits = null; this.closePreview(); this.savePrefs(); }
+      if (VIEWS.some(([v]) => v === want.view) && want.view !== this.view) { this.view = want.view; this.hits = null; this.clearSelection(true); this.closePreview(); this.savePrefs(); }
     }
     const t = theme(), look = frameLook(), R = look.radius, now = Date.now();
     const rows = this.file ? [] : this.rows();
@@ -1096,6 +1228,7 @@ export default class FileTree extends View {
       : this.view === "recent" ? (rows.length ? null : q ? "No matches" : "Files Claude reads and writes here show up in this list")
       : this.searching && !rows.length ? "Searching…" : this.hits ? (rows.length ? null : "No matches") : this.loading && !rows.length ? "Loading files…" : !rows.length ? "Empty folder" : null);
     return root
+      .when(this.sel.size > 1, (el) => el.child(this.selectionBar(t)))
       .child(this.summary(t))
       .child(h_flex().flex_none().mx(6).my(4).gap(2).items_center()
         .child(h_flex().flex_1().min_w(0).h(24).px(8).gap(6).items_center().rounded(R).bg(t.canvas ?? t.background).border_1().border_color(this.typing ? t.accent : t.input ?? t.border).cursor_text()
@@ -1105,13 +1238,24 @@ export default class FileTree extends View {
           .when(Boolean(this.query), (el) => el.child(div().id("ft-clear").flex_none().text_size(12).text_color(t.dim).cursor_pointer().hover((s) => s.text_color(t.foreground)).on_click((_e, cx) => this.clearSearch(cx)).child("×"))))
       )
       .child(div().flex_1().min_h(0).relative().px(4)
+        .on_mouse_down("left", (e, cx) => {
+          this.lastDown = { mods: e.modifiers ?? {}, count: e.click_count ?? 1 };
+          // Below the last row only: with the list scrolled it is taller than the view, so this never fires.
+          if (this.sel.size && e.local_position && e.local_position.y > this.rows().length * ROW + 4) { this.clearSelection(); cx.notify(); }
+        })
         .child(v_virtual_list("ft-rows", rows.length, ROW, (i) => rows[i]?.rel ?? String(i), (range) => {
           const shown = rows.slice(range.start, range.end);
           this.visible = shown.filter((r) => !r.flat && r.e?.dir).map((r) => r.rel);
           return shown.map((r) => this.row(r, t, R, now));
         }).track_scroll(this.scroll).size_full()
           .on_item_click((rel, cx) => this.press(rel, cx))
-          .on_item_secondary_click((rel, _e, cx) => { const r = this.rows().find((x) => x.rel === rel); if (!r) return; this.cursor = rel; this.openMenu(rel, r.e.dir); cx.notify(); }))
+          .on_item_secondary_click((rel, _e, cx) => {
+            const r = this.rows().find((x) => x.rel === rel);
+            if (!r) return;
+            if (this.sel.size > 1 && this.sel.has(rel)) this.openManyMenu();
+            else { this.cursor = rel; this.anchor = rel; this.openMenu(rel, r.e.dir); }
+            cx.notify();
+          }))
         .child(Scrollbar.vertical("ft-rows").viewport_from_layout().absolute().inset_0())
         .when(Boolean(note), (el) => el.child(div().absolute().top(4).left(0).right(0).px(10).text_size(12).text_color(t.dim).child(note))))
       .when(this.limited, (el) => el.child(div().px(10).py(3).text_size(11).text_color(t.dim).child(`Folders show their first ${PER_FOLDER} entries`)))

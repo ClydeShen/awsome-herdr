@@ -364,6 +364,26 @@
           "finishRename("
         ]
       }
+    },
+    {
+      "id": "tree-selection",
+      "mod": "awsome-filetree",
+      "to": "several selected files",
+      "forward": {
+        "mouse": "Ctrl+click / Shift+click",
+        "keys": "Shift+Up/Down, Ctrl+Space",
+        "code": [
+          "extendSelection(",
+          "toggleSelect("
+        ]
+      },
+      "back": {
+        "mouse": "click a file, empty list space, or the x in the selection bar",
+        "keys": "Esc",
+        "code": [
+          "clearSelection("
+        ]
+      }
     }
   ]
 }

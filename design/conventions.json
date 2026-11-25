@@ -235,11 +235,15 @@
           "behavior": "The same with Cmd for Ctrl."
         }
       ],
-      "ours": "Spaces: click switches to it and selects only it; Ctrl/Cmd+click adds or removes without switching; Shift+click selects the range in the visible order within one machine; Esc or a click on empty sidebar space clears; right-click on a selected row opens the multi-selection menu. Selected rows use the selected overlay; the current space also has the indicator bar.",
+      "ours": "Spaces: click switches to it and selects only it; Ctrl/Cmd+click adds or removes without switching; Shift+click selects the range in the visible order within one machine; Esc or a click on empty sidebar space clears; right-click on a selected row opens the multi-selection menu. Selected rows use the selected overlay; the current space also has the indicator bar. Files uses the same rules plus Shift+Up/Down and Ctrl+Space (toggle the cursor row), the keyboard cursor as a 1px accent ring while the list has focus, and a selection bar (N selected, Send to agent, Copy path, clear) above the tree while 2 or more rows are selected.",
       "code": {
         "awsome-sidebar": [
           "isSelected(",
           "listFocus"
+        ],
+        "awsome-filetree": [
+          "extendSelection(",
+          "selectionBar("
         ]
       }
     },
