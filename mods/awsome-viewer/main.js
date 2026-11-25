@@ -99,8 +99,7 @@ class AwsomeViewer extends View {
         this.readFile(cx);
       }
       cx.timer.every(Math.max(500, duration(settings.refresh.file, 2000)), (cx) => {
-        // A hidden preview column is not drawn; leave its file alone until it is shown again.
-        if (this.slot && (!this.slotShown() || Date.now() - (this.renderedAt ?? 0) > 3000)) return;
+        if (this.slot && !this.slotShown()) return;
         this.readFile(cx);
         this.readHunks(cx);
       });

@@ -390,14 +390,14 @@
       "mod": "awsome-filetree",
       "to": "a file kept in its own tab (single-click only previews it in the preview column)",
       "forward": {
-        "mouse": "double-click or middle-click the file, or Open in tab on the preview",
+        "mouse": "double-click the file, or Open in tab on the preview",
         "keys": "Enter on the file",
         "code": [
           "openViewer(rel, true, cx)"
         ]
       },
       "back": {
-        "mouse": "close the tab (x or middle-click), or single-click a file to preview it again",
+        "mouse": "close the tab (x or middle-click on its tab), or single-click a file to preview it again",
         "keys": "Ctrl+W closes the tab",
         "code": [
           "previewSlot("

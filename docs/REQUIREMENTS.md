@@ -149,7 +149,7 @@
 - **Files**：标题行（根文件夹名 + 图标按钮）、汇总、过滤框、树。见 §4.3。
 - **Changes**：分段控件 `Changes | History`、提交框在顶部、`Staged changes` / `Changes` 两组。见 §4.5。
 - **侧边栏**：space 行是图标（或小圆点）+ 名字 + 分支，可有淡底色；agents 按 space 分组，sub agent 缩进。见 §4.2。
-- **标签栏**：扁平标签，选中项底部一条 `accent` 线；预览标签用斜体。**鼠标中键关闭 tab**（和浏览器一样，松开时生效，和 × 按钮是同一个操作；× 的提示写 `Close tab (middle-click)`）。
+- **标签栏**：扁平标签，选中项底部一条 `accent` 线。**鼠标中键关闭 tab**（和浏览器一样，松开时生效，和 × 按钮是同一个操作；× 的提示写 `Close tab (middle-click)`）。
 - **预览**：顶部面包屑路径，工具栏只留 3 个图标。
 - **设置对话框**：左侧列表加搜索框。
 
@@ -487,8 +487,7 @@
 ### 4.4 文件操作和打开方式 ⬜
 
 **打开文件**（awsome-filetree + awsome-viewer）：
-- **单击** → 在**当前 tab 里新开一个 pane**（`pane.split`）作临时预览；再单击别的文件，替换这个临时 pane。
-- **双击** → 固定成一个独立的 tab（keep）。预览标签用斜体，和 VS Code 一致。
+- **单击** → 在布局里的全局预览位显示（再单击别的文件替换内容）；**双击** → 独立 tab。**以 §4.4a 为准**（最初写的"当前 tab 里 `pane.split`"和"预览标签斜体"已作废：全局预览位比每个 tab 一个 pane 更适合长期使用，斜体不需要，因为两者落在不同位置）。
 - 文件夹：单击展开 / 折叠，双击没有别的意思（§2.6）；进入文件夹用 `Ctrl+Alt+Enter` 或右键 `Open as root`。
 
 **资源管理器的常见操作**：
@@ -512,7 +511,7 @@
 **决定的经过**（以后重读时不用再查）：① 用户："单击在 pane、双击在 tab，区别已经明显，不要斜体"；② 查了 VS Code 源码和微软文档：单击立即执行、双击"转正"，VS Code 不闪是因为两者落在同一个位置；我们的预览和 tab 位置不同；③ 为长期使用比较了三个宿主：**每个 tab 里分 pane**（A，预览随 tab 越积越多，每次分出和关掉都让旁边的 agent 终端重排重绘，还要自己找目标 pane、还焦点）、**布局里的全局预览位**（B）、Files 面板内预览（C，面板窄）；④ 用户选 B。已验证 `layout.show / hide` 能直接显示、收起一个新加的布局节点，不抢 tab 里的焦点。**pane 自带的操作（头部关闭 / 放大、顶部拖拽把手）只属于 `{tab:"active"}` 块里的 pane，布局里的 mod 块拿不到**，所以关闭按钮自己画（调 `layout.hide`），拖宽用布局分隔线（自带）。`floating` 块（可拖、吸附边缘、不挤压终端）以后可作为同一个 viewer 的另一种宿主。
 
 **结构**
-- `config/layouts/awsome.json` 在 `work-body` 里 `panel` 和 `main` 之间加一个 `preview` 块：`content: { mod: "awsome-viewer", props: { mode: "slot" } }`，**`size.weight 1`、`min 280`，不设 `max`，不用 `px`**，`hidden: true`，外观（`surface` 底、1px `border`、圆角 10）和 `panel` 相同；同时 `main` 改成 `size.weight 2`、`min 360`。大小、是否显示由 Herdr 记住（`layouts/.state`），不由我们存。为什么用权重不用像素，见下面"开、关、响应式、布局变化"。
+- `config/layouts/awsome.json` 在 `work-body` 里 `panel` 和 `main` 之间加一个 `preview` 块：`content: { mod: "awsome-viewer", props: { mode: "slot" } }`，**`size.weight 4`、`min 280`，不设 `max`，不用 `px`**，`hidden: true`，外观（`surface` 底、1px `border`、圆角 10）和 `panel` 相同；同时 `main` 改成 `size.weight 3`、`min 360`。**默认宽度的依据**（用户要求宽一点，参考 VS Code 的代码宽度）：VS Code 的 `editor.wordWrapColumn` 默认 80；80 列代码加 viewer 的 6 列行号区，在默认 14px 字体、viewer 的字符宽度系数 0.62 下约 770px。布局只能写权重，所以按用户的窗口宽度（工作区 1334px）取 4 : 3：文件面板收起时预览位约 762px（≈ 80 列），文件面板展开时预览位约 547px、`main` 约 410px，仍高于 `main` 的 `min 360`。数值登记在 `design/tokens.json` 的 `preview`。大小、是否显示由 Herdr 记住（`layouts/.state`），不由我们存。为什么用权重不用像素，见下面"开、关、响应式、布局变化"。
 - `awsome-viewer` 新增 `slot` 模式：读 `shared("awsome-viewer.slot")`（`{ space, file }`）显示文件，**不走 tab 的认领和清理逻辑**（`claimTab`、`pruneViewers` 都不碰，避免和现有注册表互相干扰）。格式、Markdown 预览、图片、代码、diff 标记、刷新全部沿用现有 viewer，一行不重写。头部多两个按钮：`Open in tab`（等于双击）、收起 ×（`layout.hide`，tooltip `Close preview (Esc)`）。
 - 记在 `slot` 里的 `space` 和当前 space 不同时，预览位显示空白（不写字），切回来再显示。
 
@@ -521,7 +520,7 @@
 | 操作 | 结果 |
 |---|---|
 | 单击文件 | 写 `awsome-viewer.slot`，预览位没显示就 `layout.show`；再单击别的文件只换内容 |
-| 双击文件 / Enter / 中键 | 在独立 tab 里打开（现有的固定 tab）；文件已有自己的 tab 就切过去；**预览位保持原样，不去收它** |
+| 双击文件 / Enter | 在独立 tab 里打开（现有的固定 tab）；文件已有自己的 tab 就切过去；**预览位保持原样，不去收它** |
 | `Space` | 预览光标行（Finder 的 Quick Look 惯例，不动光标，不开 tab） |
 | 方向键 | 只移动光标，不预览（不一路刷新） |
 | 预览位头部 `Open in tab` | 把当前预览的文件开成 tab |
@@ -539,7 +538,7 @@
 |---|---|---|
 | 面板 + 预览位都显示，预览位拖到 900px | `main` 被挤成最右边一条细缝，终端一个字符一行 | **预览位不用 `px`、`max`**：Herdr 不保护 `main` |
 | 给 `main` 加 `min: 420`（预览位仍是 `px`） | 不让别的块让位，`main` 被撑出窗口右边、被裁掉 | `min` 单独不够，Herdr 不会重新分配宽度 |
-| 预览位 `weight 1`、`main` `weight 2`，三列都显示 | 文件面板 368 \| 预览位约 320 \| 主区约 630，全部完整 | **用权重**：剩余宽度按比例分，窗口变窄时整体按比例缩，不会把 `main` 挤没 |
+| 预览位 `weight 1`、`main` `weight 2`，三列都显示（第一版的数值，已改成 4 : 3） | 文件面板 368 \| 预览位约 320 \| 主区约 630，全部完整 | **用权重**：剩余宽度按比例分，窗口变窄时整体按比例缩，不会把 `main` 挤没 |
 | `layout.resize {id:"preview", weight:2}` | 生效，比例立刻变成 1 : 1 | 用户拖分隔线也是改权重（拖拽手感待用户试）；Herdr 把权重记在 `layouts/.state`，重启保留 |
 | 切到没有 `preview` 节点的布局（`main`、`terminals`、`win98`）后 `layout.show` | 报错 `no node "preview" in the shown layout` | **捕获这个错，退回面板内预览（C，现有的 `show()`）**；`layout.hide` 的错误忽略。只有 `awsome` 布局带预览位；用户切到别的布局就是 Herdr 自带的面板预览 |
 | 面板收起时单击文件 | 文件树就在面板里，所以面板一定是显示的；`awsome-changes`、搜索等别处调用预览位时，面板收起也不影响 | 预览位和面板各自独立开关 |
@@ -562,7 +561,6 @@
 | 二进制 / 超大 / 已删除 | 由 viewer 自己显示原因（现有行为），不弹框 |
 | 远程 space（`on`） | `slot` 里带 `on`，和现有 viewer 一样 |
 | 单击后文件树的键盘焦点 | `layout.show` 没有改变 tab 里的焦点 pane（已验证）；文件树自己的键盘焦点由用户确认，若被抢走再 `handle.focus()` 还回去 |
-| 中键点文件开 tab | 列表只给左键点击，P2b 没做；以后需要时用 `on_mouse_down("middle")` 补 |
 | 安装 | `install.sh` 会换掉 `layouts/awsome.json`（旧的移进备份）；用户自己改过的布局要从备份里拿，和现在一样 |
 
 *设置*（`awsome-config`，文字英文）：`open.preview`（`slot` / `off`，默认 `slot`；`off` = 单击只选中，只有双击 / Enter 打开，Windows 资源管理器的习惯，VS Code 的 `workbench.list.openMode: doubleClick` 也是这样）、`open.previewDelay`（默认 250ms，0 = 不等，只在预览位没显示时起作用）。
@@ -594,7 +592,7 @@
 - 条出现 / 消失会让树整体上下移一次：不做动画，直接切。
 - 颜色、字体全部取现有令牌（`foreground`、`muted`、`border`、`hover`、`selected`、`accent`），没有新颜色；对比度沿用 §2.4 已算过的"行上 `muted` 文字 ≥ 4.2"。数值 32 / 24 / 8 / 4 是 4px 网格（`layout.bar` = 32），按钮 24 取自 shadcn `Button size="sm"` 的紧凑档。选择条和选中行的预览截图已给用户看，用户只对斜体提了意见，其余等用户明确确认。
 
-**往返**（登记在 `design/flows.json`）：预览位（去：单击 / Space；回：× / Esc / 再单击别的文件换内容）；独立 tab（去：双击 / Enter / 中键 / `Open in tab`；回：关 tab）；单选 ⇄ 多选（去：Ctrl / Shift + 单击，或 Shift + ↑↓、Ctrl+Space；回：Esc、点空白、选择条 ×，或普通单击）。
+**往返**（登记在 `design/flows.json`）：预览位（去：单击 / Space；回：× / Esc / 再单击别的文件换内容）；独立 tab（去：双击 / Enter / `Open in tab`；回：关 tab）；单选 ⇄ 多选（去：Ctrl / Shift + 单击，或 Shift + ↑↓、Ctrl+Space；回：Esc、点空白、选择条 ×，或普通单击）。
 **惯例**（`design/conventions.json`）：`preview-slot`：Windows 资源管理器的预览窗格（一个固定位置的窗格，跟着选中的项显示，可开关）、VS Code 的预览编辑器（单击预览、双击固定）、Finder 的 Quick Look（Space）。
 **验证清单**：实现前：隐藏块里的 viewer 不轮询；文件树键盘焦点不被抢。实现后：`herdr-app check` 三个 mod；`ui-check.py`；用 `herdr-app do layout.show` 等模拟，截图确认；`ui-open-check` 核对预览位尺寸不为 0；点击手感请你试（§5.2 的 P2 一行）。
 

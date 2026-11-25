@@ -346,11 +346,9 @@ export default class FileTree extends View {
         const text = await readTextFile(`${appHome()}/mods/${NAME}/config.json`);
         if (text) this.config = { ...DEFAULTS, ...JSON.parse(text) };
       } catch (e) { notify({ title: "awsome-filetree: config.json is invalid", body: String(e), level: "warning", timeout: 4000 }); }
-      try {
-        const given = JSON.parse((await readTextFile(`${appHome()}/mods/${NAME}/mod.json`)) ?? "{}").settings?.open ?? {};
-        if (given.preview === "slot" || given.preview === "off") this.openPreview = given.preview;
-        if (Number.isFinite(given.previewDelay) && given.previewDelay >= 0) this.previewDelay = given.previewDelay;
-      } catch {}
+      // The schema limits these (mod.schema.json), so they are taken as given.
+      const { preview = "slot", previewDelay = 250 } = JSON.parse(await readTextFile(`${appHome()}/mods/${NAME}/mod.json`)).settings?.open ?? {};
+      this.openPreview = preview; this.previewDelay = previewDelay;
       // Local patch: "open": "awsome-viewer" needs Awsome Viewer' viewer; without it, preview here.
       this.hasAwsomeViewer = Boolean(await readTextFile(`${appHome()}/mods/awsome-viewer/mod.json`).catch(() => null));
       this.showSize ??= this.config.column === "size";
@@ -829,8 +827,8 @@ export default class FileTree extends View {
     return find(layout()) ?? null;
   }
   slotShown() { const n = this.slotNode(); return Boolean(n) && !n.hidden; }
-  showSlot() { try { run("layout.show", { id: "preview" }); } catch {} }
-  hideSlot() { if (this.slotShown()) { try { run("layout.hide", { id: "preview" }); } catch {} } }
+  showSlot() { run("layout.show", { id: "preview" }); }
+  hideSlot() { if (this.slotShown()) run("layout.hide", { id: "preview" }); }
   cancelWait() { this.waiting = null; }
 
   // Single click, or Space (`explicit`): the file in the preview column. Showing a hidden column
@@ -840,8 +838,8 @@ export default class FileTree extends View {
   previewSlot(rel, cx, explicit = false) {
     this.cancelWait();
     if (this.openPreview === "off" && !explicit) return;
-    const space = spaces().find((x) => x.active)?.id;
-    if (!space || !this.hasAwsomeViewer || !this.slotNode()) { this.show(rel, cx); return; }
+    if (!this.slotNode()) { this.show(rel, cx); return; }
+    const space = spaces().find((x) => x.active).id;
     const file = { path: join(this.root, rel), root: this.root, on: this.on ?? null };
     const put = () => { setShared("awsome-viewer.slot", { space, file }); this.showSlot(); };
     if (explicit || !this.previewDelay || this.slotShown()) { put(); return; }
@@ -925,14 +923,14 @@ export default class FileTree extends View {
     const rows = this.rows(), r = rows.find((x) => x.rel === rel);
     if (!r) return;
     // The list reports no modifiers, so the mouse-down above it noted them (see render).
-    const down = this.lastDown ?? {}, m = down.mods ?? {};
+    const { mods: m, count } = this.lastDown;
     this.lastDown = null;
     this.cancelWait();
     this.handle.focus();
     // Ctrl (Cmd on macOS) and Shift only change the selection: nothing opens, nothing expands.
     if (m.shift) { this.extendSelection(rel, rows); cx.notify(); return; }
     if (window()?.platform === "macos" ? m.platform : m.control) { this.toggleSelect(rel); cx.notify(); return; }
-    const now = Date.now(), double = (down.count ?? 1) >= 2 || (this.lastPress?.rel === rel && now - this.lastPress.at < 450);
+    const now = Date.now(), double = count >= 2 || (this.lastPress?.rel === rel && now - this.lastPress.at < 450);
     this.lastPress = double ? null : { rel, at: now };
     this.cursor = rel; this.anchor = rel;
     if (r.flat && r.e.dir) this.revealInTree(rel, cx);
@@ -1208,7 +1206,7 @@ export default class FileTree extends View {
     const req = shared(`${NAME}.preview`);
     if (req && req.n !== this.seenPreview) {
       this.seenPreview = req.n;
-      if (req.root === this.root) { if (this.hasAwsomeViewer && this.slotNode()) cx.spawn(async (cx) => { this.previewSlot(req.rel, cx, true); cx.notify(); }); else this.show(req.rel, cx, true); }
+      if (req.root === this.root) { if (this.slotNode()) cx.spawn(async (cx) => { this.previewSlot(req.rel, cx, true); cx.notify(); }); else this.show(req.rel, cx, true); }
     }
     // Another mod (session-bar's changed chip) asks for a view.
     const go = shared(`${NAME}.goto`);
@@ -1278,7 +1276,7 @@ export default class FileTree extends View {
       )
       .child(div().flex_1().min_h(0).relative().px(4)
         .on_mouse_down("left", (e, cx) => {
-          this.lastDown = { mods: e.modifiers ?? {}, count: e.click_count ?? 1 };
+          this.lastDown = { mods: e.modifiers, count: e.click_count };
           // Below the last row only: with the list scrolled it is taller than the view, so this never fires.
           if (this.sel.size && e.local_position && e.local_position.y > this.rows().length * ROW + 4) { this.clearSelection(); cx.notify(); }
         })

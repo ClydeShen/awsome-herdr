@@ -60,11 +60,12 @@ export const viewerMethods = {
     return viewerEntries()[this.viewerId] ?? null;
   },
 
-  // The preview column shows a file only while it belongs to the space on screen; another
-  // space's file is not read or drawn, and comes back when that space does.
+  // The preview column reads and draws a file only while it is shown and the file belongs to the
+  // space on screen; another space's file comes back when that space does.
   slotShown() {
     const entry = shared(SLOT);
-    return Boolean(entry?.file) && entry.space === spaces().find((s) => s.active)?.id;
+    const find = (node) => (node?.id === SLOT_NODE ? node : (node?.children ?? []).map(find).find(Boolean));
+    return !find(layout()).hidden && Boolean(entry?.file) && entry.space === spaces().find((s) => s.active).id;
   },
 
   // Runs as the tab opens, which is when the focused tab is its own.
@@ -868,8 +869,6 @@ export const viewerMethods = {
 
   viewerView() {
     const t = theme();
-    // When the column is hidden nothing draws it, so this stops moving: the timers read it.
-    this.renderedAt = Date.now();
     if (this.slot && !this.slotShown()) return v_flex().size_full().bg(t.background);
     const head = this.viewerHead();
     const inHeader = !this.slot && this.headerShowsTitle();

@@ -329,7 +329,7 @@
           "behavior": "Space previews the selected item without opening it; Space or Esc closes it."
         }
       ],
-      "ours": "Single-click or Space shows the file in the preview column of the layout (one, global, closed with its close button or Esc); double-click, Enter or middle-click opens it in its own tab and leaves the preview as it is. When the preview is hidden a single-click waits 250ms for a possible double-click, so the layout changes only once; when it is shown the content is replaced at once.",
+      "ours": "Single-click or Space shows the file in the preview column of the layout (one, global, closed with its close button or Esc); double-click or Enter opens it in its own tab and leaves the preview as it is. When the preview is hidden a single-click waits 250ms for a possible double-click, so the layout changes only once; when it is shown the content is replaced at once.",
       "code": {
         "awsome-filetree": [
           "openViewer(",
