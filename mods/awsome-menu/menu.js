@@ -125,7 +125,7 @@ export function menuNav(state, entries, key, run, close) {
 
 // The popup body. `at` is the keyboard cursor (-1: none); `run(entry, cx)` is called on click.
 // Open it with openOverlay({ kind: "popup", frame: "none", width: menuWidth(e), height: menuHeight(e) }).
-export function menuView({ id, entries, at, run, mono, t: given, open = null, subAt = -1, onOpen, onDismiss }) {
+export function menuView({ id, entries, at, run, mono, t: given, open = null, subAt = -1, onOpen, onDismiss, onSize }) {
   const t = given ?? theme();
   const dangerBg = alpha(t.blocked, darkTheme(t) ? 0.2 : 0.1);
   const box = (bid, list, cursor, inner) => div().id(bid).w(menuWidth(list)).h(menuHeight(list)).p(MENU.margin)
@@ -153,7 +153,12 @@ export function menuView({ id, entries, at, run, mono, t: given, open = null, su
       })));
   const k = open ? entries.findIndex((e) => e && e.id === open) : -1;
   const sub = k >= 0 ? entries[k].submenu : null;
-  return div().id(id).size_full().relative()
+  // Popups shrink to their content, and both boxes are positioned absolutely, so the root takes
+  // the full frame size itself; without it the popup collapses to nothing.
+  const frame = menuFrame(entries);
+  // onSize reports the size the menu was really laid out at (scripts/ui-open-check.py reads it).
+  return div().id(id).w(frame.width).h(frame.height).relative()
+    .when(Boolean(onSize), (el) => el.on_size_change((size, cx) => onSize(size, cx)))
     .on_mouse_down("left", (_e, cx) => onDismiss?.(cx))
     .child(div().absolute().left(0).top(0).child(box(`${id}-main`, entries, at, true)))
     .when(Boolean(sub), (el) => el.child(div().absolute().left(subLeft(entries)).top(subTop(entries, k)).child(box(`${id}-sub`, sub, subAt, false))));

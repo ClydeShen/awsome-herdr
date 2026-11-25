@@ -162,7 +162,8 @@ export default class AwsomeMenu extends View {
       })
       .child(menuView({ id: NAME, entries, at: nav.at, run: go, mono: MONO, open: nav.open, subAt: nav.subAt,
         onOpen: (id, cx) => { if (nav.open !== id) { nav.open = id; nav.subAt = -1; cx.notify(); } },
-        onDismiss: () => this.close() }));
+        onDismiss: () => this.close(),
+        onSize: (s) => setShared(`${NAME}.rendered`, { scope, width: Math.round(s.width), height: Math.round(s.height), expected: size, at: Date.now() }) }));
   }
 }
 

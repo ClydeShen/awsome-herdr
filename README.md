@@ -73,4 +73,4 @@ Delete `~/.config/herdr-app/mods/<name>` and `layouts/awsome.json`, put the orig
 
 ## UI checks
 
-`python scripts/ui-check.py` checks the mods and themes against the design rules: color sources, contrast, layout alignment, shared files, English UI text, menu labels, icons and design tokens. `python scripts/ui-shot-check.py` checks a live screenshot. After cloning, run `git config core.hooksPath .githooks` once so a commit that breaks a rule is refused. What each rule guards against is in `docs/UI-LESSONS.md`.
+`python scripts/ui-check.py` checks the mods and themes against the design rules: color sources, contrast, layout alignment, shared files, English UI text, menu labels, icons and design tokens. `python scripts/ui-shot-check.py` checks a live screenshot, and `python scripts/ui-open-check.py awsome-menu` opens the menu for real and checks it was laid out at its full size. After cloning, run `git config core.hooksPath .githooks` once so a commit that breaks a rule is refused. What each rule guards against is in `docs/UI-LESSONS.md`.
