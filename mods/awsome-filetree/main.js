@@ -855,10 +855,14 @@ export default class FileTree extends View {
     this.follow = false; this.pinned = join(this.root, rel); this.pinnedOn = this.on; this.cursor = "";
   }
 
+  // Back to following the focused pane: the way back from goUp / enterFolder / Open as root.
+  followPane() { this.follow = true; this.pinned = null; }
+
   // Key commands bound in keys.json's "mod:awsome-filetree" section (defaults in mod.schema.json).
   command(name, cx) {
     const c = String(name ?? "").replace(/^awsome-filetree[.:]/, "");
     if (c === "up") this.goUp();
+    else if (c === "follow") this.followPane();
     else if (c === "into") {
       const cur = this.rows().find((r) => r.rel === this.cursor);
       if (cur?.e?.dir) this.enterFolder(cur.rel, cx);
@@ -1050,7 +1054,7 @@ export default class FileTree extends View {
     // Tools sit in the title row and change with the view.
     const tools = this.view === "tree" ? [
       btn("ft-up", ic("arrow-up"), "Up a folder (Ctrl+Alt+Backspace)", false, () => this.goUp()),
-      btn("ft-home", ic("house-simple"), this.follow ? "Following the focused pane" : "Back to the focused pane's folder", this.follow, () => { this.follow = true; this.pinned = null; }),
+      btn("ft-home", ic("house-simple"), this.follow ? "Following the focused pane" : `Back to the focused pane's folder${keyFor(`${NAME}.follow`, window()?.platform === "macos") ? ` (${keyFor(`${NAME}.follow`, window()?.platform === "macos")})` : ""}`, this.follow, () => this.followPane()),
       btn("ft-hidden", ic(this.showHidden ? "eye" : "eye-slash"), this.showHidden ? "Hide dotfiles (.)" : "Show dotfiles (.)", this.showHidden, () => { this.showHidden = !this.showHidden; this.savePrefs(); }),
       btn("ft-size", ic("ruler"), this.showSize ? "Show dates" : "Show sizes", Boolean(this.showSize), () => { this.showSize = !this.showSize; this.savePrefs(); }),
       btn("ft-collapse", ic("arrows-in-line-vertical"), "Collapse all", false, (cx) => this.collapseAll(cx)),

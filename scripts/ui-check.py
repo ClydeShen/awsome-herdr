@@ -271,7 +271,38 @@ def c9_tokens():
                 fail("C9", "L2", f"mods/{mod}/{name} {const} differs from design/tokens.json {key}: {diff}", "change design/tokens.json first (with its source), then the constant")
 
 
-CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens]
+def c10_way_back():
+    """A menu item never replaces the menu with another menu: nested menus are submenus."""
+    for path, src in mod_js():
+        code = strip_comments(src)
+        if "menu.js" not in code:
+            continue
+        for m in re.finditer(r"run:\s*\([^)]*\)\s*=>\s*\{?\s*openOverlay\(\{\s*mod:\s*NAME(?![A-Za-z0-9_])", code):
+            line = code[: m.start()].count(chr(10)) + 1
+            fail("C10", "L6", f"{path}:{line} a menu item opens another copy of its own menu, so there is no way back",
+                 "give the item `submenu: [...]` so it opens beside the item (menu.js)")
+
+
+def c11_flows():
+    """Every way in has a way out: each flow in design/flows.json goes back by every means it goes forward."""
+    code_of = {}
+    for path, src in mod_js():
+        code_of.setdefault(path.split("/")[1], []).append(src)
+    for f in load("design", "flows.json")["flows"]:
+        fid, mod = f.get("id"), f.get("mod")
+        fw, bk = f.get("forward", {}), f.get("back", {})
+        for means in ("mouse", "keys"):
+            if fw.get(means) and not bk.get(means):
+                fail("C11", "L6", f"flow {fid} ({mod}): goes forward by {means} ({fw[means]}) but has no way back by {means}",
+                     "add the way back (same means), build it, and list it in design/flows.json")
+        src = "".join(code_of.get(mod, []))
+        for side, part in (("forward", fw), ("back", bk)):
+            for needle in part.get("code", []):
+                if needle not in src:
+                    fail("C11", "L6", f"flow {fid} ({mod}): {side} code {needle!r} is not in the mod", "build the step, or correct design/flows.json")
+
+
+CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows]
 
 
 def main():

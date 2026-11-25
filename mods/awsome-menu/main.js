@@ -7,7 +7,7 @@
 
 import { View, div } from "gpui-kit";
 import { spaces, panes, knownAgents, run, openOverlay, closeOverlay, props, window, exec, notify, shared, setShared } from "herdr";
-import { menuView, menuHeight, menuWidth, menuKey, keyFor, tidy } from "./menu.js";
+import { menuView, menuFrame, menuNav, keyFor, tidy } from "./menu.js";
 import { loadSettings } from "./settings.js";
 
 const NAME = "awsome-menu";
@@ -63,7 +63,7 @@ export default class AwsomeMenu extends View {
   init(_props, cx) {
     this.handle = cx.focus_handle();
     this.handle.focus();
-    this.at = -1;
+    this.nav = { at: -1, open: null, subAt: -1 };
     const cache = shared(`${NAME}.cache`) ?? {};
     this.terminals = cache.terminals ?? null;
     this.agents = cache.agents ?? null;
@@ -95,7 +95,7 @@ export default class AwsomeMenu extends View {
 
   entries() {
     const s = this.space(), sid = s?.id;
-    const scope = props()?.scope === "space" ? "space" : props()?.scope === "agents" ? "agents" : "plus";
+    const scope = props()?.scope === "space" ? "space" : "plus";
     const mac = window()?.platform === "macos";
     const reveal = mac ? "Reveal in Finder" : window()?.platform === "windows" ? "Reveal in File Explorer" : "Open in file manager";
     const hide = new Set((this.settings.terminals.hide ?? []).map((n) => String(n).toLowerCase()));
@@ -117,7 +117,6 @@ export default class AwsomeMenu extends View {
         keys: a.installed ? digit : "Not installed", disabled: !a.installed, reason: a.installed ? null : `${a.name} is not installed`,
         run: () => run("tab.new", { name: a.name, space: sid, argv: a.run }) };
     };
-    if (props()?.scope === "agents") return tidy([{ title: "Agents" }, ...agents.filter((a) => a.installed).map(agentEntry), "-", { title: "Not installed" }, ...agents.filter((a) => !a.installed).map(agentEntry)]);
     return tidy([
       { title: "Terminals" },
       ...(this.terminals === null ? [{ id: "t-wait", label: "Looking for shells…", icon: SHELL, disabled: true }] : []),
@@ -127,8 +126,8 @@ export default class AwsomeMenu extends View {
       { title: "Agents" },
       ...(this.agents === null ? [{ id: "a-wait", label: "Checking installed agents…", disabled: true }] : []),
       ...agents.filter((a) => a.installed).map(agentEntry),
-      ...(agents.some((a) => !a.installed) ? [{ id: "a-more", label: "More agents…", icon: UI("dots-three"),
-        run: () => openOverlay({ mod: NAME, kind: "popup", frame: "none", ...((shared(`${NAME}.size`) ?? {}).agents ?? { width: 280, height: 520 }), props: { scope: "agents", space: sid } }) }] : []),
+      ...(agents.some((a) => !a.installed) ? [{ id: "a-more", label: "More agents", icon: UI("dots-three"),
+        submenu: [{ title: "Not installed" }, ...agents.filter((a) => !a.installed).map(agentEntry)] }] : []),
       "-",
       { id: "wt-new", label: "New worktree…", icon: UI("git-branch"), disabled: this.git !== true, reason: this.git === false ? "Not a Git repository" : "Checking Git…",
         run: () => openOverlay({ mod: "worktree", kind: "dialog", width: 460, height: 280, props: { space: sid, folder, action: "new" } }) },
@@ -148,20 +147,22 @@ export default class AwsomeMenu extends View {
 
   render(cx) {
     const entries = this.entries();
-    const size = { width: menuWidth(entries), height: menuHeight(entries) };
-    const scope = props()?.scope === "space" ? "space" : props()?.scope === "agents" ? "agents" : "plus";
+    const size = menuFrame(entries);
+    const scope = props()?.scope === "space" ? "space" : "plus";
     const known = shared(`${NAME}.size`) ?? {};
     if (known[scope]?.width !== size.width || known[scope]?.height !== size.height) setShared(`${NAME}.size`, { ...known, [scope]: size });
     const go = (e, cx) => { this.close(); e.run(cx); };
+    const nav = this.nav;
     return div().size_full().track_focus(this.handle)
       .on_key_down((ev, cx) => {
-        const digit = /^[1-9]$/.test(ev.key) ? entries.find((e) => e.digit === ev.key) : null;
+        const digit = !nav.open && /^[1-9]$/.test(ev.key) ? entries.find((e) => e.digit === ev.key) : null;
         if (digit) { cx.stop_propagation(); go(digit, cx); return; }
-        const next = menuKey(entries, this.at, ev.key, (e) => go(e, cx), () => this.close());
-        if (next === null) return;
-        this.at = next; cx.stop_propagation(); cx.notify();
+        if (!menuNav(nav, entries, ev.key, (e) => go(e, cx), () => this.close())) return;
+        cx.stop_propagation(); cx.notify();
       })
-      .child(menuView({ id: NAME, entries, at: this.at, run: go, mono: MONO }));
+      .child(menuView({ id: NAME, entries, at: nav.at, run: go, mono: MONO, open: nav.open, subAt: nav.subAt,
+        onOpen: (id, cx) => { if (nav.open !== id) { nav.open = id; nav.subAt = -1; cx.notify(); } },
+        onDismiss: () => this.close() }));
   }
 }
 

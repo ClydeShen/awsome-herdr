@@ -1,0 +1,145 @@
+{
+  "$comment": "Every way in has a way out (docs/UI-LESSONS.md L6). Each flow takes the user somewhere (a folder, a view, a detail page, a submenu, a mode); 'back' must be reachable by every means 'forward' is (mouse and/or keys). 'code' names functions or strings that must exist in the mod, so a flow cannot be listed without being built. scripts/ui-check.py C11 checks this file. Add a flow here before building any new place to go.",
+  "flows": [
+    {
+      "id": "tree-up",
+      "mod": "awsome-filetree",
+      "to": "the parent folder as the tree's root",
+      "forward": {
+        "mouse": "Up a folder button",
+        "keys": "Ctrl+Alt+Backspace",
+        "code": [
+          "goUp()",
+          "\"up\""
+        ]
+      },
+      "back": {
+        "mouse": "right-click the folder left, Open as root; or the house button",
+        "keys": "Ctrl+Alt+Enter on the folder left (it stays selected), or Ctrl+Alt+Home",
+        "code": [
+          "enterFolder(",
+          "followPane()"
+        ]
+      }
+    },
+    {
+      "id": "tree-into",
+      "mod": "awsome-filetree",
+      "to": "a folder as the tree's root",
+      "forward": {
+        "mouse": "right-click a folder, Open as root",
+        "keys": "Ctrl+Alt+Enter",
+        "code": [
+          "enterFolder(",
+          "\"into\""
+        ]
+      },
+      "back": {
+        "mouse": "Up a folder button, or the house button",
+        "keys": "Ctrl+Alt+Backspace, or Ctrl+Alt+Home",
+        "code": [
+          "goUp()",
+          "followPane()"
+        ]
+      }
+    },
+    {
+      "id": "tree-pin",
+      "mod": "awsome-filetree",
+      "to": "a pinned root that no longer follows the focused pane",
+      "forward": {
+        "mouse": "Up a folder / Open as root",
+        "keys": "Ctrl+Alt+Backspace / Ctrl+Alt+Enter",
+        "code": [
+          "this.follow = false"
+        ]
+      },
+      "back": {
+        "mouse": "the house button",
+        "keys": "Ctrl+Alt+Home",
+        "code": [
+          "followPane()",
+          "\"follow\""
+        ]
+      }
+    },
+    {
+      "id": "tree-preview",
+      "mod": "awsome-filetree",
+      "to": "a file previewed inside the panel",
+      "forward": {
+        "mouse": "click a file",
+        "keys": "Enter on a file",
+        "code": [
+          "this.file = rel"
+        ]
+      },
+      "back": {
+        "mouse": "Back to the tree button",
+        "keys": "Esc or Left",
+        "code": [
+          "closePreview()",
+          "Back to the tree (Esc)"
+        ]
+      }
+    },
+    {
+      "id": "tree-filter",
+      "mod": "awsome-filetree",
+      "to": "the tree narrowed to a filter",
+      "forward": {
+        "mouse": "type in Filter files",
+        "keys": "/ then type",
+        "code": [
+          "this.input.focus()"
+        ]
+      },
+      "back": {
+        "mouse": "the clear button in the filter",
+        "keys": "Esc",
+        "code": [
+          "clearSearch(cx)",
+          "ft-clear"
+        ]
+      }
+    },
+    {
+      "id": "commit-detail",
+      "mod": "awsome-changes",
+      "to": "a commit's details",
+      "forward": {
+        "mouse": "click a commit",
+        "keys": "",
+        "code": [
+          "this.selectedCommit = commit"
+        ]
+      },
+      "back": {
+        "mouse": "Back to commits button",
+        "keys": "",
+        "code": [
+          "Back to commits"
+        ]
+      }
+    },
+    {
+      "id": "menu-submenu",
+      "mod": "awsome-menu",
+      "to": "a submenu beside its item",
+      "forward": {
+        "mouse": "hover or click an item with ›",
+        "keys": "Right or Enter",
+        "code": [
+          "submenu:"
+        ]
+      },
+      "back": {
+        "mouse": "hover another item",
+        "keys": "Left or Esc",
+        "code": [
+          "menuNav("
+        ]
+      }
+    }
+  ]
+}

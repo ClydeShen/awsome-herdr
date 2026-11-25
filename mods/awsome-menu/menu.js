@@ -8,6 +8,9 @@
 //   { id, label, icon?, image?, keys?, danger?, disabled?, reason?, run(cx) }
 // icon is a one-color svg path ("mods/awsome-icons/ui/copy.svg"), drawn muted; image is a
 // full-color picture (a program's own icon). keys is the muted text on the right.
+// An entry with `submenu: [entries]` shows › and opens that menu to its right (hover, → or
+// Enter); ←, Esc or hovering another item closes it again. Never replace the menu with another
+// one: a nested menu always opens beside the item, so the way back stays in view.
 
 import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
@@ -33,6 +36,26 @@ export function menuWidth(entries) {
   const keys = Math.max(0, ...items.map((e) => (e.keys ? e.keys.length * 7.4 + 24 : 0)));
   const w = MENU.margin * 2 + 2 + MENU.pad * 2 + MENU.px * 2 + MENU.icon + MENU.gap + label + keys;
   return Math.round(Math.min(340, Math.max(180, w)));
+}
+
+// Height of one entry inside the menu box.
+const entryHeight = (e) => (e === "-" ? MENU.sep : e.title ? MENU.title : MENU.row);
+// Where a submenu's box starts: its first item lines up with the item that opens it.
+function subTop(entries, i) {
+  return entries.slice(0, i).reduce((sum, e) => sum + entryHeight(e), 0);
+}
+// Where a submenu's box starts across: it overlaps the menu by 4px, like native menus.
+const subLeft = (entries) => menuWidth(entries) - MENU.margin * 2 - 4;
+// The popup's size with room for the widest and lowest submenu, for openOverlay
+// ({ kind: "popup", frame: "none", ...menuFrame(entries) }).
+export function menuFrame(entries) {
+  let width = menuWidth(entries), height = menuHeight(entries);
+  entries.forEach((e, i) => {
+    if (!e || !e.submenu) return;
+    width = Math.max(width, subLeft(entries) + menuWidth(e.submenu));
+    height = Math.max(height, subTop(entries, i) + menuHeight(e.submenu));
+  });
+  return { width, height };
 }
 
 // Separators only between groups: none at the ends, never two in a row.
@@ -73,27 +96,65 @@ export function menuKey(entries, at, key, run, close) {
 const alpha = (hex, a) => `${String(hex).slice(0, 7)}${Math.round(a * 255).toString(16).padStart(2, "0")}`;
 const darkTheme = (t) => { const c = String(t.popover).slice(1, 7); return parseInt(c.slice(0, 2), 16) + parseInt(c.slice(2, 4), 16) + parseInt(c.slice(4, 6), 16) < 384; };
 
+// Keys with submenus. state = { at, open, subAt }: at is the cursor in the menu, open the id of the
+// open submenu (or null), subAt the cursor inside it. Returns true when it used the key.
+export function menuNav(state, entries, key, run, close) {
+  const live = (list) => list.map((e, i) => (e !== "-" && !e.title && !e.disabled ? i : -1)).filter((i) => i >= 0);
+  const step = (list, at, down) => {
+    const l = live(list);
+    if (!l.length) return at;
+    const k = l.indexOf(at);
+    if (k < 0) return down ? l[0] : l[l.length - 1];
+    return l[(k + (down ? 1 : l.length - 1)) % l.length];
+  };
+  const parent = state.open ? entries.find((e) => e && e.id === state.open) : null;
+  if (parent) {
+    const sub = parent.submenu;
+    if (key === "left" || key === "escape") { state.open = null; return true; }
+    if (key === "up" || key === "down") { state.subAt = step(sub, state.subAt, key === "down"); return true; }
+    if (key === "enter" || key === "right") { const e = sub[state.subAt]; if (e && e !== "-" && !e.title && !e.disabled) run(e); return true; }
+    return false;
+  }
+  if (key === "escape") { close(); return true; }
+  if (key === "up" || key === "down") { state.at = step(entries, state.at, key === "down"); return true; }
+  const e = entries[state.at];
+  if ((key === "enter" || key === "right") && e && e.submenu && !e.disabled) { state.open = e.id; state.subAt = live(e.submenu)[0] ?? -1; return true; }
+  if (key === "enter" && e && e !== "-" && !e.title && !e.disabled) { run(e); return true; }
+  return false;
+}
+
 // The popup body. `at` is the keyboard cursor (-1: none); `run(entry, cx)` is called on click.
 // Open it with openOverlay({ kind: "popup", frame: "none", width: menuWidth(e), height: menuHeight(e) }).
-export function menuView({ id, entries, at, run, mono, t: given }) {
+export function menuView({ id, entries, at, run, mono, t: given, open = null, subAt = -1, onOpen, onDismiss }) {
   const t = given ?? theme();
   const dangerBg = alpha(t.blocked, darkTheme(t) ? 0.2 : 0.1);
-  return div().id(id).size_full().p(MENU.margin).child(
-    v_flex().size_full().p(MENU.pad).rounded(MENU.radius).border_1().border_color(t.border).bg(t.popover).shadow_md()
+  const box = (bid, list, cursor, inner) => div().id(bid).w(menuWidth(list)).h(menuHeight(list)).p(MENU.margin)
+    .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+    .child(v_flex().size_full().p(MENU.pad).rounded(MENU.radius).border_1().border_color(t.border).bg(t.popover).shadow_md()
       .text_color(t.foreground).text_size(MENU.text)
-      .children(entries.map((e, i) => {
+      .children(list.map((e, i) => {
         if (e === "-") return div().flex_none().mx(-MENU.pad).my(4).h(1).bg(t.border);
         if (e.title) return div().h(MENU.title).flex_none().flex().items_center().px(MENU.px).text_size(11).font_medium().text_color(t.muted).child(e.title);
         const hot = e.danger ? dangerBg : t.hover;
-        return h_flex().id(`${id}-${e.id}`).h(MENU.row).flex_none().px(MENU.px).gap(MENU.gap).items_center().rounded(MENU.itemRadius)
+        const lit = (i === cursor && !e.disabled) || (inner && e.submenu && e.id === open);
+        return h_flex().id(`${bid}-${e.id}`).h(MENU.row).flex_none().px(MENU.px).gap(MENU.gap).items_center().rounded(MENU.itemRadius)
           .text_color(e.danger ? t.blocked : t.foreground)
           .when(Boolean(e.disabled), (el) => el.opacity(0.5))
-          .when(!e.disabled, (el) => el.cursor_pointer().hover((s) => s.bg(hot)).on_click((_ev, cx) => run(e, cx)))
-          .when(i === at && !e.disabled, (el) => el.bg(hot))
+          .when(!e.disabled, (el) => el.cursor_pointer().hover((s) => s.bg(hot))
+            .on_click((_ev, cx) => (e.submenu ? onOpen?.(e.id, cx) : run(e, cx))))
+          .when(Boolean(inner && onOpen), (el) => el.on_hover((h, cx) => { if (h && !e.disabled) onOpen(e.submenu ? e.id : null, cx); }))
+          .when(lit, (el) => el.bg(hot))
           .when(Boolean(e.disabled && e.reason), (el) => el.tooltip(e.reason))
           .child(e.image ? image(e.image).size(MENU.icon).flex_none()
             : e.icon ? svg(e.icon).size(MENU.icon).flex_none().text_color(e.danger ? t.blocked : t.muted) : div().w(MENU.icon).flex_none())
           .child(div().flex_1().min_w(0).truncate().child(e.label))
-          .when(Boolean(e.keys), (el) => el.child(div().flex_none().ml(16).text_size(MENU.keys).font_family(mono ?? "JetBrains Mono").text_color(t.muted).child(e.keys)));
+          .when(Boolean(e.submenu), (el) => el.child(svg("mods/awsome-icons/ui/caret-right.svg").size(14).flex_none().text_color(t.muted)))
+          .when(Boolean(e.keys && !e.submenu), (el) => el.child(div().flex_none().ml(16).text_size(MENU.keys).font_family(mono ?? "JetBrains Mono").text_color(t.muted).child(e.keys)));
       })));
+  const k = open ? entries.findIndex((e) => e && e.id === open) : -1;
+  const sub = k >= 0 ? entries[k].submenu : null;
+  return div().id(id).size_full().relative()
+    .on_mouse_down("left", (_e, cx) => onDismiss?.(cx))
+    .child(div().absolute().left(0).top(0).child(box(`${id}-main`, entries, at, true)))
+    .when(Boolean(sub), (el) => el.child(div().absolute().left(subLeft(entries)).top(subTop(entries, k)).child(box(`${id}-sub`, sub, subAt, false))));
 }

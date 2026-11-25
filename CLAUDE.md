@@ -21,11 +21,11 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 5. **安全约定。** 删除一律进系统回收站，不提供撤销。新建、重命名、移动这类低风险文件操作支持撤销，默认 Ctrl+Z（macOS 是 Cmd+Z），只在文件树有焦点时生效，不抢终端的按键。discard 这类会丢用户改动的 Git 操作要确认。
 6. **界面先定稿，再动手。** 用户不接受半成品和返工（P0 的主题做了三遍、菜单重做过一次）。任何新界面或改样式，按这个顺序：
    1. **定来源**：设计系统是 shadcn/ui（Neutral 灰阶、间距、圆角、组件结构）+ Apple 系统色（`docs/REQUIREMENTS.md` §2）。每个数值都要能说出取自哪个公开来源的哪个令牌或类名，**从官方源码或页面数据里取，不凭记忆、不自己调**。来源没定义的值才推导，并写明推导规则。
-   2. **一次定全规格**：这个界面用到的所有部件（行、菜单、对话框、按钮、空状态、悬停 / 选中 / 禁用）的尺寸、颜色令牌、字体、对齐线，一次写进 `docs/REQUIREMENTS.md`，不边做边补。
+   2. **一次定全规格**：这个界面用到的所有部件（行、菜单、对话框、按钮、空状态、悬停 / 选中 / 禁用）的尺寸、颜色令牌、字体、对齐线，一次写进 `docs/REQUIREMENTS.md`，不边做边补。**有去必有回**：把操作路径当成一张往返的图来设计，每个让用户去到别处、进入另一个状态的动作，都同时设计回来的动作，回来的方式覆盖去的方式（鼠标对鼠标、键盘对键盘），先登记进 `design/flows.json` 再做（`docs/UI-LESSONS.md` L6）。
    3. **算清楚再画**：对比度用**真实底色**（侧边栏 `chrome`、卡片 `surface`，以及叠上 `hover` / `selected` 后的颜色）算，深浅两套都算；版式算出每条横线、竖线的位置，和相邻区块的线对齐（底栏、标题行、卡片边）。
    4. **先给预览，用户确认**：用临时预览 mod（只放进 `~/.config/herdr-app/mods`，用 `herdr-app do mod.open` 打开、截图后关掉并移进备份）在深浅两种主题下截图，把截图和规格一起给用户看。确认之后才改正式代码。
    5. **做完再核对**：截图逐像素量关键的线和颜色，和规格对一遍；交互（右键、拖拽、悬停手感）列清单请用户试。
-7. **界面规则由程序把关，并持续补充。** `python scripts/ui-check.py` 检查颜色出处、对比度、版式对齐、写死的颜色、共用件一致、英文界面、菜单写法、图标、规格常量（C1～C9）。它在我每次编辑文件后（`.claude/settings.json` 钩子）和每次提交前（`.githooks/pre-commit`，新克隆的仓库先执行 `git config core.hooksPath .githooks`）自动运行。界面装进 Herdr 后，运行 `python scripts/ui-shot-check.py` 核对截图。**用户每纠正一次界面问题，就在 `docs/UI-LESSONS.md` 加一条教训**；能程序化的同时加一个检查，并先在仓库副本里故意造这个错，确认能拦住。设计数值只改 `design/tokens.json` 和 `config/themes/sources.json`，不在代码里另写。不许为了让检查通过去关掉检查或放宽阈值；要放宽，先问用户。
+7. **界面规则由程序把关，并持续补充。** `python scripts/ui-check.py` 检查颜色出处、对比度、版式对齐、写死的颜色、共用件一致、英文界面、菜单写法、图标、规格常量、操作路径有去有回（C1～C11，路径登记在 `design/flows.json`）。它在我每次编辑文件后（`.claude/settings.json` 钩子）和每次提交前（`.githooks/pre-commit`，新克隆的仓库先执行 `git config core.hooksPath .githooks`）自动运行。界面装进 Herdr 后，运行 `python scripts/ui-shot-check.py` 核对截图。**用户每纠正一次界面问题，就在 `docs/UI-LESSONS.md` 加一条教训**；能程序化的同时加一个检查，并先在仓库副本里故意造这个错，确认能拦住。设计数值只改 `design/tokens.json` 和 `config/themes/sources.json`，不在代码里另写。不许为了让检查通过去关掉检查或放宽阈值；要放宽，先问用户。
 
 ## Herdr 能做什么、不能做什么（以 `~/.config/herdr-app/*.d.ts` 为准）
 

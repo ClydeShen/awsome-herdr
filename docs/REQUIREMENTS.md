@@ -304,7 +304,7 @@
 |---|---|
 | 分组标题 | `Terminals`、`Agents`：高 24，字号 11、中等粗细、`muted`（和侧边栏的分组标题同一种样式），不可点 |
 | 终端 | 图标用 Herdr 的 `shell.svg`；名字如 `PowerShell 7`、`Git Bash`、`Ubuntu`；右侧淡色 `Default` / `WSL` |
-| agent | **只列已安装的**：Herdr 的程序图标，右侧数字 `1`…`9`，菜单打开时按数字直接启动。最后一行 `More agents…` 另弹一个菜单，列出全部 agent（没安装的整行半透明、右侧写 `Not installed`）。Herdr 认识 16 个 agent，全列出来菜单会超出窗口（2026-11-25 实测） |
+| agent | **只列已安装的**：Herdr 的程序图标，右侧数字 `1`…`9`，菜单打开时按数字直接启动。最后一行 `More agents ›` 是**侧向展开的子菜单**（悬停、→ 或 Enter 展开；←、Esc 或悬停到别的项收起），列出没安装的 agent（整行半透明、右侧写 `Not installed`）。Herdr 认识 16 个 agent，全列出来菜单会超出窗口（2026-11-25 实测） |
 | 其余 | `New worktree…`、`Open worktree…`｜`Rename`（`F2`）、`Reveal in File Explorer`、`Copy path`｜`Close space…`（红色，Herdr 自带确认）。`Appearance…`、`Group ▸` 在 P1b 加，`Tile agents` 在 P1c 加 |
 | 标签栏 `+` | 同一个菜单，只有 Terminals、Agents、worktree 三组，作用于当前 space |
 | 键盘 | ↑ ↓ 移动（跳过标题和不可用项）、Enter 执行、Esc 关闭、数字键启动 agent |
@@ -553,6 +553,7 @@
 | 平铺 / 复原当前 space 的 agent | `Ctrl+Shift+G`（macOS `Cmd+Shift+G`） | 全局 | Herdr 没占用，和它的 `Ctrl+Shift+T` 等应用级命令同一族。**不用 `Ctrl+Tab`**：Herdr 已绑成 `tab.next`，也是浏览器的"下一个 tab"。不用 `Ctrl+Shift+G`：在 AltGr 键盘布局上可能打出字符。macOS 上 `Cmd+Shift+G` 在很多应用里是"查找上一个"，要实测 |
 | 文件树：上一级 | `Ctrl+Alt+Backspace` | 文件树有焦点 | §4.3 |
 | 文件树：进入选中的文件夹 | `Ctrl+Alt+Enter` | 文件树有焦点 | 单独的 Enter 仍是展开 / 打开 |
+| 文件树：回到跟随终端 | `Ctrl+Alt+Home` | 文件树有焦点 | 上一级 / 进入文件夹之后，用键盘回到跟随（房子按钮的键盘版），有去有回（L6） |
 | 文件树：撤销 | `Ctrl+Z`（macOS `Cmd+Z`） | 文件树有焦点 | 不抢终端的 Ctrl+Z |
 | 重命名 | `F2` | 文件树或侧边栏有焦点 | 文件、space、组 |
 | 文件树：删除（进回收站） | `Delete`（macOS `Cmd+Backspace`） | 文件树有焦点 | 弹确认 |

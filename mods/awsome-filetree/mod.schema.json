@@ -88,6 +88,15 @@
               "x-action": "awsome-filetree.into",
               "x-section": "mod:awsome-filetree",
               "default": "ctrl-alt-enter"
+            },
+            "follow": {
+              "title": "Back to the focused pane",
+              "description": "Makes the tree follow the focused pane's folder again, after Up a folder or Into the folder. Works while the file tree has focus.",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-filetree.follow",
+              "x-section": "mod:awsome-filetree",
+              "default": "ctrl-alt-home"
             }
           }
         }

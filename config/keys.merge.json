@@ -4,6 +4,7 @@
   },
   "mod:awsome-filetree": {
     "ctrl-alt-backspace": "awsome-filetree.up",
-    "ctrl-alt-enter": "awsome-filetree.into"
+    "ctrl-alt-enter": "awsome-filetree.into",
+    "ctrl-alt-home": "awsome-filetree.follow"
   }
 }
