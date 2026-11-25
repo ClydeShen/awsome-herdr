@@ -6,8 +6,8 @@
   },
   "type": "row",
   "theme": {
-    "light": "awsome-light",
-    "dark": "graphite"
+    "light": "primer-light",
+    "dark": "primer-dark"
   },
   "children": [
     {

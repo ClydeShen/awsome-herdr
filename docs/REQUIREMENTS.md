@@ -14,7 +14,7 @@
 |---|---|---|
 | 工作规则（胶水优先、三平台、设置走 awsome-config、安全约定）、Herdr 能做什么和不能做什么、踩过的坑 | **`CLAUDE.md`** | 每次会话自动读入 |
 | 需求、决定、设计系统和交互模式、键位、执行计划、待决事项 | **本文件** | 不重复抄 `CLAUDE.md` 里的规则 |
-| 颜色的具体色值 | **主题**：深色用 Herdr 自带的 `graphite`，浅色用 **`config/themes/awsome-light.json`**（paper 加深了 11 个文字色）；布局 `awsome.json` 的根节点指定这一对 | 本文件只写"用哪个令牌"；唯一的例外是 §2.4 的 6 个标记色 |
+| 颜色的具体色值 | **主题**：深浅两套都**原样采用 GitHub 的公开设计系统 Primer**（`@primer/primitives` 11.10.0）：`config/themes/primer-dark.json`、`primer-light.json`；布局 `awsome.json` 的根节点指定这一对 | 本文件只写"用哪个令牌"；唯一的例外是 §2.4 的 6 个标记色 |
 | 参考项目的借鉴边界 | 第 7 节 | — |
 
 不另建 `design-system/MASTER.md`：设计系统就是本文件第 2 节加上面的主题。
@@ -39,7 +39,7 @@
 | 行高 | 树（Files、Changes 的文件树）**22px**；列表（侧边栏的 space、agent，Repositories）**28px**，和 Herdr 自带的 spaces 一致 |
 | 缩进 | **每级 12px，所有树和分组都一样**；多级的树画缩进参考线（Files、Changes、Agents 的 sub agent），只有一级的分组（space 组）不画 |
 | 字号 | 11（次要文字、区块标题）、12.8（菜单项，和 Herdr 菜单一致）、13（行内容）、15（对话框标题，和 Herdr `confirm` 一致） |
-| 字体 | **Geist**（界面）+ **JetBrains Mono**（路径、哈希、数字、快捷键），都随 Herdr 自带 |
+| 字体 | 只用 Herdr 自带的两种。**标识类文字一律用 JetBrains Mono**：文件名、路径、分支名、space 名、哈希、数字、快捷键，因为它们要逐字核对，而 JetBrains Mono 能分清 `O` / `0`（0 中间有点）和 `I` / `l` / `1`（衬线、尾巴、旗角）。**说明类文字用 Geist**：按钮、菜单、标题、提示。实测 Geist 和 Segoe UI 里 `I` 和 `l` 都是一根竖线、`O` 和 `0` 几乎一样，几乎所有无衬线界面字体都这样，所以不靠换界面字体解决 |
 | 圆角 | 行 4px；菜单 7px、对话框 8px（和 Herdr 一致） |
 | 图标 | UI 控件用 **Phosphor regular，14px**；文件、文件夹、程序图标用 **Material**。都放在共享的 `awsome-icons/`，按路径读 |
 | 按钮 | 三种：主要（实心 `accent`）、次要（描边）、图标按钮（22px 点击区，悬停才显示底色，**必须有 tooltip**）。高度：对话框里 32px（和 Herdr 一致），面板里 24px |
@@ -56,8 +56,10 @@
 | 键盘光标 / 多选的锚点 | **1px `accent` 内描边**，只在这个列表有键盘焦点时显示 | 和 VS Code 一致；**不用左边竖线** |
 | 禁用 | `dim` 文字，tooltip 写原因 | |
 
-- **`dim` 只用于刻意变淡、不需要读的东西**（被忽略的文件、空闲的 agent、禁用项），WCAG 对这些不作要求；**要读的次要文字一律用 `muted`**。实测 graphite 的 `dim` 在各种底色上只有 2.5～3.5:1。
-- **主题怎么保证对比度**：深色用 Herdr 原生的 `graphite`，所有文字令牌（`dim` 除外）在所有底色和叠层上都 ≥ 4.7:1，不用改。浅色的 `paper` 在侧边栏底色叠上选中层后，`muted` 和状态色只有 3.5～4.4:1，所以 `awsome-light` 把 `muted`、`accent`、`ansi1/2/3/5/6`、`working`、`blocked`、`done` 加深到 ≥ 4.6:1，其余和 paper 完全一样。
+- **`dim` 只用于刻意变淡、不需要读的东西**（被忽略的文件、空闲的 agent、禁用项），WCAG 对这些不作要求；**要读的次要文字一律用 `muted`**。`dim` 对应 Primer 的 `fgColor-disabled`，本来就是给禁用状态用的。
+- **配色不自己调**：深浅两套原样采用 Primer，每个 Herdr 令牌对应一个 Primer 令牌（如 `muted` = `fgColor-muted`，`chrome` = `bgColor-muted`，`hover` / `selected` = `control-transparent-bgColor-hover` / `-selected`），只做两件换算：半透明的选区色按叠在背景上的结果换成实色（Herdr 要求），`accent_foreground` 取背景色。
+- **实测对比度**：普通状态下所有文字色在面板和侧边栏底色上都 ≥ 4.57:1；`muted` 在任何状态下都 ≥ 4.61:1。**悬停或选中的行上，几个彩色文字会降到 4.0～4.4:1**（浅色的 `accent`、`working`、洋红、青色；深色的 `accent`、`blocked`），这是 Primer 自己的值，GitHub 网站上也一样，我们不改。
+- Primer 深色的 `hover` 和 `selected` 是同一个值，所以悬停和选中靠本节的其他线索区分（当前项加粗、键盘光标描边）。
 - **不画**：左边的竖线、2px 的彩色描边环、整行实心色块。
 
 ### 2.4 颜色
@@ -75,7 +77,7 @@
 
   状态就是**名字的颜色**，默认不画字母、不画小点；设置里有可选的"名字后显示状态字母"（`row.statusLetter`，默认关）。文件夹和 repo 取里面最严重的状态（冲突 > 删除 > 修改 > 新增）。
 - **Agent 状态**：工作中 `working`、需要你 `blocked`、完成 `ansi2`、空闲 `dim`，画成状态点，旁边配文字（`2m`、`needs you`、`done`、`idle`）。
-- **标记色（space 和组的颜色，唯一允许的非令牌颜色）**：无 + 6 个色相（teal、orange、blue、purple、green、pink，沿用 Herdr 侧边栏现有的那 6 个），**只在一处定义**，深浅两套。用法是行的**淡底色**（深色 **8%**、浅色 **10%**）。浓度按最差的情况定：淡底色的行再叠上选中层，次要文字（`muted`）仍要 ≥ 4.5:1，实测深色 4.63:1、浅色 4.55:1。再浓就不达标（深色 12% 时 4.32:1），所以浓度固定。存色名，渲染时取当前主题那一套。**标记色不表达状态**，所以不用红黄绿的 ansi 令牌，免得和 Git 状态混淆。
+- **标记色（space 和组的颜色，唯一允许的非令牌颜色）**：无 + 6 个色相（teal、orange、blue、purple、green、pink，沿用 Herdr 侧边栏现有的那 6 个），**只在一处定义**，深浅两套。用法是行的**淡底色**，深浅都是 **5%**。浓度按最差的情况定：淡底色的行再叠上选中层，次要文字（`muted`）仍要 ≥ 4.5:1，实测深色 4.56:1（6% 时 4.50、8% 时 4.37）。所以浓度固定。存色名，渲染时取当前主题那一套。**标记色不表达状态**，所以不用红黄绿的 ansi 令牌，免得和 Git 状态混淆。
 
 ### 2.5 文字和用语
 
@@ -426,7 +428,7 @@
 
 | 阶段 | 内容 | 依赖 | 风险 |
 |---|---|---|---|
-| P0 | 主题（深色 graphite + 浅色 `awsome-light`，§1、§2.3）；设置入口按钮（§3）；两个设置改名；文件树键位改成 `mod:awsome-filetree` 分区并去掉旧键位（§8）；Files 原型收尾；共用的确认对话框和右键菜单样式；`awsome-tabs` 的拖拽规则统一（§2.6） | — | 低 |
+| P0 | 主题（Primer 深浅两套，§1、§2.3）；字体规则（§2.2）；设置入口按钮（§3）；两个设置改名；文件树键位改成 `mod:awsome-filetree` 分区并去掉旧键位（§8）；Files 原型收尾；共用的确认对话框和右键菜单样式；`awsome-tabs` 的拖拽规则统一（§2.6） | — | 低 |
 | P1 | 侧边栏：agents 接线（sub agent 缩进、点击开 pane）；`awsome-menu`；space 单项右键菜单（Terminals、Agents、worktree、space 操作） | P0 | 低（上游已写好） |
 | P1b | 侧边栏：选择模型、多选菜单、`Appearance…`（颜色 + 图标）、分组和拖拽 | P1 | 中高 |
 | P1c | 侧边栏：平铺（`Tile agents`、快捷键开关）；**先做小验证** | P1b | 中 |
