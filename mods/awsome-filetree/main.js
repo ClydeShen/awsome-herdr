@@ -10,6 +10,8 @@ import { fileIcon as packIcon, followFileIcons } from "./file-icons.js"; // iden
 import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
 
 const NAME = "awsome-filetree";
+// Names, paths and branches are set in the terminal font so O/0 and I/l/1 stay apart (docs/REQUIREMENTS.md §2.2).
+const codeFont = () => settings().font_family ?? "JetBrains Mono";
 const ICON = (name) => `mods/${NAME}/${name}.svg`;
 const UI = (name) => `mods/awsome-icons/ui/${name}.svg`; // Phosphor, shared by every awsome-* mod
 const ic = (name) => svg(UI(name)).size(14);
@@ -907,10 +909,10 @@ export default class FileTree extends View {
       .when(selected, (el) => el.bg(t.selected)).when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
       .when(Boolean(fl?.bright), (el) => el.bg(alpha(lit, 0.13)))
       .child(this.pill(h.kind === "read" ? "R" : h.kind === "commit" ? "C" : "W", color, R))
-      .child(div().flex_none().max_w(Math.max(80, this.width * 0.5)).truncate().text_color(lit ?? t.foreground).when(Boolean(fl?.bright), pulse).child(e.name))
-      .child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.dim).child(dirOf(rel)))
+      .child(div().flex_none().max_w(Math.max(80, this.width * 0.5)).truncate().font_family(codeFont()).text_color(lit ?? t.foreground).when(Boolean(fl?.bright), pulse).child(e.name))
+      .child(div().flex_1().min_w(0).truncate().text_size(11).font_family(codeFont()).text_color(t.muted).child(dirOf(rel)))
       .child(div().flex_none().text_size(11).text_color(color).child(h.kind === "read" ? "read" : h.kind === "commit" ? "committed" : "wrote"))
-      .child(div().flex_none().w(26).text_size(11).text_color(t.dim).text_right().child(ago(h.at)));
+      .child(div().flex_none().w(26).text_size(11).text_color(t.muted).text_right().child(ago(h.at)));
   }
 
   row(r, t, R, now) {
@@ -933,9 +935,9 @@ export default class FileTree extends View {
       .children(Array.from({ length: depth }, (_, d) => div().absolute().left(4 + d * 12 + 6).top(0).bottom(0).w(1).bg(alpha(t.border, 0.7))))
       .child(e.dir ? svg(UI(`caret-${open ? "down" : "right"}`)).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
       .child(image(iconOf(this.fileIcons, rel, e.dir, open, settings().dark !== false)).size(16).flex_none().when(Boolean(fl?.bright), pulse))
-      .child(div().flex_1().min_w(0).truncate().text_color(nameColor).when(selected, (el) => el.font_medium())
+      .child(div().flex_1().min_w(0).truncate().font_family(codeFont()).text_color(nameColor)
         .when(status === "D" && !e.dir, (el) => el.line_through()).when(Boolean(fl?.bright), pulse).child(e.name + (e.link ? " ↪" : "")))
-      .when(Boolean(meta), (el) => el.child(div().flex_none().text_size(11).text_color(t.dim).child(meta)))
+      .when(Boolean(meta), (el) => el.child(div().flex_none().text_size(11).text_color(t.muted).child(meta)))
       .when(Boolean(loc?.[0]), (el) => el.child(div().flex_none().text_size(11).text_color(t.ansi2).child(`+${loc[0]}`)))
       .when(Boolean(loc?.[1]), (el) => el.child(div().flex_none().text_size(11).text_color(t.ansi1).child(`−${loc[1]}`)))
       .when(Boolean(counts), (el) => el.children(this.countChips(counts, t)))
@@ -963,7 +965,7 @@ export default class FileTree extends View {
     return v_flex().flex_none().px(8).pt(5).pb(6).gap(5)
       .child(h_flex().gap(6).items_center().text_size(12)
         .child(svg(UI("git-branch")).size(13).flex_none().text_color(lit ?? t.dim))
-        .child(div().min_w(0).truncate().font_medium().text_color(lit ?? t.foreground).when(Boolean(lit), (el) => el.loop("opacity", { from: 0.4, to: 1, period: 900 })).child(b?.head ?? "…"))
+        .child(div().min_w(0).truncate().font_family(codeFont()).text_color(lit ?? t.foreground).when(Boolean(lit), (el) => el.loop("opacity", { from: 0.4, to: 1, period: 900 })).child(b?.head ?? "…"))
         .when(Boolean(b?.ahead), (el) => el.child(div().flex_none().text_color(tone.teal).child(`↑${b.ahead}`)))
         .when(Boolean(b?.behind), (el) => el.child(div().flex_none().text_color(tone.blue).child(`↓${b.behind}`)))
         .child(div().flex_1())
@@ -1040,7 +1042,7 @@ export default class FileTree extends View {
     const header = h_flex().h(look.header).flex_none().px(8).gap(4).items_center().bg(t.chrome).border_b(1).border_color(t.border).text_size(12)
       .when(Boolean(this.file), (el) => el.child(btn("ft-back", ic("caret-left"), "Back to the tree (Esc)", false, () => this.closePreview())))
       .when(Boolean(this.file), (el) => el.child(image(iconOf(this.fileIcons, this.file, false, false, settings().dark !== false)).size(14).flex_none()))
-      .child(div().flex_1().min_w(0).truncate().font_medium().text_color(this.file ? t.foreground : t.muted).child(title))
+      .child(div().flex_1().min_w(0).truncate().font_family(codeFont()).text_color(this.file ? t.foreground : t.muted).child(title))
       .when(Boolean(this.file), (el) => el
         .when(!this.on, (el) => el.child(btn("ft-ext", ic("arrow-square-out"), "Open in default app (o)", false, () => openExternal(join(this.root, this.file)).catch(() => {}))))
         .child(btn("ft-copy", ic("copy"), "Copy path", false, (cx) => copy(cx, this.file)))

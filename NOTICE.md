@@ -30,6 +30,7 @@ Changed files are marked here, as the Apache licence asks. Changes are made in t
 - `mods/awsome-sidebar/views/spaces.js` (2026-11-25): the current space also gets a 4×24px accent bar at its left, after the current-item indicator of GitHub's Primer (TreeView/NavList); no Primer code or values are used.
 - `config/layouts/awsome.json` (2026-11-25): the sidebar footer block shows `awsome-sidebar`'s footer instead of `workspace-chrome`; the root names the theme pair `awsome-dark` / `awsome-light`; both footers are 32px so their top lines meet; cards are 10px round with 4px gaps.
 - `config/themes/awsome-dark.json`, `awsome-light.json` (2026-11-25): greys, borders and radius from the Neutral theme of shadcn/ui (`apps/v4/registry/themes.ts`, MIT, see `licenses/LICENSE-shadcn-ui`), converted from OKLCH to hex; accent, status and terminal colors are Apple's published system colors (Human Interface Guidelines, Color), using the increased-contrast values in light mode. The light sidebar uses shadcn's white background.
+- `mods/awsome-filetree/main.js` (2026-11-25): file names, paths, the root folder and the branch are set in the terminal font (`codeFont()`), secondary text uses `muted`, and a selected row is no longer bold.
 - `mods/awsome-filetree/config.json`: `"open": "awsome-viewer"` (upstream default is `"preview"`).
 - `mods/awsome-filetree/file-icons.js`: added; an identical copy of the loader in `awsome-icons`, since a mod cannot import from another's folder.
 - `mods/awsome-sidebar/mod.json`: added `"settings": {"pull_request_status": false}`.
