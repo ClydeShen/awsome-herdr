@@ -70,3 +70,7 @@ Delete `~/.config/herdr-app/mods/<name>` and `layouts/awsome.json`, put the orig
 - `awsome-filetree` and `awsome-viewer` share a viewer list in Herdr's shared state (`awsome-viewer.viewers`). Change its form in one and you must change the other.
 - `awsome-viewer` still carries its own file tree (unused in this layout); `awsome-filetree` is the one shown.
 - Installing a mod can make Herdr add a duplicate panel to the layout you are looking at. If a second Awsome Changes panel appears on the right, delete that block from your layout.
+
+## UI checks
+
+`python scripts/ui-check.py` checks the mods and themes against the design rules: color sources, contrast, layout alignment, shared files, English UI text, menu labels, icons and design tokens. `python scripts/ui-shot-check.py` checks a live screenshot. After cloning, run `git config core.hooksPath .githooks` once so a commit that breaks a rule is refused. What each rule guards against is in `docs/UI-LESSONS.md`.

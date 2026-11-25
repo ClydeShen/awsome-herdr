@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v python >/dev/null 2>&1; then py=python; else py=python3; fi; \"$py\" \"$CLAUDE_PROJECT_DIR/scripts/ui-check.py\" --hook"
+          }
+        ]
+      }
+    ]
+  }
+}

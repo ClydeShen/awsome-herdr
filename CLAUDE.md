@@ -25,6 +25,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
    3. **算清楚再画**：对比度用**真实底色**（侧边栏 `chrome`、卡片 `surface`，以及叠上 `hover` / `selected` 后的颜色）算，深浅两套都算；版式算出每条横线、竖线的位置，和相邻区块的线对齐（底栏、标题行、卡片边）。
    4. **先给预览，用户确认**：用临时预览 mod（只放进 `~/.config/herdr-app/mods`，用 `herdr-app do mod.open` 打开、截图后关掉并移进备份）在深浅两种主题下截图，把截图和规格一起给用户看。确认之后才改正式代码。
    5. **做完再核对**：截图逐像素量关键的线和颜色，和规格对一遍；交互（右键、拖拽、悬停手感）列清单请用户试。
+7. **界面规则由程序把关，并持续补充。** `python scripts/ui-check.py` 检查颜色出处、对比度、版式对齐、写死的颜色、共用件一致、英文界面、菜单写法、图标、规格常量（C1～C9）。它在我每次编辑文件后（`.claude/settings.json` 钩子）和每次提交前（`.githooks/pre-commit`，新克隆的仓库先执行 `git config core.hooksPath .githooks`）自动运行。界面装进 Herdr 后，运行 `python scripts/ui-shot-check.py` 核对截图。**用户每纠正一次界面问题，就在 `docs/UI-LESSONS.md` 加一条教训**；能程序化的同时加一个检查，并先在仓库副本里故意造这个错，确认能拦住。设计数值只改 `design/tokens.json` 和 `config/themes/sources.json`，不在代码里另写。不许为了让检查通过去关掉检查或放宽阈值；要放宽，先问用户。
 
 ## Herdr 能做什么、不能做什么（以 `~/.config/herdr-app/*.d.ts` 为准）
 

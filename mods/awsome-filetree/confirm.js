@@ -24,13 +24,16 @@ export function confirmHeight({ names = [], note, dontAsk = null }) {
   return h;
 }
 
-// Text on a colored button: whichever of white and near-black reads better on it.
-function inkOn(hex) {
-  const c = (hex ?? "#000000").replace("#", "").slice(0, 6);
-  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-  const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(c.slice(i, i + 2), 16)));
-  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return (1.05 / (L + 0.05)) >= ((L + 0.05) / 0.05) ? "#ffffff" : "#0a0a0a";
+// Text on a colored button: whichever of the theme's foreground and background reads better on it.
+function inkOn(hex, t) {
+  const lum = (h) => {
+    const c = String(h ?? "").replace("#", "").slice(0, 6);
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(c.slice(i, i + 2), 16)));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  return ratio(t.foreground, hex) >= ratio(t.background, hex) ? t.foreground : t.background;
 }
 
 export function confirmKey(key, onConfirm, onCancel) {
@@ -57,5 +60,5 @@ export function confirmView({ id, title, names = [], note, action, danger = true
       .child("Don’t ask again")))
     .child(h_flex().justify_end().gap(8).text_size(12)
       .child(button(`${id}-no`, "Cancel", t.raised, t.foreground, t.input, (cx) => onCancel(cx)))
-      .child(button(`${id}-yes`, action, fill, inkOn(fill), fill, (cx) => onConfirm(cx))));
+      .child(button(`${id}-yes`, action, fill, inkOn(fill, t), fill, (cx) => onConfirm(cx))));
 }
