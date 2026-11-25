@@ -179,6 +179,13 @@
   - 验收：点底栏的设置图标能打开 awsome-config；换主题或缩放后图标仍清晰可点。
 - **两个容易混的设置改名**（P0）：`Git refresh`（Changes 列表的轮询）→ `Changes list refresh`；`Git retry`（侧边栏分支的兜底轮询）→ `Sidebar branch check`。多 repo 做起来时统一成"监听为主、慢速兜底"。
 
+- **快捷键设置用"按一次录下来"**（⬜，惯例见 `design/conventions.json` 的 `key-recording`；原型的样子已确认 2026-11-26）：
+  - **平时**：当前快捷键显示成按键块（shadcn `Kbd`：高 20、最小宽 20、左右 4、圆角 6、底色 `raised`、字号 11、中等粗细、`muted`；块之间间隔 4），旁边是 `Change` 按钮和已有的重置。
+  - **录制**：点按键块或 `Change` 进入；框变成 `accent` 描边，写 `Press a shortcut`；按住修饰键时按键块实时出现；按下完整组合后显示录到的组合。**Enter 保存；Esc 或点框外面取消，恢复原来的键**；录制时 `Change` 的位置变成 `Cancel`（不再并排两个按钮，原型里 Save 溢出了）。带修饰键的 Enter / Esc（如 `Ctrl+Alt+Enter`）照常录入。
+  - **已占用**：录到的组合如果已经绑定了别的功能，提示 `Already used by <功能>. Saving moves it here.`（`working` 色）。`Ctrl+Alt+Shift+Escape`（Herdr 紧急重置）不能录。
+  - **怎么收到已被 Herdr 占用的键**（实测 2026-11-26）：获得焦点的界面收不到 `keys.json` 里已绑定的键（Herdr 先执行它们，`Alt+↑` 还会切走焦点关掉对话框）。办法是在 `keys.json` 里维护一个 `mod:awsome-config` 分区（只在设置对话框有焦点时生效），把其他分区里已绑定的键都转给录制框（`awsome-config.cap:<键>`）；不在录制时，录制框照常执行这个键原本的功能，所以平时行为不变。原型验证过 `Alt+↑`、`Ctrl+Alt+Backspace` 能这样收到。
+- **中键关闭 tab 的开关**（⬜）：awsome-tabs 的设置 `Close tabs with the middle mouse button`，默认开。
+
 后续每个功能的设置项都要先在对应 schema 里描述。
 
 ---

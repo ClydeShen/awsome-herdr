@@ -302,7 +302,29 @@ def c11_flows():
                     fail("C11", "L6", f"flow {fid} ({mod}): {side} code {needle!r} is not in the mod", "build the step, or correct design/flows.json")
 
 
-CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows]
+def c12_conventions():
+    """Each interaction names how two well-known apps do it, says what we do, and is really built."""
+    code_of = {}
+    for path, src in mod_js():
+        code_of.setdefault(path.split("/")[1], []).append(src)
+    for c in load("design", "conventions.json")["conventions"]:
+        cid = c.get("id")
+        refs = [r for r in c.get("references", []) if r.get("app") and r.get("behavior")]
+        if len(refs) < 2:
+            fail("C12", "L8", f"convention {cid}: names {len(refs)} reference app(s); two are needed",
+                 "look up how two well-known apps do it and write it in design/conventions.json")
+        if not c.get("ours"):
+            fail("C12", "L8", f"convention {cid}: says nothing about what we do", "fill in 'ours'")
+        if c.get("planned"):
+            continue
+        for mod, needles in (c.get("code") or {}).items():
+            src = "".join(code_of.get(mod, []))
+            for needle in needles:
+                if needle not in src:
+                    fail("C12", "L8", f"convention {cid}: {needle!r} is not in {mod}", "build it as written, or correct design/conventions.json")
+
+
+CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions]
 
 
 def main():
