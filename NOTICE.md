@@ -25,7 +25,8 @@ Changed files are marked here, as the Apache licence asks. Changes are made in t
 - `mods/awsome-config/model.js`, `main.js` (2026-11-25): a key setting may name its keys.json section with `x-section` (default `global`); `rebind()` writes into that section.
 - `mods/awsome-changes/mod.schema.json`, `mods/awsome-sidebar/mod.schema.json` (2026-11-25): the titles "Git refresh" and "Git retry" became "Changes list refresh" and "Sidebar branch check".
 - `mods/awsome-tabs/views/drags.js`, `mod.schema.json` (2026-11-25): a tab drag starts after the pointer moves 6px, with no hold (was 400ms and 12px); `drag_delay` still adds a hold if set.
-- `config/layouts/awsome.json` (2026-11-25): the sidebar footer block shows `awsome-sidebar`'s footer instead of `workspace-chrome`.
+- `config/layouts/awsome.json` (2026-11-25): the sidebar footer block shows `awsome-sidebar`'s footer instead of `workspace-chrome`; the root names a theme pair, Herdr's `graphite` for dark and `awsome-light` for light.
+- `config/themes/awsome-light.json` (2026-11-25): Herdr's built-in `paper` theme, copied value for value, with `muted`, `accent`, `ansi1/2/3/5/6`, `working`, `blocked` and `done` darkened so text reaches 4.5:1 on the sidebar with a row selected.
 - `mods/awsome-filetree/config.json`: `"open": "awsome-viewer"` (upstream default is `"preview"`).
 - `mods/awsome-filetree/file-icons.js`: added; an identical copy of the loader in `awsome-icons`, since a mod cannot import from another's folder.
 - `mods/awsome-sidebar/mod.json`: added `"settings": {"pull_request_status": false}`.

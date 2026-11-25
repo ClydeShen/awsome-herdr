@@ -40,6 +40,15 @@ say "Layout -> layouts/$LAYOUT.json"
 backup "$HOME_DIR/layouts/$LAYOUT.json"
 cp "$SRC/config/layouts/$LAYOUT.json" "$HOME_DIR/layouts/$LAYOUT.json"
 
+say "Themes -> themes/"
+mkdir -p "$HOME_DIR/themes"
+for f in "$SRC"/config/themes/*.json; do
+  [ -e "$f" ] || continue
+  backup "$HOME_DIR/themes/$(basename "$f")"
+  cp "$f" "$HOME_DIR/themes/$(basename "$f")"
+  say "  installed $(basename "$f")"
+done
+
 say "Keys and settings (only adds what is missing; nothing of yours is replaced)"
 python3 -I - "$HOME_DIR" "$SRC/config" <<'PY'
 import json, os, sys

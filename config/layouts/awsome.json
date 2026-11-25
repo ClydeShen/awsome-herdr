@@ -5,6 +5,10 @@
     "version": "0.1.18"
   },
   "type": "row",
+  "theme": {
+    "light": "awsome-light",
+    "dark": "graphite"
+  },
   "children": [
     {
       "id": "sidebar",

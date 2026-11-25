@@ -21,3 +21,7 @@ for m in $MODS; do
 done
 cp "$HOME_DIR/layouts/$LOCAL_LAYOUT.json" "$SRC/config/layouts/$LAYOUT.json" 2>/dev/null \
   && echo "synced layout $LOCAL_LAYOUT -> config/layouts/$LAYOUT.json" || echo "no layouts/$LOCAL_LAYOUT.json in $HOME_DIR (skipped; set HERDR_LAYOUT=<name>)"
+for f in "$SRC"/config/themes/*.json; do # only the themes this repo ships
+  [ -e "$f" ] || continue
+  cp "$HOME_DIR/themes/$(basename "$f")" "$f" 2>/dev/null && echo "synced theme $(basename "$f")"
+done
