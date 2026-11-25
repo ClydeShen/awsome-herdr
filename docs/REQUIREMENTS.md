@@ -254,7 +254,7 @@
 #### 4.2.5 平铺：把 space 里的 agent / 终端集中到一个画面（**先做小验证**）
 
 - **做法**：用 Herdr 的 `openOverlay` 开一个**浮动窗口**，里面是这个 space 的终端，每个一块 `{ terminal: id }`，自动排成网格（1 个全屏，2 个左右，3～4 个 2×2，更多 3 列）。**不搬动任何 pane**，所以"复原"就是关窗口，原来的 tab 和分屏 100% 原样。
-- **入口**：space 右键 `Tile agents (N)`（没有 agent 时写 `Tile terminals`）；**快捷键开关**（再按一次关闭），默认 `Ctrl+Alt+G`，可在 awsome-config 改，**上机实测后定**。
+- **入口**：space 右键 `Tile agents (N)`（没有 agent 时写 `Tile terminals`）；**快捷键开关**（再按一次关闭），默认 `Ctrl+Shift+G`，可在 awsome-config 改，**上机实测后定**。
 - **范围**：该 space 里所有 agent（含 sub agent）；没有 agent 就平铺所有终端。设置项 `tile.include`：`agents`（默认）/ `all`。
 - **每一块**：小标题（名字、状态点、时间）；**需要你的排最前并自动聚焦**；点一块 = 键盘进入那块；标题上的 `Open in its tab` 跳回它真正所在的 tab 并关窗口。窗口用 `key` 记住大小和位置。
 - **为什么不真的搬进一个 tab**：Herdr 没有"把 pane 移到另一个 tab"的命令，只能 `terminal.park` + `terminal.keep {place: right|down}` 拼，**原来的分屏比例恢复不了**，搬走最后一个 pane 时原 tab 可能被关。以后需要再加 `Gather into a tab`。
@@ -448,7 +448,7 @@
 | P0 | 底栏设置按钮能打开 awsome-config；文件树的 `Ctrl+Alt+Backspace` / `Ctrl+Alt+Enter`；在 awsome-config 里改这两个键后仍生效；换主题后颜色是否正常 |
 | P1 | 右键 space 的菜单；从菜单开各种终端（含 WSL）和 agent；点 sub agent 开 pane |
 | P1b | Ctrl / Shift 多选 space；多选菜单；`Appearance…`；拖进 / 拖出组、拖组头、折叠组的红点 |
-| P1c | `Ctrl+Alt+G` 开关平铺；在平铺里打字、按 Esc；`Open in its tab` |
+| P1c | `Ctrl+Shift+G` 开关平铺；在平铺里打字、按 Esc；`Open in its tab` |
 | P2 | 单击预览、双击固定；Ctrl / Shift 多选文件；选择条 |
 | P4b / P4 | 切 List / Graph；discard 的确认和快照找回；生成 commit message；多 repo 的切换和跟随 |
 | P3b | 搜索中文、正则；点结果跳到行 |
@@ -474,7 +474,7 @@
 **这次统一时我改掉的地方**（§2.8 有完整表）：拖拽不再要求按住 200ms；组头不显示数字、不靠双击重命名；当前 space 只加粗；锚点和当前 repo 不用左边竖线；确认对话框统一成 Enter 确认；菜单用 sentence case。**如果其中哪条你不同意，告诉我。**
 
 **还没决定**：
-- ❓ 平铺的默认快捷键 `Ctrl+Alt+G`、Repositories 的 `Next repository with changes` 键位：实测后定。
+- ❓ 平铺的默认快捷键 `Ctrl+Shift+G`（你提的，已查过 Herdr 没占用）在你机器上实测；Repositories 的 `Next repository with changes` 键位：实测后定。
 - ❓ review 评论的数据结构：做 P5 前给你看。
 
 ---
@@ -497,7 +497,7 @@
 | 动作 | 默认键 | 作用范围 | 说明 |
 |---|---|---|---|
 | 打开 mod 设置 | `` Shift+Alt+` `` | 全局 | Windows 上 Herdr 叫它 `alt-~`，已确认能用。底栏按钮是主入口 |
-| 平铺 / 复原当前 space 的 agent | `Ctrl+Alt+G` | 全局 | **实测后定** |
+| 平铺 / 复原当前 space 的 agent | `Ctrl+Shift+G`（macOS `Cmd+Shift+G`） | 全局 | Herdr 没占用，和它的 `Ctrl+Shift+T` 等应用级命令同一族。**不用 `Ctrl+Tab`**：Herdr 已绑成 `tab.next`，也是浏览器的"下一个 tab"。不用 `Ctrl+Shift+G`：在 AltGr 键盘布局上可能打出字符。macOS 上 `Cmd+Shift+G` 在很多应用里是"查找上一个"，要实测 |
 | 文件树：上一级 | `Ctrl+Alt+Backspace` | 文件树有焦点 | §4.3 |
 | 文件树：进入选中的文件夹 | `Ctrl+Alt+Enter` | 文件树有焦点 | 单独的 Enter 仍是展开 / 打开 |
 | 文件树：撤销 | `Ctrl+Z`（macOS `Cmd+Z`） | 文件树有焦点 | 不抢终端的 Ctrl+Z |
@@ -512,7 +512,7 @@
 
 **要避开的键**：`alt-up` / `alt-down`（Herdr 的 agent 切换）、`alt-1..9`、`alt-h/j/k/l`、`alt-left/right`、`ctrl-1..`、大部分 `ctrl-shift-*`；`ctrl-alt-shift-escape`（紧急重置，任何东西都不能占）。
 
-**关于 Ctrl+Alt**：Windows 上 Ctrl+Alt 是 AltGr，但 Backspace、Enter 不打字符，没有冲突；`Ctrl+Alt+G` 在少数键盘布局上可能打出字符，所以要实测。Linux（X11）上 `Ctrl+Alt+Backspace` 历史上是"杀掉图形界面"，现在大多默认关闭，要在 Linux 上实测一次。
+**关于 Ctrl+Alt**：Windows 上 Ctrl+Alt 是 AltGr，但 Backspace、Enter 不打字符，没有冲突。Linux（X11）上 `Ctrl+Alt+Backspace` 历史上是"杀掉图形界面"，现在大多默认关闭，要在 Linux 上实测一次。
 
 **实现说明**：文件树现在用视图的 `on_key_down` 直接读按键，不能被 `keys.json` 或 awsome-config 重绑。要改成 `mod:awsome-filetree` 键位分区：`keys.json` 里写 `"mod:awsome-filetree": { "ctrl-alt-backspace": "awsome-filetree.up", … }`，mod 通过 `nextCommand()` 接收命令。列入 P0。
 
