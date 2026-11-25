@@ -214,6 +214,51 @@
           "stopRecording(cx)"
         ]
       }
+    },
+    {
+      "id": "agent-menu",
+      "mod": "awsome-menu",
+      "to": "the agent menu",
+      "forward": {
+        "mouse": "right-click an agent row",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "click outside the menu",
+        "keys": "Esc",
+        "code": []
+      }
+    },
+    {
+      "id": "agent-rename-pane",
+      "mod": "awsome-sidebar",
+      "to": "editing an agent's pane name in its row",
+      "forward": {
+        "mouse": "menu: Rename pane",
+        "keys": "F2",
+        "code": []
+      },
+      "back": {
+        "mouse": "click away (saves)",
+        "keys": "Enter saves, Esc cancels",
+        "code": []
+      }
+    },
+    {
+      "id": "agent-fork",
+      "mod": "awsome-menu",
+      "to": "a forked branch of the agent's session",
+      "forward": {
+        "mouse": "menu: Fork session (types /branch)",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "menu: Resume session (types /resume, pick the original)",
+        "keys": "",
+        "code": []
+      }
     }
   ]
 }

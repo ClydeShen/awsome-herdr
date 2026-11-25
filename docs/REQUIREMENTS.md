@@ -374,6 +374,36 @@
 | 键盘 | ↑ ↓ 移动（跳过标题和不可用项）、Enter 执行、Esc 关闭、数字键启动 agent |
 | 尺寸 | 紧凑、以 4 为单位，和侧边栏同比例：菜单项行高 28、分组标题 24、内边距 4、左右 8、图标 16、间隔 8、分隔线 9（`design/tokens.json` 的 `menu`） |
 
+#### 4.2.7 agent 右键菜单 ⬜（规格已确认 2026-11-26，预览待确认）
+
+做法取自 VS Code 终端 tab 的右键菜单和浏览器 tab 的右键菜单（登记在 `design/conventions.json` 的 `agent-menu`、`agent-close-confirm`、`inline-rename`）。**不引入新数值**：用 `awsome-menu` 现成的尺寸、字号、颜色令牌（§4.2.6 的"尺寸"行），新增一个 `scope: "agent"`，作用于被点的那个 agent（`props: { scope: "agent", terminal }`）。
+
+- **触发**：右键 agent 行（含子 agent、Pinned 里的）。右键未选中的行 = 先选中它，再出菜单（§2.6）。agent 区暂不做多选，所以只有单项菜单。
+- **菜单**（顺序按 §2.6，分隔线分组）：
+
+| 组 | 项 | 做法 | 什么时候 |
+|---|---|---|---|
+| 打开 | `Focus` | `agent.focus {terminal}` | 总有 |
+| 打开 | `Open in its own tab` | `terminal.keep {terminal, place:"tab"}` | 只对**没有 pane 的子 agent** 显示 |
+| 编辑 | `Rename pane` `F2` | 行内编辑，写 `pane.rename {pane, name}` | 没有 pane 的子 agent 灰掉，tooltip `It has no pane to rename` |
+| 编辑 | `Rename session` | 在该 agent 的输入框里填入 `/rename `，**不回车** | 见下面"会话命令" |
+| 编辑 | `Fork session` | 填入 `/branch`，**不回车** | 同上 |
+| 编辑 | `Resume session` | 填入 `/resume`，**不回车** | 同上；是 Fork 的"回"：弹出会话选择器，选回原会话 |
+| 整理 | `Pin` / `Unpin` | `terminal.pin {terminal, pinned}` | 总有，按当前状态换字 |
+| 整理 | `Send back` | `terminal.park {terminal}` | 只对**有 pane** 的显示（agent 继续运行，只收起 pane） |
+| 复制 | `Copy working directory` | 写剪贴板，toast `Copied` | 有 `cwd` 时 |
+| 危险 | `Close agent…` | `terminal.kill {terminal}` | 总有，红色、放最后 |
+
+- **会话命令**（`Rename session`、`Fork session`、`Resume session`）：
+  - 做法同文件树的 `sendToAgent`：文本写进剪贴板，`pane.focus` 到该 agent，再 `terminal.paste`，之后还原剪贴板；**不自动回车**，让用户看一眼再按 Enter（agent 正在工作时，自动回车会把命令塞进待处理队列或打断它的输入）。
+  - 命令来自一张"程序 → 命令"表（`programs.json` 的 `key`）；现在只有 `claude`：`/rename`、`/branch`、`/resume`（Claude Code 文档 code.claude.com/docs/en/sessions）。`/rename` 和 `/fork` 别名没在文档里查到，**`/rename` 实现前再核对一次**，别名不用。
+  - 表里没有的 agent，这三项**变灰**，tooltip 写 `Not supported for <agent>`；不盲发。
+  - `/branch` 的效果是**在同一个终端里切进新分支**，原会话留在会话选择器里，不新开 tab。
+- **Rename pane 的行内编辑**：和 space、组一样（惯例 `inline-rename`）：行里的名字变成输入框并全选，Enter 保存、Esc 取消、点别处保存、留空 = 保持原名；`F2` 在 agent 行有焦点时同样触发。
+- **Close agent… 的确认**（惯例 `agent-close-confirm`）：agent 是 `idle` 或 `done` → 直接关；`working` 或 `blocked` → 先用 Herdr 自带的 `confirm`：标题 `Close <name>?`，正文 `It is working. Closing stops it.`（`blocked` 写 `It is waiting for you. Closing stops it.`），红色按钮 `Close agent`，Enter 确认、Esc 取消。没有 `Don’t ask again`（关掉的 agent 找不回运行状态）。
+- **有去有回**（`design/flows.json`）：菜单 ⇄ 点空白处、Esc；Rename pane ⇄ Enter / Esc / 点别处；Fork ⇄ Resume。
+- **不做**：多选 agent 的批量操作、自动回车、读会话文件找会话 id、命令行 `--fork-session` 方式（取"当前目录最近一次会话"，同目录多个 agent 会分叉错）。
+
 ### 4.3 awsome-filetree：视觉和基础操作 🟡
 
 **原型已做（未提交，已同步到你的 Herdr）**：标题栏（根文件夹名 + Tree / Recent 切换 + 5 个 Phosphor 图标按钮：上一级、跟随终端、显示隐藏文件、显示大小、全部折叠，开着的有底色）；汇总（分支 +N −N、2px 细条、计数）；过滤框独立一行；树行高 22、缩进 12、缩进参考线；右键文件夹 `Open as root`。

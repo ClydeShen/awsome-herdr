@@ -157,6 +157,69 @@
           "Reset to "
         ]
       }
+    },
+    {
+      "id": "agent-menu",
+      "what": "Right-click menu on a running agent (a terminal in a list)",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (terminal tab context menu)",
+          "behavior": "Right-click a terminal tab: Split, Move into Editor Area, Change Icon, Change Color, Rename, then Kill Terminal last. Rename is also F2. A terminal that was not focused is selected by the click."
+        },
+        {
+          "app": "Chrome / Edge (tab context menu)",
+          "behavior": "Right-click a tab: Reload, Duplicate, Pin, Mute, then Close last. Duplicate makes a copy next to the original and the original stays."
+        }
+      ],
+      "ours": "Right-click an agent row: Focus, Open in its own tab | Rename pane (F2), Rename session, Fork session, Resume session | Pin, Send back | Copy working directory | Close agent (red, last). Fork is our Duplicate; Resume brings the original session back.",
+      "code": {
+        "awsome-menu": [
+          "scope === \"agent\""
+        ]
+      }
+    },
+    {
+      "id": "agent-close-confirm",
+      "what": "Closing an agent that is working",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Kill Terminal)",
+          "behavior": "Kills the terminal at once, with no dialog by default; the terminal.integrated.confirmOnKill setting asks only when a process is still running in it."
+        },
+        {
+          "app": "Chrome (closing a tab)",
+          "behavior": "Closes at once; it asks 'Leave site?' only when the page would lose something (unsaved input)."
+        }
+      ],
+      "ours": "Closing an idle or done agent happens at once; a working or blocked agent asks first with Herdr's confirm, naming the agent and saying its run stops. No Don't ask again (not recoverable).",
+      "code": {
+        "awsome-menu": [
+          "terminal.kill"
+        ]
+      }
+    },
+    {
+      "id": "inline-rename",
+      "what": "Renaming a row in a list",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer, terminal tabs)",
+          "behavior": "F2 or the menu's Rename turns the label into an input with the name selected; Enter saves, Esc cancels, clicking away saves; an empty name keeps the old one."
+        },
+        {
+          "app": "Windows Explorer / macOS Finder",
+          "behavior": "F2 (Enter in Finder) edits the name in place; Enter saves, Esc cancels."
+        }
+      ],
+      "ours": "Rename pane on an agent row edits the name in the row, same as spaces and groups: Enter saves, Esc cancels, clicking away saves, empty keeps the old name. Rename session does not edit in place: it types /rename into the agent for the person to finish.",
+      "code": {
+        "awsome-sidebar": [
+          "rename"
+        ]
+      }
     }
   ]
 }
