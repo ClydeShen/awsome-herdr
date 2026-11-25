@@ -11,7 +11,9 @@ import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme,
 
 const NAME = "awsome-filetree";
 const ICON = (name) => `mods/${NAME}/${name}.svg`;
-const ROW = 26;
+const UI = (name) => `mods/awsome-icons/ui/${name}.svg`; // Phosphor, shared by every awsome-* mod
+const ic = (name) => svg(UI(name)).size(14);
+const ROW = 22; // VS Code's explorer row height
 const PER_FOLDER = 2000;
 const FIND_LIMIT = 200;
 const FLASH_MS = 2700, TINT_MS = 45000, RUNNING_MS = 600000, CHIP_MS = 45000;
@@ -278,7 +280,7 @@ export default class FileTree extends View {
     this.saved = new Map(); this.flashes = new Map(); this.bashStarts = new Map(); this.recent = [];
     this.sizes = new Map(); this.sizing = new Set(); this.visible = [];
     this.chip = null; this.branchFlash = null; this.width = 320; this.query = ""; this.hits = null; this.searchSeq = 0;
-    this.seenAt = Date.now() - 2000; this.seenPreview = shared(`${NAME}.preview`)?.n ?? 0; this.seenView = shared(`${NAME}.view`)?.n ?? 0;
+    this.seenAt = Date.now() - 2000; this.seenPreview = shared(`${NAME}.preview`)?.n ?? 0; this.seenView = shared(`${NAME}.view`)?.n ?? 0; this.seenGoto = shared(`${NAME}.goto`)?.n ?? 0;
     this.input = InputState.new({ placeholder: "Filter files" });
     this.input.on("change", (_e, cx) => this.search(this.input.value(), cx));
     this.input.on("submit", (_e, cx) => this.jump(cx));
@@ -812,6 +814,23 @@ export default class FileTree extends View {
     this.open(ancestors(rel), cx, () => { this.scrollTo = rel; });
   }
 
+  // The root moves up one folder, or into one of its folders. Both stop following the focused pane.
+  goUp() {
+    if (!this.root) return;
+    const norm = this.root.split(String.fromCharCode(92)).join("/").replace(/[/]+$/, ""); // both separators, no trailing one
+    const at = norm.lastIndexOf("/");
+    if (at < 0) return; // already at a drive or filesystem root
+    let up = norm.slice(0, at);
+    if (!up) up = "/"; else if (/^[A-Za-z]:$/.test(up)) up += "/"; // "C:" alone means the drive's current folder
+    this.follow = false; this.pinned = up; this.pinnedOn = this.on;
+    this.cursor = norm.slice(at + 1); this.scrollTo = this.cursor; // select the folder we just left, like Explorer
+  }
+  enterFolder(rel, cx) {
+    if (!this.root || !rel) return;
+    if (this.query) this.clearSearch(cx);
+    this.follow = false; this.pinned = join(this.root, rel); this.pinnedOn = this.on; this.cursor = "";
+  }
+
   key(e, cx) {
     const k = e.key, rows = this.rows(), cur = rows.find((r) => r.rel === this.cursor);
     if (this.typing) {
@@ -825,6 +844,14 @@ export default class FileTree extends View {
       else if (k === "o" && !this.on) openExternal(join(this.root, this.file)).catch(() => {});
       else return;
       cx.stop_propagation(); cx.notify(); return;
+    }
+    // Up a folder: Ctrl+Alt+Backspace (also Backspace, Ctrl+Alt+Up). Into the selected folder: Ctrl+Alt+Enter (also Shift+Enter, Ctrl+Alt+Down).
+    // (Alt+Up/Down are Herdr's own agent.prev/next, so they are not used.)
+    {
+      const m = e.modifiers ?? {};
+      const plain = !m.alt && !m.control && !m.platform, ctrlAlt = m.control && m.alt && !m.shift && !m.platform;
+      if ((plain && !m.shift && k === "backspace") || (ctrlAlt && (k === "backspace" || k === "up"))) { this.goUp(); cx.stop_propagation(); cx.notify(); return; }
+      if (((plain && m.shift && k === "enter") || (ctrlAlt && (k === "enter" || k === "down"))) && cur?.e?.dir) { this.enterFolder(cur.rel, cx); cx.stop_propagation(); cx.notify(); return; }
     }
     const shift = e.modifiers?.shift;
     if (k === "up" || k === "k") this.move(rows, -1);
@@ -854,8 +881,8 @@ export default class FileTree extends View {
 
   // ── drawing ──────────────────────────────────────────────────────────────────────────
   button(id, label, tip, on, onClick, t, R) {
-    return div().id(id).h(20).min_w(20).px(4).flex_none().flex().items_center().justify_center().rounded(R).cursor_pointer()
-      .text_size(12).text_color(on ? t.foreground : t.dim).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(tip)
+    return div().id(id).h(22).min_w(22).px(3).flex_none().flex().items_center().justify_center().rounded(R).cursor_pointer()
+      .text_size(12).text_color(on ? t.foreground : t.dim).when(on, (el) => el.bg(t.selected)).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(tip)
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
       .on_click((_e, cx) => { onClick(cx); cx.notify(); })
       .child(label);
@@ -895,10 +922,11 @@ export default class FileTree extends View {
       : (!e.dir && !loc && this.width > 250 ? stamp(e.mtime) : "");
     const selected = rel === this.cursor;
     const pulse = (el) => el.loop("opacity", { from: 0.35, to: 1, period: 900 });
-    return h_flex().id(`ft-${rel}`).h(ROW).flex_none().pl(6 + depth * 14).pr(10).gap(6).items_center().rounded(R).cursor_pointer()
+    return h_flex().id(`ft-${rel}`).h(ROW).flex_none().relative().pl(4 + depth * 12).pr(8).gap(4).items_center().rounded(Math.min(R, 4)).cursor_pointer()
       .when(selected, (el) => el.bg(t.selected)).when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
       .when(Boolean(fl?.bright), (el) => el.bg(alpha(lit, 0.13)))
-      .child(e.dir ? svg(ICON(`chevron-${open ? "down" : "right"}`)).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
+      .children(Array.from({ length: depth }, (_, d) => div().absolute().left(4 + d * 12 + 6).top(0).bottom(0).w(1).bg(alpha(t.border, 0.7))))
+      .child(e.dir ? svg(UI(`caret-${open ? "down" : "right"}`)).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
       .child(image(iconOf(this.fileIcons, rel, e.dir, open, settings().dark !== false)).size(16).flex_none().when(Boolean(fl?.bright), pulse))
       .child(div().flex_1().min_w(0).truncate().text_color(nameColor).when(selected, (el) => el.font_medium())
         .when(status === "D" && !e.dir, (el) => el.line_through()).when(Boolean(fl?.bright), pulse).child(e.name + (e.link ? " ↪" : "")))
@@ -925,11 +953,11 @@ export default class FileTree extends View {
       .child(div().truncate().child(this.root ? "± no git repo · git status starts after git init" : ""));
     const lit = this.branchFlash ? tone[this.branchFlash.tone] : null, totals = g.diff.get("") ?? [0, 0];
     const c = g.counts.get("") ?? [0, 0, 0], total = c[0] + c[1] + c[2];
-    const parts = [[c[1], tone.yellow, "modified"], [c[0], tone.green, "new"], [c[2], tone.red, "deleted"]].filter(([n]) => n > 0);
-    const room = Math.max(40, this.width - 20 - 2 * (parts.length - 1));
-    return v_flex().flex_none().px(10).pt(9).pb(8).gap(6).border_b(1).border_color(t.border)
+    const parts = [[c[1], tone.yellow, "M"], [c[0], tone.green, "A"], [c[2], tone.red, "D"]].filter(([n]) => n > 0);
+    const room = Math.max(40, this.width - 16 - 2 * (parts.length - 1));
+    return v_flex().flex_none().px(8).pt(5).pb(6).gap(5)
       .child(h_flex().gap(6).items_center().text_size(12)
-        .child(svg(ICON("git-branch")).size(12).flex_none().text_color(lit ?? t.foreground))
+        .child(svg(UI("git-branch")).size(13).flex_none().text_color(lit ?? t.dim))
         .child(div().min_w(0).truncate().font_medium().text_color(lit ?? t.foreground).when(Boolean(lit), (el) => el.loop("opacity", { from: 0.4, to: 1, period: 900 })).child(b?.head ?? "…"))
         .when(Boolean(b?.ahead), (el) => el.child(div().flex_none().text_color(tone.teal).child(`↑${b.ahead}`)))
         .when(Boolean(b?.behind), (el) => el.child(div().flex_none().text_color(tone.blue).child(`↓${b.behind}`)))
@@ -937,12 +965,11 @@ export default class FileTree extends View {
         .when(Boolean(totals[0]), (el) => el.child(div().flex_none().text_size(11.5).text_color(t.ansi2).child(`+${totals[0]}`)))
         .when(Boolean(totals[1]), (el) => el.child(div().flex_none().text_size(11.5).text_color(t.ansi1).child(`−${totals[1]}`))))
       .child(total
-        ? h_flex().h(4).gap(2).children(parts.map(([n, color]) => div().h_full().w(Math.max(3, (room * n) / total)).bg(color)))
-        : div().h(4).w_full().bg(t.raised))
-      .child(h_flex().gap(12).items_center().text_size(11).text_color(t.dim)
-        .when(!total, (el) => el.child(div().child("clean · nothing to commit")))
-        .children(parts.map(([n, color, label]) => h_flex().flex_none().gap(4).items_center().child(div().size(7).bg(color)).child(`${n} ${label}`)))
-        .child(div().flex_1().min_w(0).truncate().text_right().child(b?.upstream ?? "")));
+        ? h_flex().h(2).gap(1).children(parts.map(([n, color]) => div().h_full().w(Math.max(3, (room * n) / total)).bg(color)))
+        : div().h(2).w_full().bg(t.raised))
+      .child(h_flex().gap(10).items_center().text_size(11).text_color(t.dim)
+        .when(!total, (el) => el.child(div().child("clean")))
+        .children(parts.map(([n, color, label]) => h_flex().flex_none().gap(3).items_center().child(div().font_semibold().text_color(color).child(label)).child(String(n)))));
   }
 
   footer(t) {
@@ -965,6 +992,7 @@ export default class FileTree extends View {
     const items = [];
     if (!m.dir) items.push(item("m-preview", "Preview", () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() })));
     if (!m.dir && m.local) items.push(item("m-open", "Open in default app", () => openExternal(m.abs).catch((e) => notify({ title: "Could not open the file", body: String(e?.message ?? e), level: "error" }))));
+    if (m.dir) items.push(item("m-root", "Open as root (Ctrl+Alt+Enter)", () => setShared(`${NAME}.goto`, { root: m.root, rel: m.rel, n: Date.now() })));
     if (m.local) items.push(item("m-reveal", window()?.platform === "macos" ? "Reveal in Finder" : "Show in folder", () => revealExternal(m.abs).catch(() => {})));
     items.push(item("m-rel", "Copy relative path", (cx) => copy(cx, m.rel)));
     items.push(item("m-abs", "Copy absolute path", (cx) => copy(cx, m.abs)));
@@ -978,6 +1006,8 @@ export default class FileTree extends View {
     const req = shared(`${NAME}.preview`);
     if (req && req.n !== this.seenPreview) { this.seenPreview = req.n; if (req.root === this.root) this.show(req.rel, cx, true); }
     // Another mod (session-bar's changed chip) asks for a view.
+    const go = shared(`${NAME}.goto`);
+    if (go && go.n !== this.seenGoto) { this.seenGoto = go.n; if (go.root === this.root) this.enterFolder(go.rel, cx); }
     const want = shared(`${NAME}.view`);
     if (want && want.n !== this.seenView) {
       this.seenView = want.n;
@@ -992,33 +1022,29 @@ export default class FileTree extends View {
     }
     const title = this.file ?? (this.root ? baseOf(this.root) : "Files");
     const btn = (id, label, tip, on, fn) => this.button(id, label, tip, on, fn, t, R);
+    // Tools sit in the title row and change with the view.
+    const tools = this.view === "tree" ? [
+      btn("ft-up", ic("arrow-up"), "Up a folder (Ctrl+Alt+Backspace)", false, () => this.goUp()),
+      btn("ft-home", ic("house-simple"), this.follow ? "Following the focused pane" : "Back to the focused pane's folder", this.follow, () => { this.follow = true; this.pinned = null; }),
+      btn("ft-hidden", ic(this.showHidden ? "eye" : "eye-slash"), this.showHidden ? "Hide dotfiles (.)" : "Show dotfiles (.)", this.showHidden, () => { this.showHidden = !this.showHidden; this.savePrefs(); }),
+      btn("ft-size", ic("ruler"), this.showSize ? "Show dates" : "Show sizes", Boolean(this.showSize), () => { this.showSize = !this.showSize; this.savePrefs(); }),
+      btn("ft-collapse", ic("arrows-in-line-vertical"), "Collapse all", false, (cx) => this.collapseAll(cx)),
+    ] : [
+      btn("ft-forget", ic("prohibit"), "Clear the list", false, () => { this.history = []; try { localStorage.setItem("history", "[]"); } catch {} }),
+    ];
     const header = h_flex().h(look.header).flex_none().px(8).gap(4).items_center().bg(t.chrome).border_b(1).border_color(t.border).text_size(12)
-      .when(Boolean(this.file), (el) => el.child(btn("ft-back", svg(ICON("chevron-left")).size(12), "Back to the tree (Esc)", false, () => this.closePreview())))
+      .when(Boolean(this.file), (el) => el.child(btn("ft-back", ic("caret-left"), "Back to the tree (Esc)", false, () => this.closePreview())))
       .when(Boolean(this.file), (el) => el.child(image(iconOf(this.fileIcons, this.file, false, false, settings().dark !== false)).size(14).flex_none()))
       .child(div().flex_1().min_w(0).truncate().font_medium().text_color(this.file ? t.foreground : t.muted).child(title))
       .when(Boolean(this.file), (el) => el
-        .when(!this.on, (el) => el.child(btn("ft-ext", "↗", "Open in default app (o)", false, () => openExternal(join(this.root, this.file)).catch(() => {}))))
-        .child(btn("ft-copy", "⧉", "Copy path", false, (cx) => copy(cx, this.file)))
-        .child(btn("ft-send", "@", "Send to agent", false, (cx) => sendToAgent(cx, join(this.root, this.file)))))
-      .when(!this.file, (el) => el.child(h_flex().flex_none().gap(2).items_center().children(VIEWS.map(([id, label, icon], i) => {
-        const on = this.view === id;
-        return h_flex().id(`ft-tab-${id}`).h(22).px(7).gap(5).flex_none().items_center().rounded(R).cursor_pointer().text_size(11.5)
-          .text_color(on ? t.foreground : t.dim).when(on, (el) => el.bg(t.selected)).when(!on, (el) => el.hover((s) => s.bg(t.hover).text_color(t.foreground)))
-          .tooltip(`${label} (${i + 1})`).on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click((_e, cx) => this.setView(id, cx))
-          .child(svg(ICON(icon)).size(12).flex_none())
-          .when(on || this.width >= 300, (el) => el.child(label));
-      }))));
+        .when(!this.on, (el) => el.child(btn("ft-ext", ic("arrow-square-out"), "Open in default app (o)", false, () => openExternal(join(this.root, this.file)).catch(() => {}))))
+        .child(btn("ft-copy", ic("copy"), "Copy path", false, (cx) => copy(cx, this.file)))
+        .child(btn("ft-send", ic("paper-plane-right"), "Send to agent", false, (cx) => sendToAgent(cx, join(this.root, this.file)))))
+      .when(!this.file, (el) => el.child(h_flex().flex_none().gap(1).items_center()
+        .children(VIEWS.map(([id, label], i) => btn(`ft-tab-${id}`, ic(id === "tree" ? "tree-structure" : "clock-counter-clockwise"), `${label} (${i + 1})`, this.view === id, (cx) => this.setView(id, cx))))
+        .child(div().w(1).h(12).mx(3).bg(t.border))
+        .children(tools)));
 
-    // Tools sit beside the filter box and change with the view.
-    const tools = this.view === "tree" ? [
-      btn("ft-up", "↑", "Up a folder", false, () => { if (!this.root) return; this.follow = false; this.pinned = this.root.replace(/[\\/][^\\/]+[\\/]?$/, "") || "/"; this.pinnedOn = this.on; }),
-      btn("ft-home", "⌂", this.follow ? "Following the focused pane" : "Back to the focused pane's folder", this.follow, () => { this.follow = true; this.pinned = null; }),
-      btn("ft-hidden", this.showHidden ? "◉" : "○", this.showHidden ? "Hide dotfiles (.)" : "Show dotfiles (.)", this.showHidden, () => { this.showHidden = !this.showHidden; this.savePrefs(); }),
-      btn("ft-size", "Σ", this.showSize ? "Show dates" : "Show sizes", Boolean(this.showSize), () => { this.showSize = !this.showSize; this.savePrefs(); }),
-      btn("ft-collapse", "⊟", "Collapse all", false, (cx) => this.collapseAll(cx)),
-    ] : [
-      btn("ft-forget", "⊘", "Clear the list", false, () => { this.history = []; try { localStorage.setItem("history", "[]"); } catch {} }),
-    ];
 
     const root = v_flex().id(NAME).size_full().min_h(0).overflow_hidden().bg(t.background).text_color(t.foreground).text_size(13)
       .track_focus(this.handle).on_key_down((e, cx) => this.key(e, cx))
@@ -1037,13 +1063,13 @@ export default class FileTree extends View {
       : this.searching && !rows.length ? "Searching…" : this.hits ? (rows.length ? null : "No matches") : this.loading && !rows.length ? "Loading files…" : !rows.length ? "Empty folder" : null);
     return root
       .child(this.summary(t))
-      .child(h_flex().flex_none().mx(6).mt(6).mb(4).gap(2).items_center()
-        .child(h_flex().flex_1().min_w(0).h(26).px(8).gap(6).items_center().rounded(R).bg(t.canvas ?? t.background).border_1().border_color(this.typing ? t.accent : t.input ?? t.border).cursor_text()
+      .child(h_flex().flex_none().mx(6).my(4).gap(2).items_center()
+        .child(h_flex().flex_1().min_w(0).h(24).px(8).gap(6).items_center().rounded(R).bg(t.canvas ?? t.background).border_1().border_color(this.typing ? t.accent : t.input ?? t.border).cursor_text()
           .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-          .child(svg(ICON("search")).size(12).flex_none().text_color(t.dim))
+          .child(svg(UI("magnifying-glass")).size(12).flex_none().text_color(t.dim))
           .child(Input.new(this.input).flex_1().h_full().text_size(12).text_color(t.foreground))
           .when(Boolean(this.query), (el) => el.child(div().id("ft-clear").flex_none().text_size(12).text_color(t.dim).cursor_pointer().hover((s) => s.text_color(t.foreground)).on_click((_e, cx) => this.clearSearch(cx)).child("×"))))
-        .children(tools))
+      )
       .child(div().flex_1().min_h(0).relative().px(4)
         .child(v_virtual_list("ft-rows", rows.length, ROW, (i) => rows[i]?.rel ?? String(i), (range) => {
           const shown = rows.slice(range.start, range.end);

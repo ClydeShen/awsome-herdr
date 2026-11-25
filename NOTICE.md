@@ -11,7 +11,7 @@ Everything under `mods/` was written by other people and is redistributed here u
 
 `better-search` (munza) and `file-icons` (cybertron288) were in the first version of this repo and have been removed.
 
-The icons come from the Material Icon Theme for VS Code (MIT). Its licence text sits beside the icons as `LICENSE-material-icon-theme.txt` inside `awsome-icons`. `filetree` is a port of claude-code-filetree by Kurt Buhler (MIT), and `file-icons` is modified from Herdr Desktop's own `files` mod (Apache-2.0), as the notices above say.
+The interface icons in `awsome-icons/ui/` come from Phosphor Icons (https://github.com/phosphor-icons/core, regular weight, MIT). Their licence text sits beside them as `LICENSE-phosphor.txt`. The file icons come from the Material Icon Theme for VS Code (MIT). Its licence text sits beside the icons as `LICENSE-material-icon-theme.txt` inside `awsome-icons`. `filetree` is a port of claude-code-filetree by Kurt Buhler (MIT), and `file-icons` is modified from Herdr Desktop's own `files` mod (Apache-2.0), as the notices above say.
 
 ## What was changed from upstream
 
@@ -20,6 +20,7 @@ Changed files are marked here, as the Apache licence asks. Changes are made in t
 - `mods/awsome-config` was added later (2026-11-25) from `better-config` (same upstream commit), renamed the same way; the only other change is its name.
 - **Renamed** (2026-11-25), with every internal reference changed to match (mod names, titles, class names, shared-state keys such as `awsome-viewer.viewers`): `better-icons` to `awsome-icons`, `better-sidebar` to `awsome-sidebar`, `better-files` to `awsome-viewer`, `better-changes` to `awsome-changes`, `better-tabs` to `awsome-tabs`, `filetree` to `awsome-filetree`. This touched the `.js`, `.json` and `.ts` files of all six.
 - `mods/awsome-filetree/main.js`: added `openViewer()`, which opens a file in an Awsome Viewer tab instead of previewing it in the panel, and made `wanted()`/`location()` keep the current folder while the focused tab has no terminal. A new value for `open` in `config.json`, `"awsome-viewer"`, switches the first behaviour on. Its own icon matching was replaced by the shared `file-icons.js` loader, reading the icons from `awsome-icons`; its bundled `icons.js` table was removed.
+- `mods/awsome-filetree/main.js` (2026-11-25, prototype of the redesign): a more compact header with Phosphor icon buttons, a shorter summary, indent guides, an "Up a folder" button and keys, and "Open as root" for entering a folder.
 - `mods/awsome-filetree/config.json`: `"open": "awsome-viewer"` (upstream default is `"preview"`).
 - `mods/awsome-filetree/file-icons.js`: added; an identical copy of the loader in `awsome-icons`, since a mod cannot import from another's folder.
 - `mods/awsome-sidebar/mod.json`: added `"settings": {"pull_request_status": false}`.
