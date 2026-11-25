@@ -2,7 +2,13 @@
 // belongs in the code editor it can open.
 import { div, image } from "gpui-kit";
 import { h_flex, v_flex, Editor, EditorState, Scrollbar, v_virtual_list } from "gpui-base";
-import { appHome, exec, focused, layout, panes, readTextFile, setShared, shared, theme, window } from "herdr";
+import { appHome, exec, focused, layout, panes, readTextFile, run, setShared, shared, spaces, theme, window } from "herdr";
+
+// The preview column of the layout (docs/REQUIREMENTS.md section 4.4a): one viewer that shows the
+// file any mod wrote to this key, { space, file: { path, root, on } }. It has no tab, so the
+// tab registry, claiming and pruning below never see it.
+export const SLOT = "awsome-viewer.slot";
+export const SLOT_NODE = "preview";
 import {
   baseName,
   buildRows,
@@ -50,11 +56,20 @@ const webName = (url) => {
 export const viewerMethods = {
   // What this tab shows: the registry, then what it was opened with, after a restart.
   viewerEntry() {
+    if (this.slot) return shared(SLOT) ?? null;
     return viewerEntries()[this.viewerId] ?? null;
+  },
+
+  // The preview column shows a file only while it belongs to the space on screen; another
+  // space's file is not read or drawn, and comes back when that space does.
+  slotShown() {
+    const entry = shared(SLOT);
+    return Boolean(entry?.file) && entry.space === spaces().find((s) => s.active)?.id;
   },
 
   // Runs as the tab opens, which is when the focused tab is its own.
   claimTab() {
+    if (this.slot) return;
     const entry = this.viewerEntry();
     const where = this.tabSpaces();
     const holds = (other) => Boolean(other.tab) && !this.wrongTab(other, where);
@@ -88,6 +103,7 @@ export const viewerMethods = {
 
   syncViewer(cx) {
     this.retryCleanup(cx);
+    if (this.slot && !this.slotShown()) return;
     this.claimTab();
     const file = this.viewerEntry()?.file ?? this.viewerFile;
     if (!file) return;
@@ -817,6 +833,11 @@ export const viewerMethods = {
           }),
         ),
       )
+      .when(this.slot, (el) =>
+        el
+          .child(TextButton({ id: "viewer-slot-tab", label: "Open in tab", onClick: (cx) => this.openInNewTab(file, cx) }))
+          .child(IconButton({ id: "viewer-slot-close", icon: "close", label: "Close preview", small: true, onClick: () => run("layout.hide", { id: SLOT_NODE }) })),
+      )
       .when(Boolean(preview), (el) =>
         el.child(
           TextButton({
@@ -847,8 +868,11 @@ export const viewerMethods = {
 
   viewerView() {
     const t = theme();
+    // When the column is hidden nothing draws it, so this stops moving: the timers read it.
+    this.renderedAt = Date.now();
+    if (this.slot && !this.slotShown()) return v_flex().size_full().bg(t.background);
     const head = this.viewerHead();
-    const inHeader = this.headerShowsTitle();
+    const inHeader = !this.slot && this.headerShowsTitle();
     const root = v_flex()
       .id("awsome-viewer-viewer")
       .relative()

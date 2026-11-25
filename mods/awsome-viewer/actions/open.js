@@ -12,6 +12,10 @@ export const viewerEntries = () => shared(VIEWERS) ?? {};
 
 export const openMethods = {
   setViewer(id, change) {
+    if (this.slot) {
+      setShared("awsome-viewer.slot", { ...(shared("awsome-viewer.slot") ?? {}), ...change });
+      return;
+    }
     const entries = viewerEntries();
     setShared(VIEWERS, { ...entries, [id]: { ...entries[id], ...change } });
   },

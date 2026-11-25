@@ -105,6 +105,33 @@
             }
           },
           "title": "Shortcuts"
+        },
+        "open": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preview": {
+              "title": "Single-click",
+              "description": "What a single click on a file does. Preview: show it in the preview column. Select only: just select it; double-click or Enter opens it in a tab.",
+              "type": "string",
+              "enum": [
+                "slot",
+                "off"
+              ],
+              "x-enum-labels": {
+                "slot": "Preview",
+                "off": "Select only"
+              },
+              "default": "slot"
+            },
+            "previewDelay": {
+              "title": "Preview delay (ms)",
+              "description": "How long a click waits for a second click before the preview column opens, so a double-click changes the layout once. Only while the column is hidden. 0 = no wait.",
+              "type": "number",
+              "minimum": 0,
+              "default": 250
+            }
+          }
         }
       }
     }

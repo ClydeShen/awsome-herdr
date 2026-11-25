@@ -544,7 +544,7 @@
 | 切到没有 `preview` 节点的布局（`main`、`terminals`、`win98`）后 `layout.show` | 报错 `no node "preview" in the shown layout` | **捕获这个错，退回面板内预览（C，现有的 `show()`）**；`layout.hide` 的错误忽略。只有 `awsome` 布局带预览位；用户切到别的布局就是 Herdr 自带的面板预览 |
 | 面板收起时单击文件 | 文件树就在面板里，所以面板一定是显示的；`awsome-changes`、搜索等别处调用预览位时，面板收起也不影响 | 预览位和面板各自独立开关 |
 | 窗口窄到所有块的 `min` 加起来超过窗口 | Herdr 不夹住，多出的部分被裁掉（上面 `min` 实验同理） | 这是 Herdr 的限制，不绕。缓解：`min` 取小（预览位 280、`main` 360），默认预览位收起；用户可以收起预览位或面板。预览位自己的宽度小于 200 时，只画收起按钮 |
-| 预览位是否显示，我们怎么知道 | `layout()` 返回未类型化的布局树 | **实现前验证**它有没有活的 `hidden` 状态；没有的话，`layout.show` 本身可重复调用（幂等），只有"没显示时等 250ms"这个判断需要知道，退而用自己记的上次状态 + 每次 `layout.show` 后重置 |
+| 预览位是否显示，我们怎么知道 | **已验证**：`layout()` 返回的树里，隐藏的节点有 `"hidden": true`，显示后这个字段消失，是实时的 | 用 `layout()` 读（`slotShown()`），不自己记；只有"没显示时等 250ms"用得到 |
 | 用户在 Herdr 里手动收起 / 显示预览位（布局菜单、`layout.toggle`） | Herdr 负责 | 我们不另存显示状态，下一次单击再 `layout.show` |
 | 重新安装布局（`install.sh`） | 旧布局文件移进备份；`layouts/.state` 里的运行时大小会被新文件里的值覆盖（AGENTS.md："deliberate layout-file edit beats a click"） | 用户重装后预览位回到默认比例，属预期 |
 
@@ -557,11 +557,12 @@
 | 同一个文件已经固定在某个 tab 里 | 单击仍在预览位里显示（只是看，不切 tab、不打断你在做的事）；双击、Enter 切到那个 tab |
 | Herdr 重启 | 显示与否、宽度由 Herdr 的布局状态恢复；预览位的文件由持久化的共享状态恢复，文件不在了就由 viewer 显示原因（沿用现有） |
 | 显示 / 收起预览位会让 `main` 里的终端重排 | 固有的一次性代价：用户不收起它就不再变，所以不是"每次单击一次"。无法避免，推迟 250ms 已让双击不白重排一次 |
-| 预览位隐藏时有没有后台开销 | 要验证：隐藏的块里的 viewer 不应该轮询（viewer 的 300ms 同步、2 秒读文件、git diff）；没有文件时 `slot` 模式不启动这些计时器 |
+| 预览位隐藏时有没有后台开销 | 实现了但没法实测（看不到 Herdr 内部）：隐藏的块里的 viewer 不应该轮询（viewer 的 300ms 同步、2 秒读文件、git diff）；没有文件时 `slot` 模式不启动这些计时器 |
 | 快速连点换文件 | 只写共享状态里最后一个，viewer 自己同步（现有 `reading` 防串），不排队；换文件重置滚动位置 |
 | 二进制 / 超大 / 已删除 | 由 viewer 自己显示原因（现有行为），不弹框 |
 | 远程 space（`on`） | `slot` 里带 `on`，和现有 viewer 一样 |
 | 单击后文件树的键盘焦点 | `layout.show` 没有改变 tab 里的焦点 pane（已验证）；文件树自己的键盘焦点由用户确认，若被抢走再 `handle.focus()` 还回去 |
+| 中键点文件开 tab | 列表只给左键点击，P2b 没做；以后需要时用 `on_mouse_down("middle")` 补 |
 | 安装 | `install.sh` 会换掉 `layouts/awsome.json`（旧的移进备份）；用户自己改过的布局要从备份里拿，和现在一样 |
 
 *设置*（`awsome-config`，文字英文）：`open.preview`（`slot` / `off`，默认 `slot`；`off` = 单击只选中，只有双击 / Enter 打开，Windows 资源管理器的习惯，VS Code 的 `workbench.list.openMode: doubleClick` 也是这样）、`open.previewDelay`（默认 250ms，0 = 不等，只在预览位没显示时起作用）。

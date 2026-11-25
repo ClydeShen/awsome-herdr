@@ -143,6 +143,27 @@
               }
             },
             {
+              "id": "preview",
+              "type": "block",
+              "content": {
+                "mod": "awsome-viewer",
+                "props": {
+                  "mode": "slot"
+                }
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 280,
+              "hidden": true,
+              "background": "surface",
+              "border": {
+                "width": 1,
+                "color": "border"
+              },
+              "radius": 10
+            },
+            {
               "id": "main",
               "type": "block",
               "content": {
@@ -169,7 +190,11 @@
                   "gap": 4,
                   "lone": true
                 }
-              }
+              },
+              "size": {
+                "weight": 2
+              },
+              "min": 360
             }
           ],
           "padding": 4,

@@ -311,6 +311,34 @@
           "dragOver("
         ]
       }
+    },
+    {
+      "id": "preview-slot",
+      "what": "Opening a file from the tree: preview in a fixed slot, keep in a tab",
+      "references": [
+        {
+          "app": "Windows Explorer (preview pane)",
+          "behavior": "A fixed pane beside the list that follows the selected item and can be toggled on and off; double-click opens the item itself."
+        },
+        {
+          "app": "VS Code (preview editor)",
+          "behavior": "Single-click previews and the next single-click replaces it; double-click keeps it. Single-click acts at once, with no delay (source: list openMode, onPointer / onMouseDblClick)."
+        },
+        {
+          "app": "macOS Finder (Quick Look)",
+          "behavior": "Space previews the selected item without opening it; Space or Esc closes it."
+        }
+      ],
+      "ours": "Single-click or Space shows the file in the preview column of the layout (one, global, closed with its close button or Esc); double-click, Enter or middle-click opens it in its own tab and leaves the preview as it is. When the preview is hidden a single-click waits 250ms for a possible double-click, so the layout changes only once; when it is shown the content is replaced at once.",
+      "code": {
+        "awsome-filetree": [
+          "openViewer(",
+          "press("
+        ],
+        "awsome-viewer": [
+          "slot"
+        ]
+      }
     }
   ]
 }

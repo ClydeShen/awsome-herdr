@@ -46,7 +46,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 - 有 `"place": "right"` 的 mod 会被 Herdr 自动加进当前布局，造成重复面板。
 - mod 的名字出现在布局、共享状态的键、`props`、图标路径里，改名要一起改。每个 mod 在 `data/<mod>/` 里记住自己的状态（比如上次打开的标签页），所以"换了名字就坏"往往是状态不同，不是名字本身。
 - 挪走一个正在运行的 mod，窗口会一直报 `... does not exist`，重启 Herdr 才消失，不影响使用。
-  - **但临时预览 mod 的对话框（`kind: "dialog"`）如果还开着就被挪走，它会残留在窗口上，盖住下面的界面，`overlay.close` 关不掉。** 处理：把预览 mod 临时放回 `mods/`，等 10 秒，`mod.open` 再 `mod.close`（`status` 的 `overlays` 变空），然后再移走。以后关预览：先 `mod.close`，确认 `overlays` 为空，再移进备份。
+  - **但临时预览 mod 的对话框（`kind: "dialog"`）如果还开着就被挪走，它会残留在窗口上，盖住下面的界面，`overlay.close` 关不掉。** 处理：把预览 mod 临时放回 `mods/`，等 10 秒，`mod.open` 再 `mod.close`（光 `mod.close` 不够；`status` 的 `overlays` 变空才算关掉），然后再移走。以后用完预览，先确认 `overlays` 为空，再移进备份。
 - `herdr-app shot` 在 Herdr 忙时会拍到旧画面；切布局或重建大视图后等 20 秒以上再拍。
 - **我发出去的命令里，成对的反斜杠 `\\` 会被合并成一个。** 写路径或正则时不要依赖反斜杠字面量：用 `String.fromCharCode(92)` 拿反斜杠，用 `[/]` 代替 `\/`。这条坑造成过"上一级"按钮失效（Windows 路径不匹配）。
 - **我只能截图，不能点击、右键、拖拽。** 静态界面自己拍图确认；交互的手感请用户操作后反馈。

@@ -317,6 +317,7 @@ export default class FileTree extends View {
     this.ask = props()?.ask ?? null;
     if (this.menu || this.ask) { this.handle = cx.focus_handle(); this.handle.focus(); this.at = -1; return; }
     this.sel = new Set(); this.anchor = ""; this.lastDown = null;
+    this.openPreview = "slot"; this.previewDelay = 250; this.waiting = null;
     this.handle = cx.focus_handle();
     followFileIcons(this, cx);
     this.scroll = VirtualListScrollHandle.new();
@@ -345,6 +346,11 @@ export default class FileTree extends View {
         const text = await readTextFile(`${appHome()}/mods/${NAME}/config.json`);
         if (text) this.config = { ...DEFAULTS, ...JSON.parse(text) };
       } catch (e) { notify({ title: "awsome-filetree: config.json is invalid", body: String(e), level: "warning", timeout: 4000 }); }
+      try {
+        const given = JSON.parse((await readTextFile(`${appHome()}/mods/${NAME}/mod.json`)) ?? "{}").settings?.open ?? {};
+        if (given.preview === "slot" || given.preview === "off") this.openPreview = given.preview;
+        if (Number.isFinite(given.previewDelay) && given.previewDelay >= 0) this.previewDelay = given.previewDelay;
+      } catch {}
       // Local patch: "open": "awsome-viewer" needs Awsome Viewer' viewer; without it, preview here.
       this.hasAwsomeViewer = Boolean(await readTextFile(`${appHome()}/mods/awsome-viewer/mod.json`).catch(() => null));
       this.showSize ??= this.config.column === "size";
@@ -401,6 +407,7 @@ export default class FileTree extends View {
   setView(view, cx) {
     if (view === this.view) return;
     this.view = view;
+    this.cancelWait();
     this.clearSelection(true);
     this.savePrefs();
     this.hits = null; this.searchSeq++;
@@ -420,6 +427,7 @@ export default class FileTree extends View {
   reset(root, on) {
     if (this.ctx?.root) this.saved.set(this.ctx.key, { folders: this.folders, cursor: this.cursor });
     const key = JSON.stringify([root, on]), s = this.saved.get(key);
+    this.cancelWait();
     this.ctx = { key, root, on }; this.root = root; this.on = on;
     this.entries = new Map(); this.folders = new Set(s?.folders); this.pending = new Set();
     this.cursor = s?.cursor ?? ""; this.git = emptyGit(); this.index = null; this.hits = null;
@@ -814,11 +822,38 @@ export default class FileTree extends View {
     if (!inRender) cx.notify();
   }
 
+  // ── the preview column of the layout (docs/REQUIREMENTS.md section 4.4a) ─────────────────
+  // The layout's `preview` node, or null in a layout that has none (Herdr's own layouts).
+  slotNode() {
+    const find = (n) => (n?.id === "preview" ? n : (n?.children ?? []).map(find).find(Boolean));
+    return find(layout()) ?? null;
+  }
+  slotShown() { const n = this.slotNode(); return Boolean(n) && !n.hidden; }
+  showSlot() { try { run("layout.show", { id: "preview" }); } catch {} }
+  hideSlot() { if (this.slotShown()) { try { run("layout.hide", { id: "preview" }); } catch {} } }
+  cancelWait() { this.waiting = null; }
+
+  // Single click, or Space (`explicit`): the file in the preview column. Showing a hidden column
+  // moves the layout, so a click waits previewDelay for a second click first (a double-click then
+  // opens a tab and the layout changes once); with the column already shown it swaps at once.
+  // A layout without the column, or no viewer mod, previews inside this panel instead.
+  previewSlot(rel, cx, explicit = false) {
+    this.cancelWait();
+    if (this.openPreview === "off" && !explicit) return;
+    const space = spaces().find((x) => x.active)?.id;
+    if (!space || !this.hasAwsomeViewer || !this.slotNode()) { this.show(rel, cx); return; }
+    const file = { path: join(this.root, rel), root: this.root, on: this.on ?? null };
+    const put = () => { setShared("awsome-viewer.slot", { space, file }); this.showSlot(); };
+    if (explicit || !this.previewDelay || this.slotShown()) { put(); return; }
+    this.waiting = rel;
+    cx.timer.after(this.previewDelay, (cx) => { if (this.waiting !== rel) return; this.waiting = null; put(); cx.notify(); });
+  }
+
   // Double-click and Enter: config.json's "open". "preview" shows it here; "" the default
   // app; anything else is a command with {path} and {dir}, run without a shell.
   openFile(rel, cx) {
     const how = String(this.config.open ?? "preview").trim(), abs = join(this.root, rel);
-    if (how === "awsome-viewer") { this.openViewer(rel, false, cx); return; }
+    if (how === "awsome-viewer") { this.openViewer(rel, true, cx); return; }
     if (how === "preview" || this.on) { this.show(rel, cx); return; }
     cx.spawn(async (cx) => {
       try {
@@ -892,6 +927,7 @@ export default class FileTree extends View {
     // The list reports no modifiers, so the mouse-down above it noted them (see render).
     const down = this.lastDown ?? {}, m = down.mods ?? {};
     this.lastDown = null;
+    this.cancelWait();
     this.handle.focus();
     // Ctrl (Cmd on macOS) and Shift only change the selection: nothing opens, nothing expands.
     if (m.shift) { this.extendSelection(rel, rows); cx.notify(); return; }
@@ -901,7 +937,7 @@ export default class FileTree extends View {
     this.cursor = rel; this.anchor = rel;
     if (r.flat && r.e.dir) this.revealInTree(rel, cx);
     else if (r.e.dir) { if (this.hits) this.jump(cx); else if (!double) this.toggle(rel, cx); }
-    else if (this.config.open === "awsome-viewer") this.openViewer(rel, double, cx);
+    else if (this.config.open === "awsome-viewer") { if (double) this.openViewer(rel, true, cx); else this.previewSlot(rel, cx); }
     else if (double) this.openFile(rel, cx);
     cx.notify();
   }
@@ -992,7 +1028,7 @@ export default class FileTree extends View {
     else if (k === "space" && add && cur) this.toggleSelect(cur.rel);
     else if (k === "/") { this.input.focus(); }
     else if (k === ".") { this.showHidden = !this.showHidden; this.savePrefs(); }
-    else if (k === "escape") { if (this.query) this.clearSearch(cx); else this.clearSelection(); }
+    else if (k === "escape") { this.cancelWait(); if (this.query) this.clearSearch(cx); else if (this.sel.size) this.clearSelection(); else this.hideSlot(); }
     else if (many && k === "y") copy(cx, shift ? this.paths().map((p) => join(this.root, p)).join("\n") : this.paths().join("\n"));
     else if (many && k === "a") askSend(cx, this.paths().map((p) => join(this.root, p)));
     else if (many && (k === "enter" || k === "space" || k === "p" || k === "right" || k === "l" || k === "left" || k === "h")) return;
@@ -1004,8 +1040,8 @@ export default class FileTree extends View {
     else if ((k === "right" || k === "l") && cur.e.dir && !cur.open) this.toggle(cur.rel, cx);
     else if (k === "left" || k === "h") { if (cur.e.dir && cur.open && !this.hits) this.toggle(cur.rel, cx); else if (dirOf(cur.rel) || cur.depth) { this.cursor = dirOf(cur.rel); this.scrollTo = this.cursor; } }
     else if (k === "enter") { if (this.hits) this.jump(cx); else if (cur.e.dir) this.toggle(cur.rel, cx); else this.openFile(cur.rel, cx); }
-    else if (k === "space") { if (cur.e.dir) this.toggle(cur.rel, cx); else this.show(cur.rel, cx); }
-    else if (k === "p" && !cur.e.dir) this.show(cur.rel, cx);
+    else if (k === "space") { if (cur.e.dir) this.toggle(cur.rel, cx); else this.previewSlot(cur.rel, cx, true); }
+    else if (k === "p" && !cur.e.dir) this.previewSlot(cur.rel, cx, true);
     else if (k === "y") copy(cx, shift ? join(this.root, cur.rel) : cur.rel);
     else if (k === "a") sendToAgent(cx, join(this.root, cur.rel));
     else return;
@@ -1170,7 +1206,10 @@ export default class FileTree extends View {
     if (this.menu) return this.renderMenu(cx);
     this.sync(cx);
     const req = shared(`${NAME}.preview`);
-    if (req && req.n !== this.seenPreview) { this.seenPreview = req.n; if (req.root === this.root) this.show(req.rel, cx, true); }
+    if (req && req.n !== this.seenPreview) {
+      this.seenPreview = req.n;
+      if (req.root === this.root) { if (this.hasAwsomeViewer && this.slotNode()) cx.spawn(async (cx) => { this.previewSlot(req.rel, cx, true); cx.notify(); }); else this.show(req.rel, cx, true); }
+    }
     // Another mod (session-bar's changed chip) asks for a view.
     const go = shared(`${NAME}.goto`);
     if (go && go.n !== this.seenGoto) { this.seenGoto = go.n; if (go.root === this.root) this.enterFolder(go.rel, cx); }

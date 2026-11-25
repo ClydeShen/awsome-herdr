@@ -384,6 +384,45 @@
           "clearSelection("
         ]
       }
+    },
+    {
+      "id": "tree-keep",
+      "mod": "awsome-filetree",
+      "to": "a file kept in its own tab (single-click only previews it in the preview column)",
+      "forward": {
+        "mouse": "double-click or middle-click the file, or Open in tab on the preview",
+        "keys": "Enter on the file",
+        "code": [
+          "openViewer(rel, true, cx)"
+        ]
+      },
+      "back": {
+        "mouse": "close the tab (x or middle-click), or single-click a file to preview it again",
+        "keys": "Ctrl+W closes the tab",
+        "code": [
+          "previewSlot("
+        ]
+      }
+    },
+    {
+      "id": "tree-preview-slot",
+      "mod": "awsome-filetree",
+      "to": "the preview column of the layout showing a file",
+      "forward": {
+        "mouse": "single-click a file",
+        "keys": "Space on the file",
+        "code": [
+          "layout.show",
+          "awsome-viewer.slot"
+        ]
+      },
+      "back": {
+        "mouse": "the close button on the preview, or single-click another file to replace it",
+        "keys": "Esc",
+        "code": [
+          "layout.hide"
+        ]
+      }
     }
   ]
 }

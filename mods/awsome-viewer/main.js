@@ -50,6 +50,8 @@ class AwsomeViewer extends View {
   init(given, cx) {
     const p = props() ?? given ?? {};
     this.mode = p.mode ?? "sidebar";
+    // The layout's preview column: a viewer with no tab of its own (views/viewer.js SLOT).
+    if (this.mode === "slot") { this.mode = "viewer"; this.slot = true; p.viewer = "slot"; }
     if (this.mode === "menu") {
       this.menuTarget = p.target;
       this.menuSpace = spaces().find((s) => s.active)?.id;
@@ -97,6 +99,8 @@ class AwsomeViewer extends View {
         this.readFile(cx);
       }
       cx.timer.every(Math.max(500, duration(settings.refresh.file, 2000)), (cx) => {
+        // A hidden preview column is not drawn; leave its file alone until it is shown again.
+        if (this.slot && (!this.slotShown() || Date.now() - (this.renderedAt ?? 0) > 3000)) return;
         this.readFile(cx);
         this.readHunks(cx);
       });
