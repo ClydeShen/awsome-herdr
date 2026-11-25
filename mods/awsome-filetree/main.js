@@ -863,6 +863,11 @@ export default class FileTree extends View {
     const c = String(name ?? "").replace(/^awsome-filetree[.:]/, "");
     if (c === "up") this.goUp();
     else if (c === "follow") this.followPane();
+    else if (c === "menu") {
+      // Shift+F10, as in Windows and VS Code: the menu of the row under the keyboard cursor.
+      const cur = this.rows().find((r) => r.rel === this.cursor);
+      if (cur && !cur.flat) this.openMenu(cur.rel, Boolean(cur.e?.dir));
+    }
     else if (c === "into") {
       const cur = this.rows().find((r) => r.rel === this.cursor);
       if (cur?.e?.dir) this.enterFolder(cur.rel, cx);

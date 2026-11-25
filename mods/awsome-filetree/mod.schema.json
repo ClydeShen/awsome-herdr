@@ -94,6 +94,14 @@
               "x-action": "awsome-filetree.follow",
               "x-section": "mod:awsome-filetree",
               "default": "ctrl-alt-home"
+            },
+            "menu": {
+              "title": "Open the menu",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-filetree.menu",
+              "x-section": "mod:awsome-filetree",
+              "default": "shift-f10"
             }
           },
           "title": "Shortcuts"

@@ -60,11 +60,12 @@
           "behavior": "Right-click (or the Menu key / Shift+F10) opens it; destructive items last; unavailable items greyed."
         }
       ],
-      "ours": "menu.js: groups in a fixed order with separators, keys on the right, arrows/Enter/Esc, danger last in red, unavailable items greyed with the reason as a tooltip. Keyboard opening (Shift+F10) is pending the user's decision.",
+      "ours": "menu.js: groups in a fixed order with separators, keys on the right, arrows/Enter/Esc, danger last in red, unavailable items greyed with the reason as a tooltip. Shift+F10 opens the file tree's menu for the selected row; the space menu has a bindable command with no key by default.",
       "code": {
         "awsome-filetree": [
-          "menuView(",
-          "menuKey("
+          "\"menu\"",
+          "menuKey(",
+          "menuView("
         ],
         "awsome-menu": [
           "menuView(",

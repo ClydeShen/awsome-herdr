@@ -9,7 +9,7 @@
 //   actions/names.js       tabs named after what runs in them
 // actions/ holds the logic with no drawing, views/ui.js the shared look.
 import { View } from "gpui-kit";
-import { shared, setShared, nextCommand, props, notify } from "herdr";
+import { shared, setShared, nextCommand, props, notify, openOverlay, spaces } from "herdr";
 import { loadSettings } from "./settings.js";
 import { buttons, execute } from "./actions/engine.js";
 import { panelMemoryMethods } from "./views/panel-memory.js";
@@ -89,6 +89,11 @@ class Tabs extends View {
 
   command(command) {
     if (command === "overflow") return this.openActions(this.toolbar().overflow);
+    // The shown space's menu from the keyboard (unbound by default; set it in Mod settings).
+    if (command === "space-menu") {
+      const size = (shared("awsome-menu.size") ?? {}).space ?? { width: 300, height: 620 };
+      return openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: { scope: "space", space: spaces().find((s) => s.active)?.id } });
+    }
     if (!command.startsWith("button:")) return;
     const entry = this.entries().find((button) => button.id === command.slice(7));
     if (entry) this.act(entry.action);

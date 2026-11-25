@@ -183,7 +183,7 @@
       "to": "the space menu",
       "forward": {
         "mouse": "right-click a space, or the tab bar's +",
-        "keys": "",
+        "keys": "Open the space menu (no key by default; set one in Mod settings)",
         "code": [
           "onDismiss"
         ]
@@ -243,6 +243,26 @@
         "mouse": "click away (saves)",
         "keys": "Enter saves, Esc cancels",
         "code": []
+      }
+    },
+    {
+      "id": "tree-menu",
+      "mod": "awsome-filetree",
+      "to": "a row's context menu",
+      "forward": {
+        "mouse": "right-click a row",
+        "keys": "Shift+F10 on the selected row",
+        "code": [
+          "openMenu(",
+          "\"menu\""
+        ]
+      },
+      "back": {
+        "mouse": "click outside the menu",
+        "keys": "Esc",
+        "code": [
+          "menuKey("
+        ]
       }
     }
   ]

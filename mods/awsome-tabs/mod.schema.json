@@ -110,6 +110,21 @@
             }
           },
           "title": "Menu"
+        },
+        "keys": {
+          "type": "object",
+          "title": "Shortcuts",
+          "additionalProperties": false,
+          "properties": {
+            "space_menu": {
+              "title": "Open the space menu",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-tabs.space-menu",
+              "x-section": "global",
+              "default": ""
+            }
+          }
         }
       }
     }
