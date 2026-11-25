@@ -374,13 +374,9 @@ export class Spaces {
 
   menu(w) {
     // A popup is as tall as its items; height is only the most.
-    openOverlay({
-      mod: "menu",
-      kind: "popup",
-      width: 200,
-      height: 260,
-      props: { tab: "space", target: { id: w.id } },
-    });
+    // The shared space menu (awsome-menu), at the size it measured last time.
+    const size = (shared("awsome-menu.size") ?? {}).space ?? { width: 300, height: 620 };
+    openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: { scope: "space", space: w.id } });
   }
 
   // Spaces in order, each worktree space moved under its main checkout's.

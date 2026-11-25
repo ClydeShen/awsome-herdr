@@ -16,13 +16,16 @@ import { theme, keys as boundKeys } from "herdr";
 // Spacing after shadcn/ui's ContextMenu (new-york-v4): content p-1, rounded-md, border,
 // shadow-md; item px-2 py-1.5 gap-2 rounded-sm, 16px muted icons; separator -mx-1 my-1.
 // Text stays at the app's 13px. `margin` leaves room for the shadow inside the popup.
-export const MENU = { margin: 6, pad: 4, radius: 8, row: 30, px: 8, gap: 8, itemRadius: 6, text: 13, icon: 16, keys: 11.5, sep: 9 };
+// Compact on a 4px scale like the sidebar: rows 28 (SidebarMenuButton sm), group titles 24 in the
+// SidebarGroupLabel style (11, medium, muted).
+export const MENU = { margin: 6, pad: 4, radius: 8, row: 28, title: 24, px: 8, gap: 8, itemRadius: 6, text: 13, icon: 16, keys: 11.5, sep: 9 };
 
 // The popup's size for these entries, so openOverlay can size it exactly ({ frame: "none" }).
 export function menuHeight(entries) {
-  const rows = entries.filter((e) => e !== "-").length;
+  const rows = entries.filter((e) => e !== "-" && !e.title).length;
+  const titles = entries.filter((e) => e !== "-" && e.title).length;
   const seps = entries.filter((e) => e === "-").length;
-  return MENU.margin * 2 + 2 + MENU.pad * 2 + rows * MENU.row + seps * MENU.sep;
+  return MENU.margin * 2 + 2 + MENU.pad * 2 + rows * MENU.row + titles * MENU.title + seps * MENU.sep;
 }
 export function menuWidth(entries) {
   const items = entries.filter((e) => e !== "-").map((e) => (e.title ? { label: e.title } : e));
@@ -80,7 +83,7 @@ export function menuView({ id, entries, at, run, mono, t: given }) {
       .text_color(t.foreground).text_size(MENU.text)
       .children(entries.map((e, i) => {
         if (e === "-") return div().flex_none().mx(-MENU.pad).my(4).h(1).bg(t.border);
-        if (e.title) return div().h(MENU.row).flex_none().flex().items_center().px(MENU.px).font_medium().child(e.title);
+        if (e.title) return div().h(MENU.title).flex_none().flex().items_center().px(MENU.px).text_size(11).font_medium().text_color(t.muted).child(e.title);
         const hot = e.danger ? dangerBg : t.hover;
         return h_flex().id(`${id}-${e.id}`).h(MENU.row).flex_none().px(MENU.px).gap(MENU.gap).items_center().rounded(MENU.itemRadius)
           .text_color(e.danger ? t.blocked : t.foreground)

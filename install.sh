@@ -5,7 +5,7 @@ set -eu
 
 SRC=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
-MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree"
+MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree awsome-menu"
 LEGACY="better-changes better-icons better-sidebar better-files better-tabs better-search file-icons filetree" # names this repo used before the awsome-* rename
 LAYOUT=awsome
 

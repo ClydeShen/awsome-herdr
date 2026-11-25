@@ -245,7 +245,7 @@ export const tabBarMethods = {
   newTabButton(tabs) {
     const asLast = (event) => ({ ...event, local_position: { x: Infinity } });
     return this.simple("tab-new", Icon("plus", 14), "New tab", () =>
-      openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 }),
+      openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...((shared("awsome-menu.size") ?? {}).plus ?? { width: 300, height: 480 }), props: { scope: "plus", space: spaces().find((s) => s.active)?.id } }),
     )
       .on_mouse_move((event, cx) => {
         if (tabs.length) this.hoverTab(tabs.at(-1), asLast(event), cx);

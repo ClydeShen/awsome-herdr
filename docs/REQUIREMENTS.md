@@ -302,12 +302,13 @@
 
 | 部件 | 规格 |
 |---|---|
-| 分组标题 | `Terminals`、`Agents`：占一行高，13、中等粗细（`ContextMenuLabel`），不可点 |
+| 分组标题 | `Terminals`、`Agents`：高 24，字号 11、中等粗细、`muted`（和侧边栏的分组标题同一种样式），不可点 |
 | 终端 | 图标用 Herdr 的 `shell.svg`；名字如 `PowerShell 7`、`Git Bash`、`Ubuntu`；右侧淡色 `Default` / `WSL` |
-| agent | Herdr 的程序图标；右侧数字 `1`…`9`，菜单打开时按数字直接启动；没安装的整行半透明、右侧写 `Not installed` |
+| agent | **只列已安装的**：Herdr 的程序图标，右侧数字 `1`…`9`，菜单打开时按数字直接启动。最后一行 `More agents…` 另弹一个菜单，列出全部 agent（没安装的整行半透明、右侧写 `Not installed`）。Herdr 认识 16 个 agent，全列出来菜单会超出窗口（2026-11-25 实测） |
 | 其余 | `New worktree…`、`Open worktree…`｜`Rename`（`F2`）、`Reveal in File Explorer`、`Copy path`｜`Close space…`（红色，Herdr 自带确认）。`Appearance…`、`Group ▸` 在 P1b 加，`Tile agents` 在 P1c 加 |
 | 标签栏 `+` | 同一个菜单，只有 Terminals、Agents、worktree 三组，作用于当前 space |
 | 键盘 | ↑ ↓ 移动（跳过标题和不可用项）、Enter 执行、Esc 关闭、数字键启动 agent |
+| 尺寸 | 紧凑、以 4 为单位，和侧边栏同比例：菜单项行高 28、分组标题 24、内边距 4、左右 8、图标 16、间隔 8、分隔线 9（`design/tokens.json` 的 `menu`） |
 
 ### 4.3 awsome-filetree：视觉和基础操作 🟡
 

@@ -5,7 +5,7 @@ set -eu
 
 SRC=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
-MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree"
+MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree awsome-menu"
 LAYOUT=awsome
 LOCAL_LAYOUT=${HERDR_LAYOUT:-$LAYOUT} # the layout name on this machine (install.sh names it awsome); stored as $LAYOUT in the repo
 
