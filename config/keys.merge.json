@@ -1,5 +1,5 @@
 {
   "global": {
-    "alt-shift-,": "mod.open:awsome-config"
+    "alt-~": "mod.open:awsome-config"
   }
 }
