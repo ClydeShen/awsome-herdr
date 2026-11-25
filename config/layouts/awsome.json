@@ -29,7 +29,7 @@
               "id": "spaces",
               "type": "block",
               "content": {
-                "mod": "better-sidebar"
+                "mod": "awsome-sidebar"
               },
               "size": {
                 "weight": 1
@@ -79,7 +79,7 @@
           "id": "tabs",
           "type": "block",
           "content": {
-            "mod": "better-tabs"
+            "mod": "awsome-tabs"
           },
           "window_drag": true,
           "size": {
@@ -102,14 +102,14 @@
                       "id": "files",
                       "type": "block",
                       "content": {
-                        "mod": "filetree"
+                        "mod": "awsome-filetree"
                       }
                     },
                     {
                       "id": "changes",
                       "type": "block",
                       "content": {
-                        "mod": "better-changes"
+                        "mod": "awsome-changes"
                       }
                     }
                   ],

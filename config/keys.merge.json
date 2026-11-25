@@ -1,5 +1,1 @@
-{
-  "global": {
-    "cmd-alt-p": "mod.open:better-search"
-  }
-}
+{ "global": {} }

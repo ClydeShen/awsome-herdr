@@ -5,7 +5,8 @@ set -eu
 
 SRC=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
-MODS="better-icons better-sidebar better-files better-changes better-tabs better-search file-icons filetree"
+MODS="awsome-icons awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree"
+LEGACY="better-changes better-icons better-sidebar better-files better-tabs better-search file-icons filetree" # names this repo used before the awsome-* rename
 LAYOUT=awsome
 
 say() { printf '%s\n' "$*"; }
@@ -25,6 +26,7 @@ backup() { # backup <path> : move an existing path into the backup folder, keepi
 }
 
 say "Mods -> $HOME_DIR/mods"
+for m in $LEGACY; do backup "$HOME_DIR/mods/$m"; done # the old names, now replaced by the awsome-* mods
 for m in $MODS; do
   backup "$HOME_DIR/mods/$m"
   cp -R "$SRC/mods/$m" "$HOME_DIR/mods/$m"

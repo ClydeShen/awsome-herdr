@@ -1,0 +1,21 @@
+{
+  "$schema": "./mod.schema.json",
+  "version": "2.7.0",
+  "place": "right",
+  "size": 368,
+  "title": "Awsome Changes",
+  "overlay": {
+    "kind": "popup",
+    "width": 1,
+    "height": 1,
+    "frame": "none"
+  },
+  "settings": {
+    "default": {
+      "diff": "split"
+    },
+    "limits": {
+      "files": 200
+    }
+  }
+}
