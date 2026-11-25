@@ -6,8 +6,8 @@
   },
   "type": "row",
   "theme": {
-    "light": "primer-light",
-    "dark": "primer-dark"
+    "light": "awsome-light",
+    "dark": "awsome-dark"
   },
   "children": [
     {
@@ -63,7 +63,7 @@
             }
           },
           "size": {
-            "px": 69
+            "px": 32
           }
         }
       ],
@@ -125,7 +125,19 @@
               },
               "min": 280,
               "max": 900,
-              "hidden": true
+              "hidden": true,
+              "background": "surface",
+              "border": {
+                "width": 1,
+                "color": "border"
+              },
+              "radius": 10,
+              "focus": {
+                "border": {
+                  "width": 1,
+                  "color": "accent"
+                }
+              }
             },
             {
               "id": "main",
@@ -151,14 +163,14 @@
                     "color": "accent"
                   },
                   "radius": 10,
-                  "gap": 8,
+                  "gap": 4,
                   "lone": true
                 }
               }
             }
           ],
-          "padding": 8,
-          "gap": 8
+          "padding": 4,
+          "gap": 4
         },
         {
           "id": "status",
@@ -167,7 +179,7 @@
             "mod": "workspace-status"
           },
           "size": {
-            "px": 28
+            "px": 32
           }
         }
       ],
