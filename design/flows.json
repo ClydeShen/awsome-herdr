@@ -264,6 +264,81 @@
           "menuKey("
         ]
       }
+    },
+    {
+      "id": "appearance-popover",
+      "mod": "awsome-sidebar",
+      "to": "the Appearance popover",
+      "forward": {
+        "mouse": "the menu's Appearance...",
+        "keys": "the space menu command, then Appearance...",
+        "code": []
+      },
+      "back": {
+        "mouse": "click outside",
+        "keys": "Esc",
+        "code": []
+      }
+    },
+    {
+      "id": "space-selection",
+      "mod": "awsome-sidebar",
+      "to": "several selected spaces",
+      "forward": {
+        "mouse": "Ctrl+click / Shift+click",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "click a space, or empty sidebar space",
+        "keys": "Esc",
+        "code": []
+      }
+    },
+    {
+      "id": "group-collapse",
+      "mod": "awsome-sidebar",
+      "to": "a collapsed group",
+      "forward": {
+        "mouse": "click the group header",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "click the header again (or switch to one of its spaces)",
+        "keys": "",
+        "code": []
+      }
+    },
+    {
+      "id": "group-membership",
+      "mod": "awsome-sidebar",
+      "to": "a space inside a group",
+      "forward": {
+        "mouse": "drag it onto the group, or Group > a group",
+        "keys": "the space menu command, then Group",
+        "code": []
+      },
+      "back": {
+        "mouse": "drag it out, Remove from group, or Ungroup",
+        "keys": "the space menu command, then Group > Remove from group",
+        "code": []
+      }
+    },
+    {
+      "id": "group-rename",
+      "mod": "awsome-sidebar",
+      "to": "editing a group's name in place",
+      "forward": {
+        "mouse": "the header's Rename",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "click away (saves)",
+        "keys": "Enter saves, Esc cancels",
+        "code": []
+      }
     }
   ]
 }

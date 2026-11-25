@@ -269,15 +269,20 @@
 - **Agents 按 space 分组，sub agent 缩进**（每级 12px + 参考线），状态点见 §2.4。点 sub agent = 在新 pane 里看它（`terminal.keep`）。上游的 `awsome-sidebar/views/agents.js` **已经写好**（按 space 分组、按名字前缀分组、树状缩进、父 agent 显示最紧急的子 agent 状态），**只差接线**：布局里把 `agents` 块改成 `awsome-sidebar` 并传 `props: { view: "agents" }`。
 - **底栏**：见 §3。
 
-#### 4.2.2 外观（`Appearance…`）
+#### 4.2.2 外观（`Appearance…`）（P1b-1，⬜ 待你看预览确认）
 
-- **一个小弹层**：上面一排 7 个色点（无 + 6 色，§2.4），下面 5×5 图标；选了立即生效。space 和组共用，**组只有颜色，没有图标**。
+- **打开**：space 或组的右键菜单里的 `Appearance…`（多选时一次改全部）。菜单关闭，在鼠标处弹出一个小弹层，样子和菜单一样（`menu.js` 的边框、圆角 8、阴影、内边距）。
+- **上面一排颜色**：7 个 20px 圆点（间隔 8）：无 + 6 个标记色（§2.4）。"无"是一个只有 1px `border` 边框的空心圆。当前的颜色外面一圈 2px `accent`（和圆点之间隔 2px）。
+- **下面是图标**（组没有这一部分）：5×5 共 25 个图标格，每格 28px、圆角 6、图标 16 `muted`；当前的图标格叠 `selected`、图标变 `foreground`；悬停叠 `hover`。**再点一次当前的图标 = 去掉图标**（回到小圆点），常见的取色 / 取图标弹层都是这样（见 `design/conventions.json` 的 `appearance-picker`）。
+- 右上角一个图标按钮（逆时针箭头，`Reset to the default look`）：颜色和图标都回到默认。
+- **选了立即生效**，弹层不关，可以接着改；点外面或 Esc 关闭。键盘：方向键在当前一排 / 一格里移动，Tab 在颜色和图标之间切换，Enter 选中。
 - **图标固定 25 个 Phosphor**，颜色和该行文字同色：folder-simple、code、terminal-window、globe、database、hard-drives、cloud、rocket-launch、flask、bug、book-open、shield-check、cpu、robot、cube、package、wrench、gear-six、chart-line-up、lightning、star、house-simple、briefcase、paint-brush、game-controller。
-- **存储**：按**文件夹（+ 机器）**存，space 关了再开样子还在；同时写入 `space.colors`，兼容 Herdr 自带的菜单。
+- **行上的样子**：图标（或 8px 小圆点）占 16 宽；颜色是整行的淡底色（深色 8%、浅色 4%，§2.4）。
+- **存储**：按**文件夹（+ 机器）**存在共享状态里，space 关了再开样子还在；同时写入 `space.colors`，兼容 Herdr 自带的菜单。
 
 #### 4.2.3 选择与右键菜单
 
-选择规则见 §2.6（单击 = 切换到该 space；Ctrl + 单击不切换；Shift 选一段只在同一台机器内）。
+选择规则见 §2.6（单击 = 切换到该 space；Ctrl + 单击不切换；Shift 选一段只在同一台机器内）。**样子按 §2.3**：选中的行叠 `selected`；当前 space 另外有左侧指示条；点侧边栏的空白处或 Esc 清空选择。（P1b-1）
 
 | 右键点在 | 菜单 |
 |---|---|
@@ -291,19 +296,22 @@
   - **`Agents`**：来自 `knownAgents()`，未安装的变灰并写 `not installed`，数字键直接启动。
   - 点一行 = 在**这个 space** 里**新开一个 tab**（`tab.new {space, argv}`，和 Herdr 一致，不分屏）。
   - `New worktree…` / `Open worktree…`（Herdr 自带）。
-  - 下半部分是 space 自己的操作：`Tile agents (N)`（§4.2.5）、`Rename`（F2）、`Appearance…`、`Group ▸`、`Reveal in File Explorer`、`Copy path`、`Close space…`（红色，用 Herdr 自带的 `confirm`）。
-- **多选菜单**：`Appearance…`（一次应用到全部）、`Group ▸`、`Copy path`（每个一行）、`Close N spaces…`（确认对话框列出名字，并标出**有 agent 正在运行**的）。不显示 Terminals、Agents、worktree、Rename、Reveal、Tile。
+  - 下半部分是 space 自己的操作：`Tile agents (N)`（§4.2.5）、`Rename`（沿用 Herdr 的 `Shift+F2`；Herdr 的 `F2` 是重命名 tab）、`Appearance…`、`Group ▸`、`Reveal in File Explorer`、`Copy path`、`Close space…`（红色，用 Herdr 自带的 `confirm`）。
+- **多选菜单**：`Appearance…`（一次应用到全部）、`Group ▸`、`Copy path`（每个一行）、`Close N spaces…`（用共用的 `confirm.js`：标题 `Close 3 spaces?`，列出名字，正在工作或需要你的 agent 用一句 `2 agents are still working.` 说明；红色按钮 `Close spaces`；Enter 确认、Esc 取消；不可找回，所以没有 `Don't ask again`）。不显示 Terminals、Agents、worktree、Rename、Reveal、Tile。
 - **`Group ▸` 子菜单**：已有的组（当前所在的打勾）、`New group…`（把选中的**全部**放进新组，组名立刻进入编辑，颜色自动选一个没用过的）、`Remove from group`（选中里有组成员才显示）。
 - **终端发现**（平台适配表的一项）：Windows 用 `where` 查 pwsh / powershell / cmd / bash / wsl，WSL 发行版用 `wsl -l -q`（输出是 UTF-16，要去掉空字符）；macOS / Linux 读 `/etc/shells`。可手动加、隐藏：`terminals.profiles`（名字 + 启动命令）、`terminals.hide`。
 - **标签栏的 `+` 和单项菜单的上半部分用同一份代码**，做成独立的 `awsome-menu`（弹出层，props 传 space），`awsome-tabs` 和 `awsome-sidebar` 各自打开。
 
-#### 4.2.4 分组（像 Chrome 的标签组）
+#### 4.2.4 分组（像 Chrome 的标签组）（P1b-2，⬜ 待你看预览确认）
 
-- **组头**：一行安静的小标题：折叠箭头、色点、名字（**可留空**）。没有彩色标签、竖线、图标、数字（悬停提示写 `3 spaces`）。**单击组头 = 折叠 / 展开**；重命名用 `F2` 或右键 `Rename`。成员缩进 12px。
-- **颜色继承**：space 进组后，**默认底色就是组的颜色**；space 自己设过颜色就保留自己的；在 `Appearance…` 里选"无"回到组的颜色；移出组回到它自己的颜色；改组的颜色，所有没自设颜色的成员一起变。
-- **折叠**：只剩组头；**组里有 space 需要你时，组头显示红点**（`blocked`）；Agents 列表不受折叠影响；选中（切换到）折叠组里的 space 时，组自动展开。
-- **新建组只走菜单**（`Group ▸` → `New group…`）。**不做** `Close group`（会连带关掉正在跑 agent 的 space）。
-- **拖拽**（通用规则见 §2.6）：
+- **组头**：一行 28 高：折叠箭头（12，`muted`）、8px 色点、组名（13、中等粗细、`foreground`，**可留空**：留空时只有箭头和色点）。没有彩色标签、竖线、图标、数字（悬停提示写 `3 spaces`）。**单击组头 = 折叠 / 展开**。
+- **成员**：缩进 12（§2.2），各自保留自己的图标；没有自设颜色的成员用组的颜色做淡底色。
+- **颜色继承**：space 进组后，默认底色就是组的颜色；space 自己设过颜色就保留自己的；在 `Appearance…` 里选"无"回到组的颜色；移出组回到它自己的颜色；改组的颜色，所有没自设颜色的成员一起变。
+- **折叠**：只剩组头；**组里有 space 需要你时，组头的色点右边多一个 8px `blocked` 圆点**；切换到折叠组里的 space 时，组自动展开。Agents 列表不受折叠影响。
+- **重命名组**：组头右键 `Rename`，组名**就地变成输入框**并选中全部文字；Enter 保存、Esc 取消、点别处保存；清空也可以（组名留空）。惯例见 `design/conventions.json` 的 `inline-rename`。
+- **新建组只走菜单**（`Group ▸` → `New group…`）：选中的 space 全部进新组，组名立刻进入编辑，颜色自动选一个没用过的。**不做** `Close group`（会连带关掉正在跑 agent 的 space）。
+- **组头右键**：`Rename`、`Appearance…`（只有颜色）、`Collapse` / `Expand`、`Ungroup`。
+- **拖拽**（通用规则见 §2.6：移动超过 6px 开始拖；插入位置是 2px `accent` 线，插进组里时线缩进 12；放到组头上时组头加 1px `accent` 描边；不能放的地方没有高亮）：
 
 | 松手位置 | 结果 |
 |---|---|
@@ -316,7 +324,7 @@
 - **移出组有三种**：把成员拖到组外；`Remove from group`；组头的 `Ungroup`（成员原位留下，恢复各自的颜色）。最后一个成员离开，组自动消失。
 - 松手后用 `space.move` **真的调整 Herdr 的 space 顺序**，让可见顺序和 `Alt+数字` 一致（worktree 嵌套现在就是这么做的）。**worktree 跟着它的主 space 走**，一整家人一起进出组。没有键盘拖拽，键盘用菜单。
 - **边界**：组只在同一台机器的区块内；成员关系按文件夹（+ 机器）记，space 关了再开仍在组里；数字快捷键按全部 space 编号（含折叠的）。
-- **常用动作的步数**：加入或移出组 = 拖 1 次；新建组 = 选中 → 右键 → `New group…`；改颜色 / 图标 = 右键 → `Appearance…`；折叠 = 点组头；重命名 = `F2`。
+- **常用动作的步数**：加入或移出组 = 拖 1 次；新建组 = 选中 → 右键 → `New group…`；改颜色 / 图标 = 右键 → `Appearance…`；折叠 = 点组头；重命名 space = `Shift+F2`。
 
 #### 4.2.5 平铺：把 space 里的 agent / 终端集中到一个画面（**先做小验证**）
 

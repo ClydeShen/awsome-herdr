@@ -163,6 +163,16 @@ def c3_layout():
         ((find(L, "main") or {}).get("content", {}).get("pane", {}).get("gap") == v["gap"], f"terminal pane gap must be {v['gap']}px"),
         ((find(L, "panel") or {}).get("radius") == (find(L, "main") or {}).get("content", {}).get("pane", {}).get("radius") == v["cardRadius"], f"Files/Changes card and terminal panes must share radius {v['cardRadius']}"),
     ]
+    bv = load("design", "tokens.json").get("sidebar", {}).get("values", {})
+    if "chevronSlot" in bv:
+        icon_c = bv["px"] + bv["icon"] / 2                     # an ungrouped space's icon centre
+        member_c = bv["px"] + bv["indent"] + bv["icon"] / 2     # a member's icon centre
+        member_name = bv["px"] + bv["indent"] + bv["icon"] + bv["gap"]
+        checks += [
+            (bv["px"] + bv["chevronSlot"] / 2 == icon_c, "sidebar: a group's chevron must be centred on an ungrouped space's icon"),
+            (bv["px"] + bv["chevronSlot"] + bv["groupDot"] / 2 == member_c, "sidebar: a group's dot must be centred on its members' icons"),
+            (bv["px"] + bv["chevronSlot"] + bv["groupDot"] + bv["groupNameGap"] == member_name, "sidebar: a group's name must start where its members' names start"),
+        ]
     sv = load("design", "tokens.json").get("settings", {}).get("values", {})
     if sv:
         checks += [

@@ -221,6 +221,90 @@
           "rename"
         ]
       }
+    },
+    {
+      "id": "list-selection",
+      "what": "Selecting several rows in a list",
+      "planned": true,
+      "references": [
+        {
+          "app": "Windows Explorer / VS Code Explorer",
+          "behavior": "Click selects one; Ctrl+click adds or removes one; Shift+click selects the range from the anchor; Esc or a click on empty space clears; right-click on a selected row acts on the whole selection."
+        },
+        {
+          "app": "macOS Finder",
+          "behavior": "The same with Cmd for Ctrl."
+        }
+      ],
+      "ours": "Spaces: click switches to it and selects only it; Ctrl/Cmd+click adds or removes without switching; Shift+click selects the range in the visible order within one machine; Esc or a click on empty sidebar space clears; right-click on a selected row opens the multi-selection menu. Selected rows use the selected overlay; the current space also has the indicator bar.",
+      "code": {
+        "awsome-sidebar": [
+          "selection"
+        ]
+      }
+    },
+    {
+      "id": "appearance-picker",
+      "what": "Picking a color and an icon for an item",
+      "planned": true,
+      "references": [
+        {
+          "app": "Chrome / Edge tab groups",
+          "behavior": "Right-click a group: a small popover with a row of color circles; the chosen one has a ring; a pick applies at once and the popover stays until you click away or press Esc."
+        },
+        {
+          "app": "VS Code terminal tabs (Change Color / Change Icon)",
+          "behavior": "Each is a short list to pick from, applied at once; a reset goes back to the default."
+        }
+      ],
+      "ours": "One popover for both: a row of 7 color circles (none + 6), the current one ringed in accent; a 5x5 grid of 25 icons below (not for groups), the current one highlighted; picking applies at once and the popover stays; picking the current icon again removes it; a reset icon button returns both to the default; Esc or a click outside closes it.",
+      "code": {
+        "awsome-sidebar": [
+          "Reset to the default look"
+        ]
+      }
+    },
+    {
+      "id": "tab-groups",
+      "what": "Grouping items in a list",
+      "planned": true,
+      "references": [
+        {
+          "app": "Chrome / Edge tab groups",
+          "behavior": "A group has a colored label you click to collapse or expand; tabs are dragged in and out; right-click the label to rename, recolor, ungroup; a collapsed group stays one compact label."
+        },
+        {
+          "app": "VS Code (Explorer folders) / macOS Finder (sidebar sections)",
+          "behavior": "A header with a chevron collapses and expands the items under it; items are indented under their header."
+        }
+      ],
+      "ours": "A quiet header row (chevron, color dot, optional name) collapses and expands; members are indented 12 and take the group's color unless they have their own; drag in and out, or use the menu's Group submenu; rename, recolor, collapse and ungroup from the header's menu; a red dot on a collapsed header when a member needs you.",
+      "code": {
+        "awsome-sidebar": [
+          "ungroup"
+        ]
+      }
+    },
+    {
+      "id": "drag-reorder",
+      "what": "Reordering rows by dragging",
+      "planned": true,
+      "references": [
+        {
+          "app": "Chrome tab strip",
+          "behavior": "A drag starts after a small movement; a gap opens where the tab will land; dropping onto a group adds it; Esc cancels."
+        },
+        {
+          "app": "VS Code Explorer / Windows Explorer",
+          "behavior": "Dragging shows an insertion line or highlights the target folder; invalid targets show the no-drop cursor."
+        }
+      ],
+      "ours": "Starts after 6px of movement; a 2px accent insertion line (indented 12 inside a group); a 1px accent outline on a group header it would join; no highlight where it cannot land; Esc, dropping in place or outside cancels; dragging a selected row moves the whole selection.",
+      "code": {
+        "awsome-sidebar": [
+          "dropLine("
+        ]
+      }
     }
   ]
 }
