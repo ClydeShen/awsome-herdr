@@ -507,6 +507,96 @@
 
 **设置项**：`confirm.delete`；撤销的开关和键位。
 
+### 4.4a P2 的完整规格：打开文件 + 文件树的选择（2026-11-26，改定为 B：布局里的全局预览位，不要斜体）
+
+**决定的经过**（以后重读时不用再查）：① 用户："单击在 pane、双击在 tab，区别已经明显，不要斜体"；② 查了 VS Code 源码和微软文档：单击立即执行、双击"转正"，VS Code 不闪是因为两者落在同一个位置；我们的预览和 tab 位置不同；③ 为长期使用比较了三个宿主：**每个 tab 里分 pane**（A，预览随 tab 越积越多，每次分出和关掉都让旁边的 agent 终端重排重绘，还要自己找目标 pane、还焦点）、**布局里的全局预览位**（B）、Files 面板内预览（C，面板窄）；④ 用户选 B。已验证 `layout.show / hide` 能直接显示、收起一个新加的布局节点，不抢 tab 里的焦点。**pane 自带的操作（头部关闭 / 放大、顶部拖拽把手）只属于 `{tab:"active"}` 块里的 pane，布局里的 mod 块拿不到**，所以关闭按钮自己画（调 `layout.hide`），拖宽用布局分隔线（自带）。`floating` 块（可拖、吸附边缘、不挤压终端）以后可作为同一个 viewer 的另一种宿主。
+
+**结构**
+- `config/layouts/awsome.json` 在 `work-body` 里 `panel` 和 `main` 之间加一个 `preview` 块：`content: { mod: "awsome-viewer", props: { mode: "slot" } }`，**`size.weight 1`、`min 280`，不设 `max`，不用 `px`**，`hidden: true`，外观（`surface` 底、1px `border`、圆角 10）和 `panel` 相同；同时 `main` 改成 `size.weight 2`、`min 360`。大小、是否显示由 Herdr 记住（`layouts/.state`），不由我们存。为什么用权重不用像素，见下面"开、关、响应式、布局变化"。
+- `awsome-viewer` 新增 `slot` 模式：读 `shared("awsome-viewer.slot")`（`{ space, file }`）显示文件，**不走 tab 的认领和清理逻辑**（`claimTab`、`pruneViewers` 都不碰，避免和现有注册表互相干扰）。格式、Markdown 预览、图片、代码、diff 标记、刷新全部沿用现有 viewer，一行不重写。头部多两个按钮：`Open in tab`（等于双击）、收起 ×（`layout.hide`，tooltip `Close preview (Esc)`）。
+- 记在 `slot` 里的 `space` 和当前 space 不同时，预览位显示空白（不写字），切回来再显示。
+
+**打开**
+
+| 操作 | 结果 |
+|---|---|
+| 单击文件 | 写 `awsome-viewer.slot`，预览位没显示就 `layout.show`；再单击别的文件只换内容 |
+| 双击文件 / Enter / 中键 | 在独立 tab 里打开（现有的固定 tab）；文件已有自己的 tab 就切过去；**预览位保持原样，不去收它** |
+| `Space` | 预览光标行（Finder 的 Quick Look 惯例，不动光标，不开 tab） |
+| 方向键 | 只移动光标，不预览（不一路刷新） |
+| 预览位头部 `Open in tab` | 把当前预览的文件开成 tab |
+| 预览位头部 × / Esc | 收起预览位（Esc 在树里：先清选择，没有选择再收起预览位） |
+
+- 双击用鼠标事件的 `click_count`；同一行才算，两下落在不同行各自当单击。
+- **不让布局闪烁**：预览位已显示 → 单击立即换内容，布局不动。预览位**没显示** → 单击等 `open.previewDelay`（默认 250ms，`cx.timer.after`）才 `layout.show`；等待中来了第二下就取消，直接开 tab。所以双击时布局只变一次。取消等待的情况：第二下、点了别的文件、变成多选、切视图、换根、Esc、面板被关。
+- 多选（≥2）时单击不打开（§2.6）；Ctrl / Shift + 单击只改选择，预览位保持原样。
+- 文件夹：单击展开 / 折叠，不预览；双击没有别的意思。
+- 没有斜体、没有新的 tab 标题样式；`awsome-tabs` 不改。
+
+**开、关、响应式、布局变化**（2026-11-26 实测，用 `awsome-spike` 临时布局，已恢复原样）
+
+| 情况 | 实测结果 | 决定 |
+|---|---|---|
+| 面板 + 预览位都显示，预览位拖到 900px | `main` 被挤成最右边一条细缝，终端一个字符一行 | **预览位不用 `px`、`max`**：Herdr 不保护 `main` |
+| 给 `main` 加 `min: 420`（预览位仍是 `px`） | 不让别的块让位，`main` 被撑出窗口右边、被裁掉 | `min` 单独不够，Herdr 不会重新分配宽度 |
+| 预览位 `weight 1`、`main` `weight 2`，三列都显示 | 文件面板 368 \| 预览位约 320 \| 主区约 630，全部完整 | **用权重**：剩余宽度按比例分，窗口变窄时整体按比例缩，不会把 `main` 挤没 |
+| `layout.resize {id:"preview", weight:2}` | 生效，比例立刻变成 1 : 1 | 用户拖分隔线也是改权重（拖拽手感待用户试）；Herdr 把权重记在 `layouts/.state`，重启保留 |
+| 切到没有 `preview` 节点的布局（`main`、`terminals`、`win98`）后 `layout.show` | 报错 `no node "preview" in the shown layout` | **捕获这个错，退回面板内预览（C，现有的 `show()`）**；`layout.hide` 的错误忽略。只有 `awsome` 布局带预览位；用户切到别的布局就是 Herdr 自带的面板预览 |
+| 面板收起时单击文件 | 文件树就在面板里，所以面板一定是显示的；`awsome-changes`、搜索等别处调用预览位时，面板收起也不影响 | 预览位和面板各自独立开关 |
+| 窗口窄到所有块的 `min` 加起来超过窗口 | Herdr 不夹住，多出的部分被裁掉（上面 `min` 实验同理） | 这是 Herdr 的限制，不绕。缓解：`min` 取小（预览位 280、`main` 360），默认预览位收起；用户可以收起预览位或面板。预览位自己的宽度小于 200 时，只画收起按钮 |
+| 预览位是否显示，我们怎么知道 | `layout()` 返回未类型化的布局树 | **实现前验证**它有没有活的 `hidden` 状态；没有的话，`layout.show` 本身可重复调用（幂等），只有"没显示时等 250ms"这个判断需要知道，退而用自己记的上次状态 + 每次 `layout.show` 后重置 |
+| 用户在 Herdr 里手动收起 / 显示预览位（布局菜单、`layout.toggle`） | Herdr 负责 | 我们不另存显示状态，下一次单击再 `layout.show` |
+| 重新安装布局（`install.sh`） | 旧布局文件移进备份；`layouts/.state` 里的运行时大小会被新文件里的值覆盖（AGENTS.md："deliberate layout-file edit beats a click"） | 用户重装后预览位回到默认比例，属预期 |
+
+**长期使用的边界情况和决定**
+
+| 情况 | 决定 |
+|---|---|
+| 预览位是全局的，会不会越用越多 | 不会：全局只有一个，不随 tab 增加；关掉 tab 不影响它 |
+| 切到别的 space，它还显示上一个项目的文件 | 记着自己属于哪个 space，不是当前 space 就显示空白（不写字）；回来恢复 |
+| 同一个文件已经固定在某个 tab 里 | 单击仍在预览位里显示（只是看，不切 tab、不打断你在做的事）；双击、Enter 切到那个 tab |
+| Herdr 重启 | 显示与否、宽度由 Herdr 的布局状态恢复；预览位的文件由持久化的共享状态恢复，文件不在了就由 viewer 显示原因（沿用现有） |
+| 显示 / 收起预览位会让 `main` 里的终端重排 | 固有的一次性代价：用户不收起它就不再变，所以不是"每次单击一次"。无法避免，推迟 250ms 已让双击不白重排一次 |
+| 预览位隐藏时有没有后台开销 | 要验证：隐藏的块里的 viewer 不应该轮询（viewer 的 300ms 同步、2 秒读文件、git diff）；没有文件时 `slot` 模式不启动这些计时器 |
+| 快速连点换文件 | 只写共享状态里最后一个，viewer 自己同步（现有 `reading` 防串），不排队；换文件重置滚动位置 |
+| 二进制 / 超大 / 已删除 | 由 viewer 自己显示原因（现有行为），不弹框 |
+| 远程 space（`on`） | `slot` 里带 `on`，和现有 viewer 一样 |
+| 单击后文件树的键盘焦点 | `layout.show` 没有改变 tab 里的焦点 pane（已验证）；文件树自己的键盘焦点由用户确认，若被抢走再 `handle.focus()` 还回去 |
+| 安装 | `install.sh` 会换掉 `layouts/awsome.json`（旧的移进备份）；用户自己改过的布局要从备份里拿，和现在一样 |
+
+*设置*（`awsome-config`，文字英文）：`open.preview`（`slot` / `off`，默认 `slot`；`off` = 单击只选中，只有双击 / Enter 打开，Windows 资源管理器的习惯，VS Code 的 `workbench.list.openMode: doubleClick` 也是这样）、`open.previewDelay`（默认 250ms，0 = 不等，只在预览位没显示时起作用）。
+
+*选择的边界情况*
+
+| 情况 | 决定 |
+|---|---|
+| 文件在磁盘上被删 / 改名 / 刷新后不存在 | 刷新树时把选择集合里不存在的路径剔除；剔到 < 2 项选择条消失 |
+| 折叠文件夹后，里面的已选项看不见 | 仍算选中（§4.3b），`N selected` 数的是全部；Shift 连选只按**可见**行算 |
+| 过滤 / 搜索改变了可见行 | 过滤只改显示，不动选择；换视图（Tree / Recent / Search）清空 |
+| 换根（上一级 / 进入 / Open as root） | 清空选择（路径相对根，保留会指错） |
+| 选了很多（Shift 连选上千个） | 条上显示实数；`Send to agent` 超过 100 个路径时先用共用确认框问一次（`Send 250 paths to the agent?`），不静默截断；`Copy path` 不限 |
+| 选择条出现让树下移 | 滚动位置按"第一行可见项"保持不动 |
+| 选中集合 ≥2 时右键 | 右键的行在集合里 → 多选菜单；不在 → 集合变成它（§2.6） |
+| 用 Ctrl 把集合减到 1 项 | 选择条消失，这一项仍是选中，**不自动预览**（预览只由单击和 Space 触发） |
+| 拖拽、批量删除等 | P3 再做；P2 的选择集合只被 `Send to agent`、`Copy path` 使用 |
+
+**选择**（规则全在 §2.6；本节只写文件树自己的部分）
+- 状态：`cursor`（键盘光标，保留）+ `selected`（集合）+ `anchor`。单击 = 只选它；Ctrl（macOS Cmd）+ 单击加入 / 移出；Shift + 单击按**可见顺序**从锚点连选；Shift + ↑ / ↓ 扩展；**Ctrl+Space 切换光标行**（Explorer、VS Code 都有）；Esc、点列表空白处清空。
+- 选中的行叠 `selected`（单选多选同一种画法，§2.3）；键盘光标行在列表有焦点时多一圈 1px `accent` 内描边。
+- 文件夹行：单击只展开 / 折叠并把它设为唯一选中；Ctrl / Shift + 单击只改选择，不展开。折叠文件夹不丢里面已选的项。
+- 右键：未选中的行 → 选中集合先变成它，出单项菜单；已选中且集合 ≥2 → 多选菜单（`Send to agent`、`Copy relative path`、`Copy absolute path`；`Delete…` 等 P3 再加，不放灰按钮）。
+
+**选择条**（选中 ≥ 2 项才出现，在标题栏和树之间；P2 里只有三样，不留空位）
+- 高 32（和 `layout.bar` 同一条横线网格），`px 8`，`gap 4`，底部 1px `border`，底色 = 面板底色（不另加色块）。
+- 左：`N selected`，12px，`foreground`。右：`Send to agent`、`Copy path ▾` 两个 ghost 小按钮（高 24、`px 8`、12px、圆角 6、悬停 `hover`），最右一个 16px 的 × 图标按钮（tooltip `Clear selection (Esc)`）。
+- `Copy path ▾` 点开的菜单就是共用菜单：`Copy relative path`、`Copy absolute path`。
+- 条出现 / 消失会让树整体上下移一次：不做动画，直接切。
+- 颜色、字体全部取现有令牌（`foreground`、`muted`、`border`、`hover`、`selected`、`accent`），没有新颜色；对比度沿用 §2.4 已算过的"行上 `muted` 文字 ≥ 4.2"。数值 32 / 24 / 8 / 4 是 4px 网格（`layout.bar` = 32），按钮 24 取自 shadcn `Button size="sm"` 的紧凑档。选择条和选中行的预览截图已给用户看，用户只对斜体提了意见，其余等用户明确确认。
+
+**往返**（登记在 `design/flows.json`）：预览位（去：单击 / Space；回：× / Esc / 再单击别的文件换内容）；独立 tab（去：双击 / Enter / 中键 / `Open in tab`；回：关 tab）；单选 ⇄ 多选（去：Ctrl / Shift + 单击，或 Shift + ↑↓、Ctrl+Space；回：Esc、点空白、选择条 ×，或普通单击）。
+**惯例**（`design/conventions.json`）：`preview-slot`：Windows 资源管理器的预览窗格（一个固定位置的窗格，跟着选中的项显示，可开关）、VS Code 的预览编辑器（单击预览、双击固定）、Finder 的 Quick Look（Space）。
+**验证清单**：实现前：隐藏块里的 viewer 不轮询；文件树键盘焦点不被抢。实现后：`herdr-app check` 三个 mod；`ui-check.py`；用 `herdr-app do layout.show` 等模拟，截图确认；`ui-open-check` 核对预览位尺寸不为 0；点击手感请你试（§5.2 的 P2 一行）。
+
 ### 4.5 awsome-changes：VS Code 化 + commit message + discard ✅（设计已确认）
 
 > 画板 06（Changes）、07（提交框）、08（Discard）。
@@ -588,7 +678,7 @@
 | P1 | 侧边栏：agents 接线（sub agent 缩进、点击开 pane）；`awsome-menu`；space 单项右键菜单（Terminals、Agents、worktree、space 操作） | P0 | 低（上游已写好） |
 | P1b | 侧边栏：选择模型、多选菜单、`Appearance…`（颜色 + 图标）、分组和拖拽 | P1 | 中高 |
 | P1c | ⏸ 推迟（nice to have，复杂）：侧边栏平铺（`Tile agents`、快捷键开关） | P1b | 中 |
-| P2 | 打开文件：单击临时 pane、双击固定 tab、预览斜体；文件树的选择模型（§2.6）和选择条 | P0 | 中（两个 mod 联动） |
+| P2 | 打开文件：单击在布局的全局预览位（`layout.show`）、双击固定 tab（§4.4a）；文件树的选择模型（§2.6）和选择条 | P0 | 中（文件树、viewer、布局三处联动） |
 | P4b | History 的图视图 | P0 | 低 |
 | P4 | Changes：布局、树视图、discard + 快照、commit message 生成；多 repo（发现、Repositories 列表、Files 着色） | P0 | 中高（discard 会丢改动） |
 | P3b | 内容搜索 | P2 | 中 |
@@ -608,7 +698,7 @@
 | P1 | 右键 space 的菜单；从菜单开各种终端（含 WSL）和 agent；点 sub agent 开 pane |
 | P1b | Ctrl / Shift 多选 space；多选菜单；`Appearance…`；拖进 / 拖出组、拖组头、折叠组的红点 |
 | P1c | `Ctrl+Shift+G` 开关平铺；在平铺里打字、按 Esc；`Open in its tab` |
-| P2 | 单击预览、双击固定；Ctrl / Shift 多选文件；选择条 |
+| P2 | 单击预览位、Space、双击开 tab、预览位的 × 和 Esc；Ctrl / Shift 多选文件；选择条 |
 | P4b / P4 | 切 List / Graph；discard 的确认和快照找回；生成 commit message；多 repo 的切换和跟随 |
 | P3b | 搜索中文、正则；点结果跳到行 |
 | P3 | 新建、重命名、删除到回收站、拖拽移动、`Ctrl+Z`（三个系统各试一次，macOS / Linux 需要你在那边的机器上跑） |
