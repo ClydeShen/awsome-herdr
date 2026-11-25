@@ -268,7 +268,6 @@
     {
       "id": "tab-groups",
       "what": "Grouping items in a list",
-      "planned": true,
       "references": [
         {
           "app": "Chrome / Edge tab groups",
@@ -282,7 +281,8 @@
       "ours": "One soft block per group in its color, as wide as a row; a header row (chevron, name, optional red dot) collapses and expands it; members are not indented and line up with ungrouped spaces; a member shows its icon, the group gives its color; 8 between groups; drag in and out or use the menu's Group submenu.",
       "code": {
         "awsome-sidebar": [
-          "ungroup"
+          "ungroup(",
+          "groupHead("
         ]
       },
       "decided": "2026-11-26: the user compared sections, tinted blocks and an indented tree, and chose tinted blocks."
@@ -290,7 +290,6 @@
     {
       "id": "drag-reorder",
       "what": "Reordering rows by dragging",
-      "planned": true,
       "references": [
         {
           "app": "Chrome tab strip",
@@ -304,7 +303,8 @@
       "ours": "Starts after 6px of movement; a 2px accent insertion line, inside a block to join that group or in the gap between blocks to leave it; a 1px accent outline around a whole block it would join; no highlight where it cannot land; Esc, dropping in place or outside cancels; dragging a selected row moves the whole selection.",
       "code": {
         "awsome-sidebar": [
-          "dropLine("
+          "lineOn(",
+          "dragOver("
         ]
       }
     }

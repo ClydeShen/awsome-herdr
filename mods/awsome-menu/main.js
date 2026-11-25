@@ -2,9 +2,10 @@
 // The menus (docs/REQUIREMENTS.md §4.2.3, §4.2.6):
 //   props { scope: "space", space }    Terminals, Agents, worktree, then the space's own actions
 //   props { scope: "plus", space }     Terminals, Agents, worktree, for the shown space
-//   props { scope: "spaces", spaces }  several selected spaces: Appearance, Copy path, Close
+//   props { scope: "spaces", spaces }  several selected spaces: Appearance, Group, Copy path, Close
+//   props { scope: "group", group }    a group's header: Rename, Appearance, Collapse, Ungroup
 // and what their items open (not menus, so Esc or a click outside is the way back):
-//   props { scope: "looks", spaces }   the Appearance picker (picker.js)
+//   props { scope: "looks", spaces | groups }   the Appearance picker (picker.js)
 //   props { scope: "close", spaces }   the confirmation for closing several spaces (confirm.js)
 // Opened by awsome-sidebar and awsome-tabs as a frameless popup; the last size it measured is
 // kept in shared("awsome-menu.size") so the next popup opens at the right size.
@@ -23,11 +24,24 @@ const MONO = "JetBrains Mono";
 const BACKSLASH = String.fromCharCode(92);
 const DEFAULT_SETTINGS = { terminals: { hide: [], extra: [] } };
 // The scopes that are menus; the others are what a menu item opens (scripts/ui-check.py C10).
-const MENUS = ["space", "plus", "spaces"];
+const MENUS = ["space", "plus", "spaces", "group"];
 // A space's look (color and icon), kept by folder and machine so it outlives the space
 // (awsome-sidebar draws it). The colors are the names Herdr's space.colors uses.
 const LOOKS = "awsome-sidebar.looks";
 const lookKey = (s) => `${s.machine ?? ""}|${s.folder ?? ""}`;
+// The groups of the sidebar's spaces (awsome-sidebar/views/groups.js draws and edits them):
+// { list: [{ id, name, color, folded, machine }], of: { "machine|folder": group id } }.
+const GROUPS = "awsome-sidebar.groups";
+const RENAME = "awsome-sidebar.rename";
+const groupData = () => {
+  const g = shared(GROUPS) ?? {};
+  return { list: Array.isArray(g.list) ? g.list : [], of: g.of && typeof g.of === "object" ? g.of : {} };
+};
+// A group with no member left goes away.
+const saveGroups = (d) => {
+  const used = new Set(Object.values(d.of));
+  setShared(GROUPS, { list: d.list.filter((g) => used.has(g.id)), of: d.of });
+};
 
 // Where a space is now: its first terminal's live folder, else where it was made (as Herdr's menu does).
 function place(s) {
@@ -118,13 +132,83 @@ export default class AwsomeMenu extends View {
     return spaces().filter((s) => ids.has(s.id));
   }
 
-  // Opens the Appearance picker for these spaces where the pointer is.
+  // Opens the Appearance picker for these spaces where the pointer is. A space in a group has the
+  // group's color, so it is offered the icons only.
   openLooks(list) {
-    openOverlay({ mod: NAME, kind: "popup", frame: "none", at: "pointer", ...pickerFrame({ colors: true, icons: true }), props: { scope: "looks", spaces: list.map((s) => s.id) } });
+    const of = groupData().of;
+    const parts = { colors: list.some((s) => !of[lookKey(s)]), icons: true };
+    openOverlay({ mod: NAME, kind: "popup", frame: "none", at: "pointer", ...pickerFrame(parts), props: { scope: "looks", spaces: list.map((s) => s.id) } });
+  }
+
+  // The same for a group: its color only.
+  openGroupLooks(id) {
+    openOverlay({ mod: NAME, kind: "popup", frame: "none", at: "pointer", ...pickerFrame({ colors: true, icons: false }), props: { scope: "looks", groups: [id] } });
+  }
+
+  // ── Groups ────────────────────────────────────────────────────────────────
+
+  // The Group submenu: the groups on these spaces' machine (the current one ticked), a new one,
+  // and the way out. Spaces on different machines can't share a group.
+  groupEntry(list) {
+    const d = groupData();
+    const machine = list[0]?.machine ?? null;
+    const mixed = list.some((s) => (s.machine ?? null) !== machine);
+    const mine = d.list.filter((g) => (g.machine ?? null) === machine);
+    const now = new Set(list.map((s) => d.of[lookKey(s)] ?? null));
+    return { id: "group", label: "Group", icon: UI("folder-simple"), disabled: mixed, reason: "The spaces are on different machines",
+      submenu: tidy([
+        ...mine.map((g) => ({ id: `g-${g.id}`, label: g.name || "Untitled", icon: now.size === 1 && now.has(g.id) ? UI("check") : undefined, run: () => this.joinGroup(list, g.id) })),
+        mine.length ? "-" : null,
+        { id: "g-new", label: "New group\u2026", icon: UI("plus"), run: () => this.newGroup(list, machine) },
+        list.some((s) => d.of[lookKey(s)]) ? { id: "g-out", label: "Remove from group", icon: UI("x"), run: () => this.joinGroup(list, null) } : null,
+      ]) };
+  }
+
+  // Puts the spaces in a group, or with null takes them out of any.
+  joinGroup(list, id) {
+    const d = groupData();
+    const of = { ...d.of };
+    for (const s of list) { if (id) of[lookKey(s)] = id; else delete of[lookKey(s)]; }
+    saveGroups({ list: d.list, of });
+  }
+
+  // A group of its own with all of them in it. Its color is one no group has yet, and its name is
+  // asked for in the sidebar, in place.
+  newGroup(list, machine) {
+    const d = groupData();
+    const names = Object.keys(shared("awsome-sidebar.hues") ?? {});
+    const uses = (c) => d.list.filter((g) => g.color === c).length;
+    const color = names.length ? names.reduce((best, c) => (uses(c) < uses(best) ? c : best)) : null;
+    const id = `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    const of = { ...d.of };
+    for (const s of list) of[lookKey(s)] = id;
+    saveGroups({ list: [...d.list, { id, name: "", color, folded: false, machine }], of });
+    setShared(RENAME, id);
+  }
+
+  // A group header's menu.
+  groupEntries() {
+    const g = groupData().list.find((x) => x.id === props()?.group);
+    if (!g) return [];
+    return tidy([
+      { id: "rename", label: "Rename", icon: UI("pencil-simple"), run: () => setShared(RENAME, g.id) },
+      { id: "looks", label: "Appearance\u2026", icon: UI("paint-brush"), run: () => this.openGroupLooks(g.id) },
+      { id: "fold", label: g.folded ? "Expand" : "Collapse", icon: UI(g.folded ? "caret-down" : "arrows-in-line-vertical"),
+        run: () => { const d = groupData(); setShared(GROUPS, { ...d, list: d.list.map((x) => (x.id === g.id ? { ...x, folded: !g.folded } : x)) }); } },
+      "-",
+      { id: "ungroup", label: "Ungroup", icon: UI("x"),
+        run: () => { const d = groupData(); saveGroups({ list: d.list, of: Object.fromEntries(Object.entries(d.of).filter(([, id]) => id !== g.id)) }); } },
+    ]);
   }
 
   // Applies a pick to every chosen space; picking the current icon again takes it away.
   pick(kind, value) {
+    const gs = props()?.groups;
+    if (gs?.length) {
+      const d = groupData();
+      setShared(GROUPS, { ...d, list: d.list.map((g) => (gs.includes(g.id) ? { ...g, color: value } : g)) });
+      return;
+    }
     const looks = { ...(shared(LOOKS) ?? {}) };
     const list = this.chosen();
     const current = this.current(list);
@@ -141,6 +225,8 @@ export default class AwsomeMenu extends View {
 
   // The color and icon all chosen spaces share (null where they differ or have none).
   current(list) {
+    const gs = props()?.groups;
+    if (gs?.length) return { color: groupData().list.find((g) => g.id === gs[0])?.color ?? null, icon: null };
     const looks = shared(LOOKS) ?? {};
     const all = list.map((s) => looks[lookKey(s)] ?? {});
     const same = (f) => (all.length && all.every((l) => (l[f] ?? null) === (all[0][f] ?? null)) ? all[0][f] ?? null : null);
@@ -153,6 +239,7 @@ export default class AwsomeMenu extends View {
     const paths = list.map(place).filter(Boolean);
     return tidy([
       { id: "looks", label: "Appearance\u2026", icon: UI("paint-brush"), run: () => this.openLooks(list) },
+      this.groupEntry(list),
       { id: "copy", label: "Copy path", icon: UI("copy"), disabled: !paths.length, reason: "The spaces have no folders",
         run: (cx) => { cx.write_to_clipboard(paths.join(String.fromCharCode(10))); notify({ title: "Copied", body: `${paths.length} paths`, level: "info", timeout: 2000 }); } },
       "-",
@@ -211,6 +298,7 @@ export default class AwsomeMenu extends View {
         "-",
         { id: "rename", label: "Rename", icon: UI("pencil-simple"), keys: keyFor("space.rename", mac), run: () => run("space.rename", { id: sid }) },
         { id: "looks", label: "Appearance\u2026", icon: UI("paint-brush"), run: () => this.openLooks([s]) },
+        this.groupEntry([s]),
         { id: "reveal", label: reveal, icon: UI("folder-open"), disabled: !folder || Boolean(s?.machine), reason: s?.machine ? "The space is on another machine" : "The space has no folder",
           run: () => revealFolder(folder).catch(say("Could not open the folder")) },
         { id: "copy", label: "Copy path", icon: UI("copy"), disabled: !folder, reason: "The space has no folder", run: (cx) => { cx.write_to_clipboard(folder); notify({ title: "Copied", body: folder, level: "info", timeout: 2000 }); } },
@@ -224,7 +312,7 @@ export default class AwsomeMenu extends View {
     const scope = this.scope();
     if (scope === "looks") return this.renderLooks();
     if (scope === "close") return this.renderClose();
-    const entries = scope === "spaces" ? this.manyEntries() : this.entries();
+    const entries = scope === "spaces" ? this.manyEntries() : scope === "group" ? this.groupEntries() : this.entries();
     const size = menuFrame(entries);
     const known = shared(`${NAME}.size`) ?? {};
     if (known[scope]?.width !== size.width || known[scope]?.height !== size.height) setShared(`${NAME}.size`, { ...known, [scope]: size });
@@ -248,7 +336,8 @@ Object.assign(AwsomeMenu.prototype, {
   renderLooks() {
     const hues = Object.entries(shared("awsome-sidebar.hues") ?? {});
     const cur = this.current(this.chosen());
-    const parts = { colors: true, icons: true };
+    const of = groupData().of;
+    const parts = props()?.groups ? { colors: true, icons: false } : { colors: this.chosen().some((s) => !of[lookKey(s)]), icons: true };
     const cells = pickerCells({ hues, ...parts });
     const nav = this.nav;
     const pick = (c) => this.pick(c.kind, c.value);

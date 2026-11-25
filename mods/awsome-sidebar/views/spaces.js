@@ -23,6 +23,7 @@ import { loadSettings, duration } from "../settings.js";
 import { DEFAULT_SETTINGS } from "../defaults.js";
 import { findNode } from "./find-node.js";
 import { TEXT, Icon, IconButton, Badge, Rail, Menu, MenuLabel, MenuOption } from "./ui.js";
+import { groupMethods, RENAME } from "./groups.js";
 
 // How the spaces list is ordered, picked from the menu beside New space and kept in shared
 // state like the agents' sort. Manual is Herdr's own order, the one dragging changes.
@@ -101,7 +102,15 @@ export class Spaces {
     this.shown = new Set(spaces().map((s) => s.id));
     this.born = {};
     this.pressed = null;
-    this.over = null;
+    // A drag in progress (groups.js): what was pressed, and where a drop would land.
+    this.drag = null;
+    this.target = null;
+    this.renaming = null;
+    this.headOf = {};
+    this.famIds = {};
+    this.famGroup = {};
+    this.stripAfter = new Set();
+    this.prevOf = {};
     // Selected spaces (docs/REQUIREMENTS.md §2.6, §4.2.3): Ctrl/Cmd+click adds or removes one,
     // Shift+click takes the range from the anchor within one machine. Two or more show as
     // selected and share the multi-selection menu; one is just the shown space.
@@ -168,6 +177,14 @@ export class Spaces {
     const now = Date.now();
     const sp = spaces();
     this.updateColors(sp);
+    // Groups: a name to edit that the menu asked for, and a folded group that its space opens.
+    const wanted = shared(RENAME);
+    if (wanted) {
+      setShared(RENAME, null);
+      this.startRename(wanted, cx);
+    }
+    this.tickRename(cx);
+    this.unfoldShown();
     for (const s of sp) if (!this.shown.has(s.id)) this.born[s.id] ??= now;
     const ps = panes();
     this.publishParents(sp, ps);
@@ -464,11 +481,12 @@ export class Spaces {
       placed.add(r.g.repo);
       kids.forEach((k, n) => out.push({ ...k, tree: n === kids.length - 1 ? "└─" : "├─" }));
     }
-    // Herdr's own order nests the worktrees too, so the model and the list
-    // agree and the number keys pick the space the row shows.
-    this.nest(sp, out);
+    // A group's spaces sit together, and Herdr's own order nests the worktrees too, so the model
+    // and the list agree and the number keys pick the space the row shows.
+    const gathered = this.gatherGroups(out);
+    this.nest(sp, gathered);
     this.track(sp, Date.now());
-    return this.sorted(out.filter((r) => this.shown.has(r.w.id)));
+    return this.sorted(gathered.filter((r) => this.shown.has(r.w.id)));
   }
 
   // Move Herdr's spaces so each worktree sits under its main checkout, as
@@ -484,16 +502,24 @@ export class Spaces {
       return;
     }
     if (this.ordering?.key === key && !this.orderingDue(Date.now())) return;
-    const moved = new Set();
     this.ordering = { key, at: Date.now(), machines: [] };
-    for (let i = 0; i < out.length; i++) {
-      const from = order.indexOf(out[i].w.id);
-      if (from === i) continue;
-      run("space.move", { id: out[i].w.id, index: i + 1 });
-      moved.add(out[i].w.machine ?? null);
-      order.splice(i, 0, order.splice(from, 1)[0]);
+    const moved = this.applyOrder(order, target);
+    this.ordering.machines = [...new Set(moved.map((id) => sp.find((s) => s.id === id)?.machine ?? null))];
+  }
+
+  // Moves Herdr's spaces from `order` to `target`, one `space.move` each, simulated so every later
+  // index counts the earlier moves. Returns the ids that were moved.
+  applyOrder(order, target) {
+    const now = [...order];
+    const moved = [];
+    for (let i = 0; i < target.length; i++) {
+      const from = now.indexOf(target[i]);
+      if (from === i || from === -1) continue;
+      run("space.move", { id: target[i], index: i + 1 });
+      moved.push(target[i]);
+      now.splice(i, 0, now.splice(from, 1)[0]);
     }
-    this.ordering.machines = [...moved];
+    return moved;
   }
 
   // The last batch is tried again when the machines that hold the spaces can
@@ -576,6 +602,12 @@ export class Spaces {
   grouped(t, collapsed) {
     const rows = this.ordered();
     this.order = rows.map((r) => r.w.id);
+    // Where each row stands among its family and group, for dragging (groups.js, layoutRows).
+    this.headOf = {};
+    this.famIds = {};
+    this.famGroup = {};
+    this.stripAfter = new Set();
+    this.prevOf = {};
     for (const id of this.selected) if (!this.order.includes(id)) this.selected.delete(id);
     // The shown space's group, so the list can scroll to it.
     this.shownGroup = null;
@@ -601,7 +633,7 @@ export class Spaces {
     if (!remote.length) {
       return this.machineLoading(null) && !rows.length
         ? [this.loadingRow(null, t, collapsed)]
-        : rows.flatMap(draw);
+        : this.layoutRows(rows, draw, t, collapsed);
     }
     return [null, ...remote].flatMap((m) => {
       const head = this.machineHeader(m, t, collapsed);
@@ -609,7 +641,7 @@ export class Spaces {
       const items = login ? [head, login] : [head];
       if (this.folded.has(m)) return items;
       const mine = rows.filter((r) => (r.w.machine ?? null) === m);
-      if (mine.length) return [...items, ...mine.flatMap(draw)];
+      if (mine.length) return [...items, ...this.layoutRows(mine, draw, t, collapsed)];
       const placeholder = this.machineLoading(m)
         ? this.loadingRow(m, t, collapsed)
         : this.newSpaceRow(m, t, collapsed);
@@ -939,7 +971,7 @@ export class Spaces {
         if (!this.isPRLinkClick(event)) return;
         cx.stop_propagation();
         this.pressed = null;
-        this.over = null;
+        this.drag = null;
       })
       .on_mouse_up("left", (event, cx) => {
         if (this.isPRLinkClick(event)) cx.stop_propagation();
@@ -1021,17 +1053,16 @@ export class Spaces {
       .cursor_pointer()
       .when(lit || this.isSelected(w.id), (el) => el.bg(t.selected))
       .when(!lit && !this.isSelected(w.id), (el) => el.hover((s) => s.bg(t.hover)))
-      .when(spaceSortOf().id === "manual" && this.pressed === w.id && this.over !== w.id, (el) =>
-        el.opacity(0.5),
-      )
+      .when(this.drag?.active && this.dragged(w), (el) => el.opacity(0.5))
       .on_mouse_down("right", () => this.menu(w))
       .child(this.rowTitle(w, g, tree, t))
       .when(hasPRLine, (el) => el.child(this.prLine(w, t, Boolean(tree))));
     // The current space: Primer's current-item indicator (TreeView/NavList aria-current), 4×24px, accent.
     if (lit) row.child(div().absolute().left(0).top(Math.max(0, (height - 24) / 2)).w(4).h(Math.min(24, height)).rounded(6).bg(t.accent));
-    if (this.pressed !== null && this.over === w.id && this.pressed !== w.id)
-      row.child(this.dropLine(w, t));
-    const hue = AVATAR_COLORS[lookOf(w).color];
+    const line = this.lineOn(w, t);
+    if (line) row.child(line);
+    // A space in a group is the group's color; its own comes back when it leaves.
+    const hue = this.famGroup[this.headOf[w.id] ?? w.id] ? null : AVATAR_COLORS[lookOf(w).color];
     // A colored space: its tint under the row, so hover and selected lie over it.
     const dragged = hue ? div().rounded(8).bg(tintOf(hue, t)).child(this.withDragging(row, w)) : this.withDragging(row, w);
     // Nested under the lists view, a worktree hangs from its main space's line.
@@ -1039,52 +1070,23 @@ export class Spaces {
     return h_flex().child(Rail(tree.startsWith("└") ? "└" : "├", 14)).child(dragged.flex_1().min_w(0));
   }
 
-  // Where the dragged space would land.
-  dropLine(w, t) {
-    const from = spaces().findIndex((s) => s.id === this.pressed);
-    const to = spaces().findIndex((s) => s.id === w.id);
-    return div()
-      .absolute()
-      .left(0)
-      .right(0)
-      .h(2)
-      .bg(t.accent)
-      .when(from < to, (line) => line.bottom(0))
-      .when(from > to, (line) => line.top(0));
-  }
-
-  // Press to select or start a drag; spaces only move within their machine.
-  // The space's id is kept, not its place: the list may change under the press.
+  // Press to select or start a drag (groups.js). A press that comes up in place is a click.
   withDragging(row, w) {
     return row
-      .on_mouse_down("left", () => {
-        this.pressed = w.id;
-        this.over = w.id;
-      })
-      .on_mouse_move((_e, cx) => {
-        const source = spaces().find((s) => s.id === this.pressed);
-        // Only Herdr's own order can be dragged; a sorted list would put it back.
-        const manual = spaceSortOf().id === "manual";
-        const over = manual && source && (source.machine ?? null) === (w.machine ?? null) ? w.id : null;
-        if (this.pressed !== null && this.over !== over) {
-          this.over = over;
-          cx.notify();
-        }
-      })
+      .on_mouse_down("left", (e) => this.pressRow(w, e))
+      .on_mouse_move((e, cx) => this.dragOver(e, cx, { row: w.id }))
       .on_mouse_up("left", (e, cx) => {
-        const from = this.pressed;
-        const over = this.over;
-        this.pressed = null;
-        this.over = null;
+        const d = this.drag;
         this.rowUp = true;
-        if (from !== null && over === w.id && from !== w.id) {
-          // Herdr's own place of the target, not the row's: a worktree hangs
-          // under its main space in the list, but keeps its own place in Herdr.
-          const index = spaces().findIndex((s) => s.id === w.id);
-          if (index !== -1) run("space.move", { id: from, index: index + 1 });
-        } else if (from === w.id) this.click(w, e);
-        cx.notify();
+        if (d?.active) this.drop(cx);
+        else if (d?.id === w.id || (!d && this.pressed === w.id)) this.click(w, e);
+        this.endDrag(cx);
       });
+  }
+
+  // Whether this row moves with the drag.
+  dragged(w) {
+    return (this.drag?.heads ?? []).some((h) => (this.famIds[h] ?? [h]).includes(w.id));
   }
 
   // A space: a 16px slot with an 8px dot (colors and icons come with Appearance, P1b), the name in
@@ -1146,6 +1148,15 @@ export class Spaces {
       changed = true;
     }
     if (changed) setShared("space.colors", kept);
+  }
+
+  // A color name from Appearance as its hex, and a hex as the tint behind a row or block.
+  hueOf(name) {
+    return AVATAR_COLORS[name];
+  }
+
+  tint(hex, t) {
+    return tintOf(hex, t);
   }
 
   collapsed() {
@@ -1258,14 +1269,19 @@ export class Spaces {
         this.clickedAt = Date.now();
       })
       .on_mouse_up("left", (_e, cx) => {
-        this.pressed = null;
         if (!this.rowUp) this.selected = new Set();
         this.rowUp = false;
-        cx.notify();
+        this.endDrag(cx);
       })
       .track_focus(this.listFocus)
       .on_key_down((ev, cx) => {
-        if (ev.key !== "escape" || this.selected.size < 2) return;
+        if (ev.key !== "escape") return;
+        if (this.drag?.active) {
+          cx.stop_propagation();
+          this.endDrag(cx);
+          return;
+        }
+        if (this.selected.size < 2) return;
         this.selected = new Set();
         cx.stop_propagation();
         cx.notify();
@@ -1292,3 +1308,5 @@ export class Spaces {
     this.listScroll.scroll_to_item(at);
   }
 }
+
+Object.assign(Spaces.prototype, groupMethods);

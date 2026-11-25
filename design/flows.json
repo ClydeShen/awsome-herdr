@@ -312,12 +312,17 @@
       "forward": {
         "mouse": "click the group header",
         "keys": "",
-        "code": []
+        "code": [
+          "folded: !g.folded"
+        ]
       },
       "back": {
         "mouse": "click the header again (or switch to one of its spaces)",
         "keys": "",
-        "code": []
+        "code": [
+          "unfoldShown(",
+          "folded: !g.folded"
+        ]
       }
     },
     {
@@ -327,12 +332,18 @@
       "forward": {
         "mouse": "drag it onto the group, or Group > a group",
         "keys": "the space menu command, then Group",
-        "code": []
+        "code": [
+          "setMembers(",
+          "landing("
+        ]
       },
       "back": {
         "mouse": "drag it out, Remove from group, or Ungroup",
         "keys": "the space menu command, then Group > Remove from group",
-        "code": []
+        "code": [
+          "setMembers(",
+          "tidyGroups("
+        ]
       }
     },
     {
@@ -342,12 +353,16 @@
       "forward": {
         "mouse": "the header's Rename",
         "keys": "",
-        "code": []
+        "code": [
+          "startRename("
+        ]
       },
       "back": {
         "mouse": "click away (saves)",
         "keys": "Enter saves, Esc cancels",
-        "code": []
+        "code": [
+          "finishRename("
+        ]
       }
     }
   ]
