@@ -25,6 +25,7 @@ Changed files are marked here, as the Apache licence asks. Changes are made in t
 - `mods/awsome-config/model.js`, `main.js` (2026-11-25): a key setting may name its keys.json section with `x-section` (default `global`); `rebind()` writes into that section.
 - `mods/awsome-changes/mod.schema.json`, `mods/awsome-sidebar/mod.schema.json` (2026-11-25): the titles "Git refresh" and "Git retry" became "Changes list refresh" and "Sidebar branch check".
 - `mods/awsome-tabs/views/drags.js`, `mod.schema.json` (2026-11-25): a tab drag starts after the pointer moves 6px, with no hold (was 400ms and 12px); `drag_delay` still adds a hold if set.
+- `mods/awsome-sidebar/views/spaces.js` (2026-11-25): the current space also gets a 4×24px accent bar at its left, after Primer's current-item indicator.
 - `config/layouts/awsome.json` (2026-11-25): the sidebar footer block shows `awsome-sidebar`'s footer instead of `workspace-chrome`; the root names a theme pair, `primer-dark` and `primer-light`.
 - `config/themes/primer-dark.json`, `primer-light.json` (2026-11-25): colors taken unchanged from GitHub's Primer design system (`@primer/primitives` 11.10.0, `dist/css/functional/themes/dark.css` and `light.css`), MIT, see `licenses/LICENSE-primer-primitives`. Each Herdr color names one Primer token; the semi-transparent selection color is flattened onto the background because Herdr needs `#rrggbb`.
 - `mods/awsome-filetree/config.json`: `"open": "awsome-viewer"` (upstream default is `"preview"`).

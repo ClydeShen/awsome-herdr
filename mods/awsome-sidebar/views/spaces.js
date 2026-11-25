@@ -946,11 +946,12 @@ export class Spaces {
     const hasPRLine = Boolean(status?.error);
     // One row is lit: under the lists view, the focused agent beneath takes it.
     const lit = w.active && !this.quiet?.(w);
+    const height = rowHeight({ tree }) + (hasPRLine ? 22 : 0);
     const row = v_flex()
       .relative()
       .id(`space-${w.id}`)
       .px(8)
-      .h(rowHeight({ tree }) + (hasPRLine ? 22 : 0))
+      .h(height)
       .flex_none()
       .justify_center()
       .rounded(8)
@@ -962,6 +963,8 @@ export class Spaces {
       .on_mouse_down("right", () => this.menu(w))
       .child(this.rowTitle(w, g, tree, t))
       .when(hasPRLine, (el) => el.child(this.prLine(w, t, Boolean(tree))));
+    // The current space: Primer's current-item indicator (TreeView/NavList aria-current), 4×24px, accent.
+    if (lit) row.child(div().absolute().left(0).top(Math.max(0, (height - 24) / 2)).w(4).h(Math.min(24, height)).rounded(6).bg(t.accent));
     if (this.pressed !== null && this.over === w.id && this.pressed !== w.id)
       row.child(this.dropLine(w, t));
     const dragged = this.withDragging(row, w);
