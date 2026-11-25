@@ -90,6 +90,13 @@ class Tabs extends View {
   command(command) {
     if (command === "overflow") return this.openActions(this.toolbar().overflow);
     // The shown space's menu from the keyboard (unbound by default; set it in Mod settings).
+    // scripts/ui-open-check.py opens each awsome-menu popup this way, for the shown space (and,
+    // for the several-spaces popups, the first two on its machine), to check it is really laid out.
+    if (command.startsWith("check-open:")) {
+      const scope = command.slice(11), shown = spaces().find((s) => s.active);
+      const ids = spaces().filter((s) => (s.machine ?? null) === (shown?.machine ?? null)).slice(0, 2).map((s) => s.id);
+      return openOverlay({ mod: "awsome-menu", kind: scope === "close" ? "dialog" : "popup", frame: "none", width: 600, height: 700, props: { scope, space: shown?.id, spaces: ids } });
+    }
     if (command === "space-menu") {
       const size = (shared("awsome-menu.size") ?? {}).space ?? { width: 300, height: 620 };
       return openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: { scope: "space", space: spaces().find((s) => s.active)?.id } });

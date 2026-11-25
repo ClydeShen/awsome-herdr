@@ -267,17 +267,22 @@
     },
     {
       "id": "appearance-popover",
-      "mod": "awsome-sidebar",
+      "mod": "awsome-menu",
       "to": "the Appearance popover",
       "forward": {
         "mouse": "the menu's Appearance...",
         "keys": "the space menu command, then Appearance...",
-        "code": []
+        "code": [
+          "openLooks("
+        ]
       },
       "back": {
         "mouse": "click outside",
         "keys": "Esc",
-        "code": []
+        "code": [
+          "onDismiss",
+          "escape"
+        ]
       }
     },
     {
@@ -287,12 +292,17 @@
       "forward": {
         "mouse": "Ctrl+click / Shift+click",
         "keys": "",
-        "code": []
+        "code": [
+          "this.click(w, e)"
+        ]
       },
       "back": {
         "mouse": "click a space, or empty sidebar space",
         "keys": "Esc",
-        "code": []
+        "code": [
+          "this.rowUp",
+          "escape"
+        ]
       }
     },
     {

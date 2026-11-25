@@ -287,7 +287,17 @@ def c8_icons():
 def c9_tokens():
     """The shared menu/confirm constants match design/tokens.json."""
     tok = load("design", "tokens.json")
-    for name, const, key in (("menu.js", "MENU", "menu"), ("confirm.js", "CONFIRM", "confirm")):
+    picker = P("mods", "awsome-menu", "picker.js")
+    if os.path.isfile(picker):
+        code = open(picker, encoding="utf-8").read()
+        listed = re.search(r"export const ICONS = \[([^\]]*)\]", code)
+        got = re.findall(r'"([a-z-]+)"', listed[1]) if listed else []
+        req = open(P("docs", "REQUIREMENTS.md"), encoding="utf-8").read()
+        line = next((l for l in req.splitlines() if "**图标固定" in l), "")
+        want = re.findall(r"[a-z]+(?:-[a-z]+)*", line.split("：", 1)[-1]) if line else []
+        if got != want:
+            fail("C9", "L2", f"mods/awsome-menu/picker.js ICONS differ from docs/REQUIREMENTS.md §4.2.2: {sorted(set(got) ^ set(want)) or 'order'}", "change the requirements first, then ICONS")
+    for name, const, key in (("menu.js", "MENU", "menu"), ("confirm.js", "CONFIRM", "confirm"), ("picker.js", "PICKER", "picker")):
         for mod in sorted(os.listdir(P("mods"))):
             f = P("mods", mod, name)
             if not os.path.isfile(f):
@@ -301,10 +311,34 @@ def c9_tokens():
 
 
 def c10_way_back():
-    """A menu item never replaces the menu with another menu: nested menus are submenus."""
+    """A menu never replaces itself with another menu: nested menus are submenus.
+
+    A mod that keeps several popups declares which scopes are menus (`const MENUS = [...]`); then
+    every place it opens its own mod is checked, wherever the call is written, and opening a menu
+    scope fails. What a menu item opens that is not a menu (a picker, a confirmation) closes with
+    Esc or a click outside, as in every app, so it is fine. A mod without MENUS falls back to the
+    plain rule: no menu item opens its own mod.
+    """
     for path, src in mod_js():
         code = strip_comments(src)
         if "menu.js" not in code:
+            continue
+        declared = re.search(r"const MENUS = \[([^\]]*)\]", code)
+        if declared:
+            menus = set(re.findall(r'"(\w+)"', declared[1]))
+            for m in re.finditer(r"openOverlay\(\{\s*mod:\s*NAME(?![A-Za-z0-9_])", code):
+                # The whole call, by matching parentheses (props may hold nested calls).
+                depth, end = 0, m.start() + len("openOverlay")
+                for end in range(end, len(code)):
+                    depth += {"(": 1, ")": -1}.get(code[end], 0)
+                    if depth == 0:
+                        break
+                call = code[m.start(): end + 1]
+                scope = re.search(r'scope:\s*"(\w+)"', call)
+                if scope is None or scope[1] in menus:
+                    line = code[: m.start()].count(chr(10)) + 1
+                    fail("C10", "L6", f"{path}:{line} opens {('menu ' + repr(scope[1])) if scope else 'its own mod without a scope'} over a menu, so there is no way back",
+                         "give the item `submenu: [...]` so it opens beside the item (menu.js)")
             continue
         for m in re.finditer(r"run:\s*\([^)]*\)\s*=>\s*\{?\s*openOverlay\(\{\s*mod:\s*NAME(?![A-Za-z0-9_])", code):
             line = code[: m.start()].count(chr(10)) + 1

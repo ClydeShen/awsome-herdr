@@ -269,7 +269,7 @@
 - **Agents 按 space 分组，sub agent 缩进**（每级 12px + 参考线），状态点见 §2.4。点 sub agent = 在新 pane 里看它（`terminal.keep`）。上游的 `awsome-sidebar/views/agents.js` **已经写好**（按 space 分组、按名字前缀分组、树状缩进、父 agent 显示最紧急的子 agent 状态），**只差接线**：布局里把 `agents` 块改成 `awsome-sidebar` 并传 `props: { view: "agents" }`。
 - **底栏**：见 §3。
 
-#### 4.2.2 外观（`Appearance…`）（P1b-1，⬜ 待你看预览确认）
+#### 4.2.2 外观（`Appearance…`）（P1b-1，✅ 已做，待你试用）
 
 - **打开**：space 或组的右键菜单里的 `Appearance…`（多选时一次改全部）。菜单关闭，在鼠标处弹出一个小弹层。
 - **它是菜单家族的一员**（L12）：边框、圆角 8、阴影、`popover` 底色、内边距 4 都和 `menu.js` 一样；**所有内容放在同一张网格里：7 列，每格 28×28，格子之间不留空**（菜单的行之间也不留空），弹层宽度由网格决定（7 × 28 + 2 × 4 + 边框 2 = 206），没有空白区域。
@@ -306,7 +306,7 @@
 - **终端发现**（平台适配表的一项）：Windows 用 `where` 查 pwsh / powershell / cmd / bash / wsl，WSL 发行版用 `wsl -l -q`（输出是 UTF-16，要去掉空字符）；macOS / Linux 读 `/etc/shells`。可手动加、隐藏：`terminals.profiles`（名字 + 启动命令）、`terminals.hide`。
 - **标签栏的 `+` 和单项菜单的上半部分用同一份代码**，做成独立的 `awsome-menu`（弹出层，props 传 space），`awsome-tabs` 和 `awsome-sidebar` 各自打开。
 
-#### 4.2.4 分组（像 Chrome 的标签组）（P1b-2，⬜ 待你看预览确认）
+#### 4.2.4 分组（像 Chrome 的标签组）（P1b-2，⬜ 预览已确认，待做）
 
 **一个组 = 一块组色的圆角色块**（2026-11-26，用户在三种方案里选了"色块"：分区、色块、缩进树）。三个问题都由这一块回答：**在不在组里**看在不在色块里；**是哪个组**看色块的颜色；**组有多大**看色块的大小。所以不再用缩进、组头色点、每行的淡底来表示分组。
 

@@ -1,13 +1,19 @@
 // Awsome Menu: the space menu (right-click a space in the sidebar) and the tab bar's + menu.
-// One menu, two scopes (docs/REQUIREMENTS.md §4.2.6):
-//   props { scope: "space", space }  Terminals, Agents, worktree, then the space's own actions
-//   props { scope: "plus", space }   Terminals, Agents, worktree, for the shown space
+// The menus (docs/REQUIREMENTS.md §4.2.3, §4.2.6):
+//   props { scope: "space", space }    Terminals, Agents, worktree, then the space's own actions
+//   props { scope: "plus", space }     Terminals, Agents, worktree, for the shown space
+//   props { scope: "spaces", spaces }  several selected spaces: Appearance, Copy path, Close
+// and what their items open (not menus, so Esc or a click outside is the way back):
+//   props { scope: "looks", spaces }   the Appearance picker (picker.js)
+//   props { scope: "close", spaces }   the confirmation for closing several spaces (confirm.js)
 // Opened by awsome-sidebar and awsome-tabs as a frameless popup; the last size it measured is
 // kept in shared("awsome-menu.size") so the next popup opens at the right size.
 
 import { View, div } from "gpui-kit";
 import { spaces, panes, knownAgents, run, openOverlay, closeOverlay, props, window, exec, notify, shared, setShared } from "herdr";
 import { menuView, menuFrame, menuNav, keyFor, tidy } from "./menu.js";
+import { pickerView, pickerFrame, pickerCells, pickerNav } from "./picker.js";
+import { confirmView, confirmHeight, confirmKey, CONFIRM } from "./confirm.js";
 import { loadSettings } from "./settings.js";
 
 const NAME = "awsome-menu";
@@ -16,6 +22,12 @@ const SHELL = "icons/shell.svg";
 const MONO = "JetBrains Mono";
 const BACKSLASH = String.fromCharCode(92);
 const DEFAULT_SETTINGS = { terminals: { hide: [], extra: [] } };
+// The scopes that are menus; the others are what a menu item opens (scripts/ui-check.py C10).
+const MENUS = ["space", "plus", "spaces"];
+// A space's look (color and icon), kept by folder and machine so it outlives the space
+// (awsome-sidebar draws it). The colors are the names Herdr's space.colors uses.
+const LOOKS = "awsome-sidebar.looks";
+const lookKey = (s) => `${s.machine ?? ""}|${s.folder ?? ""}`;
 
 // Where a space is now: its first terminal's live folder, else where it was made (as Herdr's menu does).
 function place(s) {
@@ -98,9 +110,66 @@ export default class AwsomeMenu extends View {
 
   close() { closeOverlay(props().overlay); }
 
+  scope() { const s = props()?.scope; return [...MENUS, "looks", "close"].includes(s) ? s : "plus"; }
+
+  // The spaces a "spaces", "looks" or "close" popup is about, in Herdr's order.
+  chosen() {
+    const ids = new Set(props()?.spaces ?? (props()?.space ? [props().space] : []));
+    return spaces().filter((s) => ids.has(s.id));
+  }
+
+  // Opens the Appearance picker for these spaces where the pointer is.
+  openLooks(list) {
+    openOverlay({ mod: NAME, kind: "popup", frame: "none", at: "pointer", ...pickerFrame({ colors: true, icons: true }), props: { scope: "looks", spaces: list.map((s) => s.id) } });
+  }
+
+  // Applies a pick to every chosen space; picking the current icon again takes it away.
+  pick(kind, value) {
+    const looks = { ...(shared(LOOKS) ?? {}) };
+    const list = this.chosen();
+    const current = this.current(list);
+    const colors = { ...(shared("space.colors") ?? {}) };
+    for (const s of list) {
+      const k = lookKey(s), was = looks[k] ?? {};
+      const next = kind === "color" ? { ...was, color: value } : { ...was, icon: value === current.icon ? null : value };
+      if (!next.color && !next.icon) delete looks[k]; else looks[k] = next;
+      if (kind === "color" && value) colors[s.id] = value;
+    }
+    setShared(LOOKS, looks);
+    if (kind === "color") setShared("space.colors", colors);
+  }
+
+  // The color and icon all chosen spaces share (null where they differ or have none).
+  current(list) {
+    const looks = shared(LOOKS) ?? {};
+    const all = list.map((s) => looks[lookKey(s)] ?? {});
+    const same = (f) => (all.length && all.every((l) => (l[f] ?? null) === (all[0][f] ?? null)) ? all[0][f] ?? null : null);
+    return { color: same("color"), icon: same("icon") };
+  }
+
+  // Several spaces' menu: what applies to all of them at once.
+  manyEntries() {
+    const list = this.chosen();
+    const paths = list.map(place).filter(Boolean);
+    return tidy([
+      { id: "looks", label: "Appearance\u2026", icon: UI("paint-brush"), run: () => this.openLooks(list) },
+      { id: "copy", label: "Copy path", icon: UI("copy"), disabled: !paths.length, reason: "The spaces have no folders",
+        run: (cx) => { cx.write_to_clipboard(paths.join(String.fromCharCode(10))); notify({ title: "Copied", body: `${paths.length} paths`, level: "info", timeout: 2000 }); } },
+      "-",
+      { id: "close", label: `Close ${list.length} spaces\u2026`, icon: UI("x"), danger: true,
+        run: () => openOverlay({ mod: NAME, kind: "dialog", frame: "none", width: CONFIRM.width, height: confirmHeight(this.closeText(list)), props: { scope: "close", spaces: list.map((s) => s.id) } }) },
+    ]);
+  }
+
+  // What the close confirmation says: the names, and how many agents are still at work.
+  closeText(list) {
+    const busy = list.flatMap((s) => s.tabs ?? []).filter((t) => t.status === "working" || t.status === "blocked").length;
+    return { names: list.map((s) => s.name), note: busy ? `${busy} ${busy === 1 ? "agent is" : "agents are"} still working.` : null };
+  }
+
   entries() {
     const s = this.space(), sid = s?.id;
-    const scope = props()?.scope === "space" ? "space" : "plus";
+    const scope = this.scope();
     const mac = window()?.platform === "macos";
     const reveal = mac ? "Reveal in Finder" : window()?.platform === "windows" ? "Reveal in File Explorer" : "Open in file manager";
     const hide = new Set((this.settings.terminals.hide ?? []).map((n) => String(n).toLowerCase()));
@@ -141,6 +210,7 @@ export default class AwsomeMenu extends View {
       ...(scope === "space" ? [
         "-",
         { id: "rename", label: "Rename", icon: UI("pencil-simple"), keys: keyFor("space.rename", mac), run: () => run("space.rename", { id: sid }) },
+        { id: "looks", label: "Appearance\u2026", icon: UI("paint-brush"), run: () => this.openLooks([s]) },
         { id: "reveal", label: reveal, icon: UI("folder-open"), disabled: !folder || Boolean(s?.machine), reason: s?.machine ? "The space is on another machine" : "The space has no folder",
           run: () => revealFolder(folder).catch(say("Could not open the folder")) },
         { id: "copy", label: "Copy path", icon: UI("copy"), disabled: !folder, reason: "The space has no folder", run: (cx) => { cx.write_to_clipboard(folder); notify({ title: "Copied", body: folder, level: "info", timeout: 2000 }); } },
@@ -151,9 +221,11 @@ export default class AwsomeMenu extends View {
   }
 
   render(cx) {
-    const entries = this.entries();
+    const scope = this.scope();
+    if (scope === "looks") return this.renderLooks();
+    if (scope === "close") return this.renderClose();
+    const entries = scope === "spaces" ? this.manyEntries() : this.entries();
     const size = menuFrame(entries);
-    const scope = props()?.scope === "space" ? "space" : "plus";
     const known = shared(`${NAME}.size`) ?? {};
     if (known[scope]?.width !== size.width || known[scope]?.height !== size.height) setShared(`${NAME}.size`, { ...known, [scope]: size });
     const go = (e, cx) => { this.close(); e.run(cx); };
@@ -171,6 +243,37 @@ export default class AwsomeMenu extends View {
         onSize: (s) => setShared(`${NAME}.rendered`, { scope, width: Math.round(s.width), height: Math.round(s.height), expected: size, at: Date.now() }) }));
   }
 }
+
+Object.assign(AwsomeMenu.prototype, {
+  renderLooks() {
+    const hues = Object.entries(shared("awsome-sidebar.hues") ?? {});
+    const cur = this.current(this.chosen());
+    const parts = { colors: true, icons: true };
+    const cells = pickerCells({ hues, ...parts });
+    const nav = this.nav;
+    const pick = (c) => this.pick(c.kind, c.value);
+    return div().size_full().track_focus(this.handle)
+      .on_key_down((ev, cx) => {
+        if (!pickerNav(nav, cells, ev.key, pick, () => this.close())) return;
+        cx.stop_propagation(); cx.notify();
+      })
+      .child(pickerView({ id: `${NAME}-looks`, hues, ...parts, color: cur.color, icon: cur.icon, at: nav.at,
+        onPick: (kind, value) => this.pick(kind, value), onDismiss: () => this.close(),
+        onSize: (s) => setShared(`${NAME}.rendered`, { scope: "looks", width: Math.round(s.width), height: Math.round(s.height), expected: pickerFrame(parts), at: Date.now() }) }));
+  },
+
+  renderClose() {
+    const list = this.chosen();
+    const text = this.closeText(list);
+    const yes = () => { this.close(); for (const s of list) run("space.close", { id: s.id, confirmed: true }); };
+    const size = { width: CONFIRM.width, height: confirmHeight(text) };
+    return div().w(size.width).h(size.height).track_focus(this.handle)
+      .on_size_change((s) => setShared(`${NAME}.rendered`, { scope: "close", width: Math.round(s.width), height: Math.round(s.height), expected: size, at: Date.now() }))
+      .on_key_down((ev, cx) => { if (confirmKey(ev.key, yes, () => this.close())) cx.stop_propagation(); })
+      .child(confirmView({ id: `${NAME}-close`, title: `Close ${list.length} spaces?`, ...text, action: "Close spaces", danger: true,
+        onConfirm: yes, onCancel: () => this.close(), mono: MONO }));
+  },
+});
 
 // The space's folder in the system file manager.
 async function revealFolder(abs) {

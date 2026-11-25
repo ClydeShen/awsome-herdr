@@ -225,7 +225,6 @@
     {
       "id": "list-selection",
       "what": "Selecting several rows in a list",
-      "planned": true,
       "references": [
         {
           "app": "Windows Explorer / VS Code Explorer",
@@ -239,14 +238,14 @@
       "ours": "Spaces: click switches to it and selects only it; Ctrl/Cmd+click adds or removes without switching; Shift+click selects the range in the visible order within one machine; Esc or a click on empty sidebar space clears; right-click on a selected row opens the multi-selection menu. Selected rows use the selected overlay; the current space also has the indicator bar.",
       "code": {
         "awsome-sidebar": [
-          "selection"
+          "isSelected(",
+          "listFocus"
         ]
       }
     },
     {
       "id": "appearance-picker",
       "what": "Picking a color and an icon for an item",
-      "planned": true,
       "references": [
         {
           "app": "Chrome / Edge tab groups",
@@ -259,8 +258,9 @@
       ],
       "ours": "One compact popover from the menu family: a 7-column grid of 28px cells (no gaps), colors in the first row (none + 6), a menu separator, 28 icons in four rows; a group shows only the color row and a space inside a group only the icons; the current choice and hover use the menu's selected/hover overlays, and the current color also gets a ring inside its cell; picking applies at once and the popover stays; picking none or the current icon again returns to the default, so there is no reset button; Esc or a click outside closes it.",
       "code": {
-        "awsome-sidebar": [
-          "Reset to the default look"
+        "awsome-menu": [
+          "pickerView(",
+          "openLooks("
         ]
       },
       "deviation": "Chrome shows colors in a free row; ours sit in the menu's 28px cells so the picker reads as one family with the menus (L12). The ring for the current color is Chrome's."

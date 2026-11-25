@@ -1,6 +1,6 @@
 // The spaces list: right-aligned branches, nested worktrees and a PR status line.
 // Repository facts follow each space's first terminal.
-import { div } from "gpui-kit";
+import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, ScrollHandle } from "gpui-base";
 import {
   spaces,
@@ -57,6 +57,18 @@ const AVATAR_COLORS = {
   ansi1: "#d9649a",
 };
 
+// A space's look (Appearance, docs/REQUIREMENTS.md §4.2.2), kept by folder and machine in shared
+// state by awsome-menu's picker: { color: an AVATAR_COLORS name, icon: an awsome-icons/ui name }.
+const LOOKS = "awsome-sidebar.looks";
+const lookKey = (w) => `${w.machine ?? ""}|${w.folder ?? ""}`;
+const lookOf = (w) => (shared(LOOKS) ?? {})[lookKey(w)] ?? {};
+// A colored space's row: its color at label.tint in design/tokens.json (8% dark, 4% light).
+function tintOf(hex, t) {
+  const c = String(t.chrome).slice(1, 7);
+  const light = parseInt(c.slice(0, 2), 16) + parseInt(c.slice(2, 4), 16) + parseInt(c.slice(4, 6), 16) > 384;
+  return `${hex}${light ? "0a" : "14"}`;
+}
+
 // A space speaks up only when something in it needs you.
 function glyph(status) {
   return status === "blocked" || status === "done" ? "●" : "·";
@@ -90,6 +102,14 @@ export class Spaces {
     this.born = {};
     this.pressed = null;
     this.over = null;
+    // Selected spaces (docs/REQUIREMENTS.md §2.6, §4.2.3): Ctrl/Cmd+click adds or removes one,
+    // Shift+click takes the range from the anchor within one machine. Two or more show as
+    // selected and share the multi-selection menu; one is just the shown space.
+    this.selected = new Set();
+    this.anchor = null;
+    this.order = [];
+    this.rowUp = false;
+    this.listFocus = cx.focus_handle();
     // Brings the shown space and its rows into view when the shown space changes, as from a key.
     this.listScroll = ScrollHandle.new();
     this.lastShown = undefined;
@@ -125,6 +145,8 @@ export class Spaces {
     }
     // A check loads the mod once and nothing more: no helpers, no timers, no Git.
     if (checking()) return;
+    // The colors the Appearance picker offers, from the one table that draws them.
+    if (JSON.stringify(shared("awsome-sidebar.hues")) !== JSON.stringify(AVATAR_COLORS)) setShared("awsome-sidebar.hues", AVATAR_COLORS);
     this.refreshMachines(cx);
     cx.timer.every(15000, (cx) => this.refreshMachines(cx));
     // A Git read runs on another machine a process there: only when its answer
@@ -373,10 +395,50 @@ export class Spaces {
   }
 
   menu(w) {
-    // A popup is as tall as its items; height is only the most.
-    // The shared space menu (awsome-menu), at the size it measured last time.
-    const size = (shared("awsome-menu.size") ?? {}).space ?? { width: 300, height: 620 };
-    openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: { scope: "space", space: w.id } });
+    // Right-click on one of several selected spaces acts on all of them; anywhere else the
+    // selection goes and the menu is the space's own (as in Explorer and Finder).
+    const many = this.selected.size > 1 && this.selected.has(w.id);
+    if (!many) this.selected = new Set();
+    const scope = many ? "spaces" : "space";
+    // The shared menu (awsome-menu), at the size it measured last time.
+    const size = (shared("awsome-menu.size") ?? {})[scope] ?? (many ? { width: 220, height: 140 } : { width: 300, height: 620 });
+    const ids = this.order.filter((id) => this.selected.has(id));
+    openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: many ? { scope, spaces: ids } : { scope, space: w.id } });
+  }
+
+  isSelected(id) {
+    return this.selected.size > 1 && this.selected.has(id);
+  }
+
+  // A click on a row: plain shows the space; Ctrl (Cmd on macOS) adds or removes it without
+  // showing it; Shift takes the range from the anchor, in the list's order, on that machine.
+  // Esc or a click on empty list space clears (focus goes to the list only while selecting).
+  click(w, e) {
+    const m = e?.modifiers ?? {};
+    const add = window()?.platform === "macos" ? m.platform : m.control;
+    const machine = (x) => spaces().find((s) => s.id === x)?.machine ?? null;
+    const shown = spaces().find((s) => s.active)?.id ?? null;
+    if (m.shift) {
+      const anchor = this.anchor ?? shown;
+      const i = this.order.indexOf(anchor), j = this.order.indexOf(w.id);
+      if (i !== -1 && j !== -1 && machine(anchor) === (w.machine ?? null)) {
+        const [lo, hi] = i < j ? [i, j] : [j, i];
+        this.selected = new Set(this.order.slice(lo, hi + 1).filter((id) => machine(id) === (w.machine ?? null)));
+        this.listFocus.focus();
+        return;
+      }
+    }
+    if (add) {
+      if (!this.selected.size && shown && machine(shown) === (w.machine ?? null)) this.selected.add(shown);
+      if (this.selected.has(w.id)) this.selected.delete(w.id);
+      else this.selected.add(w.id);
+      this.anchor = w.id;
+      this.listFocus.focus();
+      return;
+    }
+    this.selected = new Set();
+    this.anchor = w.id;
+    run("space.select", { id: w.id });
   }
 
   // Spaces in order, each worktree space moved under its main checkout's.
@@ -513,6 +575,8 @@ export class Spaces {
   // The rows, under a header per machine once one isn't this computer.
   grouped(t, collapsed) {
     const rows = this.ordered();
+    this.order = rows.map((r) => r.w.id);
+    for (const id of this.selected) if (!this.order.includes(id)) this.selected.delete(id);
     // The shown space's group, so the list can scroll to it.
     this.shownGroup = null;
     // `under`, set by the lists view, adds rows beneath a space: its tabs and agents. A space
@@ -955,8 +1019,8 @@ export class Spaces {
       .justify_center()
       .rounded(8)
       .cursor_pointer()
-      .when(lit, (el) => el.bg(t.selected))
-      .when(!lit, (el) => el.hover((s) => s.bg(t.hover)))
+      .when(lit || this.isSelected(w.id), (el) => el.bg(t.selected))
+      .when(!lit && !this.isSelected(w.id), (el) => el.hover((s) => s.bg(t.hover)))
       .when(spaceSortOf().id === "manual" && this.pressed === w.id && this.over !== w.id, (el) =>
         el.opacity(0.5),
       )
@@ -967,7 +1031,9 @@ export class Spaces {
     if (lit) row.child(div().absolute().left(0).top(Math.max(0, (height - 24) / 2)).w(4).h(Math.min(24, height)).rounded(6).bg(t.accent));
     if (this.pressed !== null && this.over === w.id && this.pressed !== w.id)
       row.child(this.dropLine(w, t));
-    const dragged = this.withDragging(row, w);
+    const hue = AVATAR_COLORS[lookOf(w).color];
+    // A colored space: its tint under the row, so hover and selected lie over it.
+    const dragged = hue ? div().rounded(8).bg(tintOf(hue, t)).child(this.withDragging(row, w)) : this.withDragging(row, w);
     // Nested under the lists view, a worktree hangs from its main space's line.
     if (!(tree && this.under)) return dragged;
     return h_flex().child(Rail(tree.startsWith("└") ? "└" : "├", 14)).child(dragged.flex_1().min_w(0));
@@ -1005,17 +1071,18 @@ export class Spaces {
           cx.notify();
         }
       })
-      .on_mouse_up("left", (_e, cx) => {
+      .on_mouse_up("left", (e, cx) => {
         const from = this.pressed;
         const over = this.over;
         this.pressed = null;
         this.over = null;
+        this.rowUp = true;
         if (from !== null && over === w.id && from !== w.id) {
           // Herdr's own place of the target, not the row's: a worktree hangs
           // under its main space in the list, but keeps its own place in Herdr.
           const index = spaces().findIndex((s) => s.id === w.id);
           if (index !== -1) run("space.move", { id: from, index: index + 1 });
-        } else if (from === w.id) run("space.select", { id: w.id });
+        } else if (from === w.id) this.click(w, e);
         cx.notify();
       });
   }
@@ -1036,7 +1103,10 @@ export class Spaces {
       .child(this.gitTail(g, w.active, t, w));
   }
 
+  // Its icon from Appearance, else an 8px dot.
   avatar(w, t) {
+    const icon = lookOf(w).icon;
+    if (icon) return svg(`mods/awsome-icons/ui/${icon}.svg`).size(16).flex_none().text_color(t.foreground);
     return h_flex().size(16).flex_none().items_center().justify_center().child(div().size(8).rounded_full().bg(t.muted));
   }
 
@@ -1189,6 +1259,15 @@ export class Spaces {
       })
       .on_mouse_up("left", (_e, cx) => {
         this.pressed = null;
+        if (!this.rowUp) this.selected = new Set();
+        this.rowUp = false;
+        cx.notify();
+      })
+      .track_focus(this.listFocus)
+      .on_key_down((ev, cx) => {
+        if (ev.key !== "escape" || this.selected.size < 2) return;
+        this.selected = new Set();
+        cx.stop_propagation();
         cx.notify();
       })
       .track_scroll(this.listScroll)

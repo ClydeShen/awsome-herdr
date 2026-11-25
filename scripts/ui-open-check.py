@@ -2,10 +2,13 @@
 """Opens an overlay mod for real and checks it actually appeared (docs/UI-LESSONS.md L7).
 
   python scripts/ui-open-check.py awsome-menu
+  python scripts/ui-open-check.py awsome-menu --command awsome-tabs.check-open:looks
 
 The mod reports the size it was laid out at in shared("<mod>.rendered") (menu.js onSize).
 This opens it with `herdr-app do mod.open`, waits for a fresh report, closes it again, and fails
 when nothing was laid out, the size is zero, or it differs from the size the mod expected.
+With --command, the popup is opened by that command (one that passes props, which mod.open
+cannot) and closed with overlay.close.
 """
 import json
 import os
@@ -29,9 +32,14 @@ def toggle(mod):
 
 
 def main():
-    mod = sys.argv[1] if len(sys.argv) > 1 else "awsome-menu"
+    args = sys.argv[1:]
+    command = args[args.index("--command") + 1] if "--command" in args else None
+    mod = next((a for a in args if not a.startswith("--") and a != command), "awsome-menu")
     before = (report(mod) or {}).get("at", 0)
-    toggle(mod)
+    if command:
+        subprocess.run(["herdr-app", "do", command], capture_output=True)
+    else:
+        toggle(mod)
     got = None
     for _ in range(30):
         time.sleep(0.5)
@@ -39,7 +47,10 @@ def main():
         if r and r.get("at", 0) > before:
             got = r
             break
-    toggle(mod)
+    if command:
+        subprocess.run(["herdr-app", "do", "overlay.close"], capture_output=True)
+    else:
+        toggle(mod)
     if not got:
         print(f"ui-open-check: {mod} did not report being laid out within 15 s (did it render at all?)")
         return 1
