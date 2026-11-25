@@ -890,13 +890,13 @@ export default class FileTree extends View {
     const rows = this.rows(), r = rows.find((x) => x.rel === rel);
     if (!r) return;
     // The list reports no modifiers, so the mouse-down above it noted them (see render).
-    const down = this.lastDown ?? {}, m = down.mods ?? {};
+    const { mods: m, count } = this.lastDown;
     this.lastDown = null;
     this.handle.focus();
     // Ctrl (Cmd on macOS) and Shift only change the selection: nothing opens, nothing expands.
     if (m.shift) { this.extendSelection(rel, rows); cx.notify(); return; }
     if (window()?.platform === "macos" ? m.platform : m.control) { this.toggleSelect(rel); cx.notify(); return; }
-    const now = Date.now(), double = (down.count ?? 1) >= 2 || (this.lastPress?.rel === rel && now - this.lastPress.at < 450);
+    const now = Date.now(), double = count >= 2 || (this.lastPress?.rel === rel && now - this.lastPress.at < 450);
     this.lastPress = double ? null : { rel, at: now };
     this.cursor = rel; this.anchor = rel;
     if (r.flat && r.e.dir) this.revealInTree(rel, cx);
@@ -1239,7 +1239,7 @@ export default class FileTree extends View {
       )
       .child(div().flex_1().min_h(0).relative().px(4)
         .on_mouse_down("left", (e, cx) => {
-          this.lastDown = { mods: e.modifiers ?? {}, count: e.click_count ?? 1 };
+          this.lastDown = { mods: e.modifiers, count: e.click_count };
           // Below the last row only: with the list scrolled it is taller than the view, so this never fires.
           if (this.sel.size && e.local_position && e.local_position.y > this.rows().length * ROW + 4) { this.clearSelection(); cx.notify(); }
         })
