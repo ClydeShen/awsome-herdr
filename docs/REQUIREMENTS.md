@@ -332,7 +332,15 @@
 - **边界**：组只在同一台机器的区块内；成员关系按文件夹（+ 机器）记，space 关了再开仍在组里；数字快捷键按全部 space 编号（含折叠的）。
 - **常用动作的步数**：加入或移出组 = 拖 1 次；新建组 = 选中 → 右键 → `New group…`；改颜色 / 图标 = 右键 → `Appearance…`；折叠 = 点组头；重命名 space = `Shift+F2`。
 
-#### 4.2.5 平铺：把 space 里的 agent / 终端集中到一个画面（**先做小验证**）
+#### 4.2.5 平铺：把 space 里的 agent / 终端集中到一个画面（⏸ 2026-11-26 推迟，用户决定以后再做）
+
+> **验证结论（重启这个功能时先读这里）**：
+> - **浮窗**：`openOverlay({ kind: "window", layout: { …{ terminal } 块 } })` 可行，不碰任何 pane；缺点是平铺期间原 pane 会被重排成浮窗的宽度，乱断行；Esc 交给终端，要自己画关闭按钮。
+> - **主区域**：布局的 `main` 换成 `stack`（`{tab:"active"}` / `tile`），`layout.set` 生成 `tile`，`layout.select` 切换，来回都验证可行，且没有重排问题。但 **`layout.set` 会改写布局文件**（并把面板 `hidden` 等运行时状态写进去），所以必须用临时布局副本（`awsome-tile`）：切过去、退出时切回并删除，`awsome.json` 永不改写。
+> - **长期的 edge case**：agent 增减时更新；切 tab / space 自动退出；平铺中重启要自检回到 `awsome`；临时布局会进 `Ctrl+Shift+L` 的循环；`sync.sh` / `install.sh` 要忽略它；终端块有焦点时 split / close / zoom 等隐式命令失效；格子数设上限；SIGWINCH 重绘；远程 space 未验证。
+> - **来回**：去 = space 右键 `Tile agents (N)` / 快捷键；回 = 每块标题上的关闭按钮 / 同一快捷键 / 点标签栏的 tab。
+
+以下是当初的设想，做的时候以上面的结论为准。
 
 - **做法**：用 Herdr 的 `openOverlay` 开一个**浮动窗口**，里面是这个 space 的终端，每个一块 `{ terminal: id }`，自动排成网格（1 个全屏，2 个左右，3～4 个 2×2，更多 3 列）。**不搬动任何 pane**，所以"复原"就是关窗口，原来的 tab 和分屏 100% 原样。
 - **入口**：space 右键 `Tile agents (N)`（没有 agent 时写 `Tile terminals`）；**快捷键开关**（再按一次关闭），默认 `Ctrl+Shift+G`，可在 awsome-config 改，**上机实测后定**。
@@ -383,7 +391,7 @@
 | 分组标题 | `Terminals`、`Agents`：高 24，字号 11、中等粗细、`muted`（和侧边栏的分组标题同一种样式），不可点 |
 | 终端 | 图标用 Herdr 的 `shell.svg`；名字如 `PowerShell 7`、`Git Bash`、`Ubuntu`；右侧淡色 `Default` / `WSL` |
 | agent | **只列已安装的**：Herdr 的程序图标，右侧数字 `1`…`9`，菜单打开时按数字直接启动。最后一行 `More agents ›` 是**侧向展开的子菜单**（悬停、→ 或 Enter 展开；←、Esc 或悬停到别的项收起），列出没安装的 agent（整行半透明、右侧写 `Not installed`）。Herdr 认识 16 个 agent，全列出来菜单会超出窗口（2026-11-25 实测） |
-| 其余 | `New worktree…`、`Open worktree…`｜`Rename`（`F2`）、`Reveal in File Explorer`、`Copy path`｜`Close space…`（红色，Herdr 自带确认）。`Appearance…`、`Group ▸` 在 P1b 加，`Tile agents` 在 P1c 加 |
+| 其余 | `New worktree…`、`Open worktree…`｜`Rename`（`F2`）、`Reveal in File Explorer`、`Copy path`｜`Close space…`（红色，Herdr 自带确认）。`Appearance…`、`Group ▸` 在 P1b 加；`Tile agents` 已推迟（§4.2.5） |
 | 标签栏 `+` | 同一个菜单，只有 Terminals、Agents、worktree 三组，作用于当前 space |
 | 键盘 | ↑ ↓ 移动（跳过标题和不可用项）、Enter 执行、Esc 关闭、数字键启动 agent |
 | 尺寸 | 紧凑、以 4 为单位，和侧边栏同比例：菜单项行高 28、分组标题 24、内边距 4、左右 8、图标 16、间隔 8、分隔线 9（`design/tokens.json` 的 `menu`） |
@@ -572,14 +580,14 @@
 
 ### 5.1 顺序和依赖
 
-**顺序（已确认）：P0 → P1 → P1b → P1c → P2 → P4b → P4 → P3b → P3 → P5**。会动用户文件的 P3 放在靠后，等确认对话框和平台适配表在 P4 里用熟了再做。
+**顺序（已确认）：P0 → P1 → P1b → ~~P1c~~（2026-11-26 推迟，见 §4.2.5）→ P2 → P4b → P4 → P3b → P3 → P5**。会动用户文件的 P3 放在靠后，等确认对话框和平台适配表在 P4 里用熟了再做。
 
 | 阶段 | 内容 | 依赖 | 风险 |
 |---|---|---|---|
 | P0 | 主题（`awsome-dark` / `awsome-light`：shadcn + Apple，§1、§2.3）；版式（4px 缝隙、底栏对齐，§2.2）；字体规则（§2.2）；设置入口按钮（§3）；两个设置改名；文件树键位改成 `mod:awsome-filetree` 分区并去掉旧键位（§8）；Files 原型收尾；共用的确认对话框和右键菜单样式；`awsome-tabs` 的拖拽规则统一（§2.6） | — | 低 |
 | P1 | 侧边栏：agents 接线（sub agent 缩进、点击开 pane）；`awsome-menu`；space 单项右键菜单（Terminals、Agents、worktree、space 操作） | P0 | 低（上游已写好） |
 | P1b | 侧边栏：选择模型、多选菜单、`Appearance…`（颜色 + 图标）、分组和拖拽 | P1 | 中高 |
-| P1c | 侧边栏：平铺（`Tile agents`、快捷键开关）；**先做小验证** | P1b | 中 |
+| P1c | ⏸ 推迟（nice to have，复杂）：侧边栏平铺（`Tile agents`、快捷键开关） | P1b | 中 |
 | P2 | 打开文件：单击临时 pane、双击固定 tab、预览斜体；文件树的选择模型（§2.6）和选择条 | P0 | 中（两个 mod 联动） |
 | P4b | History 的图视图 | P0 | 低 |
 | P4 | Changes：布局、树视图、discard + 快照、commit message 生成；多 repo（发现、Repositories 列表、Files 着色） | P0 | 中高（discard 会丢改动） |
