@@ -231,7 +231,7 @@ export default class AwsomeConfig extends View {
     if (!k) return null;
     if (k === RESERVED) return { block: true, text: "Herdr keeps this key for its emergency reset. Pick another." };
     const section = r.field.section ?? "global";
-    if (section === "global" && bareKey(k)) return { block: true, text: "Without Ctrl, Alt or Cmd this key would stop typing in terminals. Add one." };
+    if (section === "global" && bareKey(k)) return { block: true, text: "Needs Ctrl, Alt or Cmd." };
     const hit = (boundKeys() ?? []).find((b) => b.keys === k && b.section !== CAPTURE && actionName(b.action) !== r.field.action);
     if (!hit) return null;
     const what = actionName(hit.action);

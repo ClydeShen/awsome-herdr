@@ -369,7 +369,6 @@ export class Agents {
       .when(opts.heading !== false, (el) => el.border_t(1).border_color(t.border))
       .text_size(TEXT.body)
       .when(!view.collapsed && opts.heading !== false, (el) => el.child(this.heading(view.sort, t)))
-      .when(view.list.length === 0 && !view.collapsed, (el) => el.child(this.emptyMessage(t)))
       .child(
         v_flex()
           .id("ag-list")
@@ -479,16 +478,6 @@ export class Agents {
       .justify_between()
       .child(div().text_size(11).font_medium().text_color(t.muted).child("Agents"))
       .child(this.renderSortMenu(sort));
-  }
-
-  emptyMessage(t) {
-    return div()
-      .px(12)
-      .text_size(TEXT.small)
-      .text_color(t.dim)
-      .child(
-        "No agents yet. Right-click a space or use + to start one.",
-      );
   }
 
   // Under the compact rail, the way back to the full sidebar.

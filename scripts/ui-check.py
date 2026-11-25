@@ -391,7 +391,39 @@ def c13_defaults():
                      "make them the same; the code's value is what really happens")
 
 
-CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions, c13_defaults]
+LONG_TEXT = 60
+TEXT_BASELINE = P("scripts", "ui-text-baseline.json")
+STRING = re.compile(r"""(["'`])((?:\\.|(?!\1).)*)\1""")
+
+
+def long_texts():
+    """Every string that reads like an English sentence and is longer than LONG_TEXT, wherever it
+    sits (a child, a tooltip, a variable, a ternary): capital first, five words or more, no paths."""
+    out = {}
+    for path, src in mod_js():
+        for m in STRING.finditer(strip_comments(src)):
+            text = m.group(2)
+            words = len(text.split())
+            # A sentence, not a label: longer than LONG_TEXT, or seven words or more.
+            if not text[:1].isupper() or words < 5 or (len(text) <= LONG_TEXT and words < 7):
+                continue
+            if chr(92) in text or "${" in text or "/" in text.split()[0] or text.upper() == text:
+                continue  # a path, a registry key, built text, or a keyword list (syntax.js)
+            out.setdefault(path, []).append(text)
+    return out
+
+
+def c14_restraint():
+    """Long interface text is reviewed: a new sentence over 60 characters must be cut or listed."""
+    base = json.load(open(TEXT_BASELINE, encoding="utf-8")) if os.path.exists(TEXT_BASELINE) else {}
+    for path, texts in long_texts().items():
+        for text in texts:
+            if text not in base.get(path, []):
+                fail("C14", "L10", f"{path}: long interface text ({len(text)} chars): {text[:70]!r}",
+                     "say it shorter, or not at all if the layout already says it (2.1 restraint); a text that must stay goes into scripts/ui-text-baseline.json with the user's OK")
+
+
+CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions, c13_defaults, c14_restraint]
 
 
 def main():
@@ -400,6 +432,11 @@ def main():
         with open(BASELINE, "w", encoding="utf-8", newline="\n") as f:
             json.dump(hex_counts(), f, indent=2, sort_keys=True); f.write("\n")
         print(f"baseline written: {BASELINE}")
+        return 0
+    if "--text-baseline" in args:
+        with open(TEXT_BASELINE, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(long_texts(), f, indent=2, sort_keys=True, ensure_ascii=False); f.write("\n")
+        print(f"text baseline written: {TEXT_BASELINE}")
         return 0
     if "--hook" in args:
         try:

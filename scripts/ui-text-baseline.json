@@ -1,0 +1,59 @@
+{
+  "mods/awsome-changes/git/repository.js": [
+    "The latest commit changed. Choose Amend again before retrying."
+  ],
+  "mods/awsome-changes/views/diff.js": [
+    "No text diff: GitHub leaves out binary and very large files.",
+    "Conflict: deleted on your side, changed on the incoming side.",
+    "Conflict: changed on your side, deleted on the incoming side.",
+    "Conflict: cannot read this file. It may be binary or too large.",
+    "No conflict markers left. Stage the file to mark it resolved.",
+    "This file has no changes left here.",
+    "Cannot preview this file: binary, too large, or unreadable.",
+    "No text diff (mode or submodule change)"
+  ],
+  "mods/awsome-changes/views/sidebar.js": [
+    "Resolve conflicts and stage the files before committing.",
+    "Amend rewrites the latest commit. Unstaged changes stay untouched."
+  ],
+  "mods/awsome-config/main.js": [
+    "Herdr keeps this key for its emergency reset. Pick another.",
+    "Herdr's own mods, which it replaces on every start. Where each is used is for the layout on screen now.",
+    "Every mod you added to mods/. Where each is used is for the layout on screen now."
+  ],
+  "mods/awsome-config/model.js": [
+    "Should be a time such as \"450ms\", \"10s\" or \"5m\".",
+    "Should be a size such as \"60KB\" or \"2MB\".",
+    "Should be a key such as \"cmd-alt-p\"."
+  ],
+  "mods/awsome-filetree/main.js": [
+    "Start one, then send the path again",
+    "Cannot preview this file (binary, too large, or unreadable)",
+    "Files Claude reads and writes here show up in this list"
+  ],
+  "mods/awsome-sidebar/views/spaces.js": [
+    "This machine was rebuilt or replaced. Click to connect to the new one.",
+    "Agents stop when you disconnect. Click for the fix."
+  ],
+  "mods/awsome-tabs/actions/engine.js": [
+    "Panel action references a missing container, stack, or child"
+  ],
+  "mods/awsome-tabs/views/menu.js": [
+    "Drag a toolbar action onto ⋮ to hide it here."
+  ],
+  "mods/awsome-tabs/views/tab-bar.js": [
+    "More actions · drop a toolbar action here to hide it"
+  ],
+  "mods/awsome-viewer/files/model.js": [
+    "This is a binary file, so there's no text to show."
+  ],
+  "mods/awsome-viewer/views/tree.js": [
+    "Image cache cleanup is pending. Keep Awsome Viewer open to retry.",
+    "Select a space to see its files.",
+    "File list limited to 500 entries per folder and 5,000 total."
+  ],
+  "mods/awsome-viewer/views/viewer.js": [
+    "This file can't be shown: it's too large, or can't be read.",
+    "Images on another machine can't be shown here."
+  ]
+}
