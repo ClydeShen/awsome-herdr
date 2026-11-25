@@ -29,7 +29,9 @@
 2. **极简、克制**：一行只放必要的东西；不做彩色标签、竖线装饰、渐变、装饰动画；同一种意思只有一种画法（§2.3）。
 3. **常识优先**：行为跟文件管理器、VS Code、浏览器一致（单击选中、Ctrl/Shift 多选、F2 重命名、Enter 打开、Esc 取消、Backspace / Enter 系列管文件夹的进出）。**不发明新手势**，不让同一个手势在不同面板里意思不同。
 4. **最少步数**：常用动作 1～2 步；危险动作多一步确认，但只多一步。
-5. **不只靠颜色**：状态、选中、当前项都有颜色之外的第二个线索（字形、粗细、描边、删除线、提示文字）。
+5. **文字克制**：凭常识、版式或设计语言已经表达的，就不写文字；说明只在标题和控件表达不出来时才写一句；格式和示例放进占位文字（2026-11-26，用户）。
+6. **对齐线尽可能多地对齐**：同一层级的文字起点、控件的右边缘、同类图标所在的列，都对齐在同一条线上；相邻区块的横线、竖线也互相对齐（2026-11-26，用户）。
+7. **不只靠颜色**：状态、选中、当前项都有颜色之外的第二个线索（字形、粗细、描边、删除线、提示文字）。
 
 ### 2.2 尺寸和字体
 
@@ -194,41 +196,50 @@
   - **改过的设置**：标题后一个 6px 的 `accent` 圆点，重置位出现图标按钮（逆时针箭头），悬停提示 `Reset to <默认值>`。
   - **设置路径**（如 `git.retry_after`）不再常驻，只在标题的悬停提示里。
 - **图标按钮**（24×24、图标 16、圆角 6、`muted`，悬停时有底色、变成 `foreground`；都有悬停提示）：全部重置（逆时针箭头，`Reset all settings to their defaults`，没有改动时变灰）；单项重置（逆时针箭头，`Reset to …`）；快捷键的"更改"（铅笔，`Change shortcut`），录制时变成取消（×，`Cancel (Esc)`）。
-- **文字规范**：标题用 sentence case、1～4 个词的名词短语，开关的标题读起来是"打开时的样子"；说明只写一句、约 80 个字符以内，从用户角度说做什么，不写实现细节（文件名、命令、内部名字），单位放在控件旁边。
-- **分组名**：changes: `refresh` → Refresh, `limits` → Limits, `default` → Defaults, `panel` → Panel; filetree: `keys` → Shortcuts（说明：These work while the file tree has focus.）; menu: `terminals` → Terminals（说明：The Terminals group of the space menu and the tab bar's +.）; sidebar: `git` → Git; tabs: `tabs` → Tabs, `menu` → Menu; viewer: `refresh` → Refresh, `fileManager` → File manager。
-- **28 条设置的改写稿**（英文是界面上的文字）：
+- **文字克制**（2026-11-26，用户）：凭常识、版式或设计语言已经表达的，就不写文字。
+  - 没有页面副标题，没有分组说明；**只有一项的分组不加组标题**，没有分组的设置放在第一张卡片里。
+  - **说明默认不写**，只在标题和控件表达不出来时写一句（全部 29 条里只有 3 条有说明）。
+  - 格式和示例放进输入框的占位文字（标题仍是标签，不靠占位文字当标签）；单位放在控件旁边。
+  - 标题用 sentence case、1～4 个词，自己说清楚是什么；开关的标题读起来是"打开时的样子"。
+- **对齐线**（2026-11-26，用户：隐形对齐线尽可能多地对齐）：
+  - 横向：页面标题、分组标题、每行标题在同一条线上（卡片边缘往里 16）；卡片边缘自成一条线。
+  - 右侧：所有控件右对齐到同一条线；"全部重置"图标和每行的重置图标在同一列（重置位固定 24 宽）。
+  - 纵向：左侧导航的第一个标题 `Mods` 和页面标题在同一条中线上（导航上留白 8 + 标题行 32 的一半 = 页面上留白 8 + 标题行 32 的一半）。
+  - 这几条关系由检查 C3 核对 `design/tokens.json` 的数值。
+- **分组名**：changes: Refresh, Limits, Defaults, Panel；filetree: Shortcuts；menu: Terminals；sidebar: Git；tabs: Tabs, Menu；viewer: Refresh, File manager（只有一项的组不显示组名）。
+- **29 条设置的文字**（英文是界面上的文字）：
 
-| mod | 设置 | 标题 | 说明 |
-|---|---|---|---|
-| changes | `refresh.status` | Refresh interval | How often the list checks Git for changes. |
-| changes | `limits.files` | Files listed | The most changed files a list shows at once. |
-| changes | `limits.diff_lines` | Diff lines | The most lines a diff shows, whole files included. |
-| changes | `limits.line_length` | Line length | Longer lines in a diff are cut off here. |
-| changes | `limits.commits_per_page` | Commits per page | How many commits History loads at a time. |
-| changes | `default.view` | File list | How file lists start: as a tree or flat. |
-| changes | `default.diff` | Diff layout | How diffs start: side by side or inline. |
-| changes | `panel.toggle` | Panel key closes the panel | Press the panel's key again to close it. |
-| filetree | `keys.up` | Up a folder | Show the parent folder as the tree's root. |
-| filetree | `keys.into` | Into a folder | Show the selected folder as the tree's root. |
-| filetree | `keys.follow` | Follow the terminal again | Go back to the focused terminal's folder. |
-| menu | `terminals.hide` | Hidden terminals | Names to leave out of the menu, such as Command Prompt. |
-| menu | `terminals.extra` | More terminals | One per line, as Name: command, such as Nushell: nu. |
-| sidebar | `git.retry_after` | Branch recheck | How long to wait before reading a branch again after Git fails. |
-| sidebar | `combined` | Spaces and agents as tabs | Show the two lists as tabs when they share one block. |
-| sidebar | `pull_request_status` | Pull request status | Color spaces by their pull request. Needs the GitHub CLI (gh). |
-| sidebar | `agent_name` | Agent names | Name agents after their tab, or the title the agent sets. |
-| tabs | `tabs.max_width` | Tab width | The widest a tab can grow. |
-| tabs | `tabs.drag_delay` | Hold before dragging | How long to hold a tab before it drags. 0 starts as you move. |
-| tabs | `tabs.auto_name` | Name tabs automatically | Name tabs after what runs in them, unless you renamed them. |
-| tabs | `tabs.middle_click_close` | Close tabs with middle-click | Middle-click a tab to close it, as in a browser. |
-| tabs | `menu.width` | Menu width | The width of the tab bar's ⋮ menu. |
-| viewer | `refresh.tree` | Tree refresh | How often the tree rereads its folder (1 s at the least). |
-| viewer | `refresh.file` | File refresh | How often an open file is checked for changes (500 ms at the least). |
-| viewer | `editors` | More editors | macOS app IDs to add to Open in, such as dev.zed.Zed. |
-| viewer | `fileManager.name` | Name | What menus call the file manager below. Empty: File manager. |
-| viewer | `fileManager.command` | Command | A program to use instead of Finder, File Explorer or your desktop's. |
-| viewer | `gutter` | Changed lines | Tint changed lines. Off: Herdr's editor, with selection and folding. |
-| viewer | `markdown` | Markdown opens as | Preview renders it; Code shows the text with changed lines. |
+| mod | 设置 | 标题 | 说明 | 占位文字 |
+|---|---|---|---|---|
+| changes | `refresh.status` | Git refresh | — | — |
+| changes | `limits.files` | Max files listed | — | — |
+| changes | `limits.diff_lines` | Max diff lines | — | — |
+| changes | `limits.line_length` | Max line length | — | — |
+| changes | `limits.commits_per_page` | Commits per page | — | — |
+| changes | `default.view` | File list | — | — |
+| changes | `default.diff` | Diff layout | — | — |
+| changes | `panel.toggle` | Panel key closes the panel | — | — |
+| filetree | `keys.up` | Up a folder | — | — |
+| filetree | `keys.into` | Into a folder | — | — |
+| filetree | `keys.follow` | Follow the terminal again | — | — |
+| menu | `terminals.hide` | Hidden terminals | — | Command Prompt |
+| menu | `terminals.extra` | More terminals | — | Nushell: nu |
+| sidebar | `git.retry_after` | Retry failed Git reads | — | — |
+| sidebar | `combined` | Spaces and agents as tabs | — | — |
+| sidebar | `pull_request_status` | Pull request status | Needs the GitHub CLI. | — |
+| sidebar | `agent_name` | Agent names | — | — |
+| tabs | `tabs.max_width` | Tab width | — | — |
+| tabs | `tabs.drag_delay` | Hold before dragging | — | — |
+| tabs | `tabs.auto_name` | Name tabs automatically | — | — |
+| tabs | `tabs.middle_click_close` | Close tabs with middle-click | — | — |
+| tabs | `menu.width` | Menu width | — | — |
+| viewer | `refresh.tree` | Tree refresh | — | — |
+| viewer | `refresh.file` | File refresh | — | — |
+| viewer | `editors` | More editors | macOS app IDs, such as dev.zed.Zed. | — |
+| viewer | `fileManager.name` | Name | — | File manager |
+| viewer | `fileManager.command` | Command | — | open -a Finder |
+| viewer | `gutter` | Changed lines | Off uses Herdr's editor, with selection and folding. | — |
+| viewer | `markdown` | Markdown opens as | — | — |
 - **中键关闭 tab 的开关**（⬜）：awsome-tabs 的设置 `Close tabs with the middle mouse button`，默认开。
 
 后续每个功能的设置项都要先在对应 schema 里描述。

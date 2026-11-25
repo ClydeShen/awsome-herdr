@@ -163,6 +163,13 @@ def c3_layout():
         ((find(L, "main") or {}).get("content", {}).get("pane", {}).get("gap") == v["gap"], f"terminal pane gap must be {v['gap']}px"),
         ((find(L, "panel") or {}).get("radius") == (find(L, "main") or {}).get("content", {}).get("pane", {}).get("radius") == v["cardRadius"], f"Files/Changes card and terminal panes must share radius {v['cardRadius']}"),
     ]
+    sv = load("design", "tokens.json").get("settings", {}).get("values", {})
+    if sv:
+        checks += [
+            (sv["headingIndent"] == sv["rowPadX"], f"settings: headings start at {sv['headingIndent']} but row text at {sv['rowPadX']} from the card edge; they must share one line"),
+            (sv["navInset"] + sv["navLabel"] / 2 == sv["pagePadY"] + sv["headerRow"] / 2, "settings: the nav's first label and the page title must share one centre line"),
+            (sv["resetSlot"] == sv["iconButton"], "settings: the reset slot must be as wide as an icon button, so every reset icon (and Reset all) shares one column"),
+        ]
     for ok, msg in checks:
         if not ok:
             fail("C3", "L5", msg, "change config/layouts/awsome.json, or design/tokens.json layout first")
