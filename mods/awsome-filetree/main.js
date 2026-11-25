@@ -6,12 +6,32 @@
 // layout's pane frame, fonts from settings().
 import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState, InputState, Input, Scrollbar, v_virtual_list, VirtualListScrollHandle, TextView } from "gpui-base";
-import { fileIcon as packIcon, followFileIcons } from "./file-icons.js"; // identical copy of awsome-icons' loader (mods cannot import across folders)
+import { fileIcon as packIcon, followFileIcons } from "./file-icons.js";
+import { menuView, menuHeight, menuWidth, menuKey, keyFor, tidy } from "./menu.js"; // shared awsome-* menu (identical copies in each mod) // identical copy of awsome-icons' loader (mods cannot import across folders)
 import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
 
 const NAME = "awsome-filetree";
 // Names, paths and branches are set in the terminal font so O/0 and I/l/1 stay apart (docs/REQUIREMENTS.md §2.2).
 const codeFont = () => settings().font_family ?? "JetBrains Mono";
+
+// The file tree's context menu, in the shared group order (docs/REQUIREMENTS.md §2.6):
+// open, then organise, then copy and reveal. `self` is null when only sizing it.
+function menuEntries(m, self) {
+  const platform = window()?.platform, mac = platform === "macos";
+  const reveal = mac ? "Reveal in Finder" : platform === "windows" ? "Reveal in File Explorer" : "Open in file manager";
+  const say = (title) => (e) => notify({ title, body: String(e?.message ?? e), level: "error" });
+  return tidy([
+    !m.dir && { id: "preview", label: "Preview", icon: UI("eye"), run: () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() }) },
+    !m.dir && m.local && { id: "open", label: "Open in default app", icon: UI("arrow-square-out"), run: () => openExternal(m.abs).catch(say("Could not open the file")) },
+    m.dir && { id: "root", label: "Open as root", icon: UI("tree-structure"), keys: keyFor(`${NAME}.into`, mac), run: () => setShared(`${NAME}.goto`, { root: m.root, rel: m.rel, n: Date.now() }) },
+    "-",
+    { id: "send", label: "Send to agent", icon: UI("paper-plane-right"), run: (cx) => sendToAgent(cx, m.abs) },
+    "-",
+    { id: "rel", label: "Copy relative path", icon: UI("copy"), run: (cx) => copy(cx, m.rel) },
+    { id: "abs", label: "Copy absolute path", icon: UI("copy"), run: (cx) => copy(cx, m.abs) },
+    m.local && { id: "reveal", label: reveal, icon: UI("folder-open"), run: () => revealExternal(m.abs).catch(say("Could not open the folder")) },
+  ]);
+}
 const ICON = (name) => `mods/${NAME}/${name}.svg`;
 const UI = (name) => `mods/awsome-icons/ui/${name}.svg`; // Phosphor, shared by every awsome-* mod
 const ic = (name) => svg(UI(name)).size(14);
@@ -266,7 +286,7 @@ function sendToAgent(cx, abs) {
 export default class FileTree extends View {
   init(_props, cx) {
     this.menu = props()?.menu ?? null;
-    if (this.menu) return;
+    if (this.menu) { this.handle = cx.focus_handle(); this.handle.focus(); this.at = -1; return; }
     this.handle = cx.focus_handle();
     followFileIcons(this, cx);
     this.scroll = VirtualListScrollHandle.new();
@@ -781,8 +801,9 @@ export default class FileTree extends View {
   }
 
   openMenu(rel, dir) {
-    const abs = join(this.root, rel);
-    openOverlay({ mod: NAME, kind: "popup", width: 210, height: dir ? 5 * 28 + 10 : 7 * 28 + 10, props: { menu: { root: this.root, rel, abs, dir, local: !this.on } } });
+    const m = { root: this.root, rel, abs: join(this.root, rel), dir, local: !this.on };
+    const entries = menuEntries(m, null);
+    openOverlay({ mod: NAME, kind: "popup", frame: "none", width: menuWidth(entries), height: menuHeight(entries), props: { menu: m } });
   }
 
   // A virtual list's rows can't hold handlers, so the list reports the row and
@@ -992,19 +1013,16 @@ export default class FileTree extends View {
   }
 
   renderMenu(cx) {
-    const t = theme(), m = this.menu, R = frameLook().radius;
+    const entries = menuEntries(this.menu, this);
     const close = () => closeOverlay(props().overlay);
-    const item = (id, label, act) => div().id(id).h(28).px(10).flex().items_center().rounded(R).cursor_pointer().text_size(12.5)
-      .hover((s) => s.bg(t.hover)).on_click((_e, cx) => { close(); act(cx); }).child(label);
-    const items = [];
-    if (!m.dir) items.push(item("m-preview", "Preview", () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() })));
-    if (!m.dir && m.local) items.push(item("m-open", "Open in default app", () => openExternal(m.abs).catch((e) => notify({ title: "Could not open the file", body: String(e?.message ?? e), level: "error" }))));
-    if (m.dir) items.push(item("m-root", "Open as root (Ctrl+Alt+Enter)", () => setShared(`${NAME}.goto`, { root: m.root, rel: m.rel, n: Date.now() })));
-    if (m.local) items.push(item("m-reveal", window()?.platform === "macos" ? "Reveal in Finder" : "Show in folder", () => revealExternal(m.abs).catch(() => {})));
-    items.push(item("m-rel", "Copy relative path", (cx) => copy(cx, m.rel)));
-    items.push(item("m-abs", "Copy absolute path", (cx) => copy(cx, m.abs)));
-    items.push(item("m-send", "Send to agent", (cx) => sendToAgent(cx, m.abs)));
-    return v_flex().id("ft-menu").size_full().p(5).gap(0).bg(t.popover ?? t.surface).text_color(t.foreground).children(items);
+    const run = (e, cx) => { close(); e.run(cx); };
+    return div().size_full().track_focus(this.handle)
+      .on_key_down((ev, cx) => {
+        const next = menuKey(entries, this.at, ev.key, (e) => run(e, cx), close);
+        if (next === null) return;
+        this.at = next; cx.stop_propagation(); cx.notify();
+      })
+      .child(menuView({ id: "ft-menu", entries, at: this.at, run, mono: codeFont() }));
   }
 
   render(cx) {
