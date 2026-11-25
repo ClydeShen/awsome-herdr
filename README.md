@@ -40,8 +40,6 @@ It was tested against a throwaway Herdr folder (backups, merging, `herdr-app che
 
 The `awsome` layout is Herdr's `main` layout with the Files and Changes panel moved to the left of the terminal, and the spaces, files, changes and tabs blocks pointed at the mods above.
 
-Exact versions, licences and what I changed are in [NOTICE.md](NOTICE.md) and [licenses/](licenses/).
-
 ## What it reaches out to
 
 - **GitHub / network:** nothing on its own with these settings. `awsome-viewer` downloads a picture with `curl` only when a Markdown file you preview links to a web image. Links you click open in your browser.

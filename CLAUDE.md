@@ -13,7 +13,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 
 ## 做功能的规则
 
-0. **先看别人怎么做，再看接口，最后才动手。** 开工前先查 herdr.dev/mods 和 GitHub 上有没有人做过同类 Herdr mod，读它的实现（克隆到临时目录，只读，不运行）；再把 `gpui-kit.d.ts` 和 `herdr.d.ts` 搜全（绘图有 `PathBuilder` / `paint_path`，我曾经因为搜漏而下错结论）。**借鉴思路和技术，不搬运整块功能。** 别人的 mod 常带着我们不需要的一大堆东西（别的 git 操作、多仓库、Rust 辅助程序等），范围以用户的需求为准。要复制别人的代码片段时先问用户，复制了就保留版权声明并记进 `NOTICE.md`。
+0. **先看别人怎么做，再看接口，最后才动手。** 开工前先查 herdr.dev/mods 和 GitHub 上有没有人做过同类 Herdr mod，读它的实现（克隆到临时目录，只读，不运行）；再把 `gpui-kit.d.ts` 和 `herdr.d.ts` 搜全（绘图有 `PathBuilder` / `paint_path`，我曾经因为搜漏而下错结论）。**借鉴思路和技术，不搬运整块功能。** 别人的 mod 常带着我们不需要的一大堆东西（别的 git 操作、多仓库、Rust 辅助程序等），范围以用户的需求为准。要复制别人的代码片段时先问用户。
 1. **写胶水，不自研功能。** 按顺序找现成的：（A）Herdr 自带的命令和 `gpui-component`；（B）纯 JS 的 npm 库，打成单个文件放进 mod 文件夹（运行时没有 Node、DOM、`setTimeout`，有 `path`、`fs/promises`、`fetch`）；（C）成熟的命令行工具，用 `exec` 调用或放进终端 pane。每个功能开工前先做小验证：库能打包、`herdr-app check` 通过、能跑通一次。自己写的逻辑变多时，先告诉用户。
 2. **Windows、macOS、Linux 三平台通用。** 按 `window().platform` 分支；快捷键存"逻辑键"，写进 `keys.json` 时翻译成各系统的真实按键（macOS 用 `cmd`，其余用 `ctrl`）。避开 `ctrl-alt`（Windows 上是 AltGr）、Option+字母（macOS 会打出字符）、单独的 `ctrl-字母`（终端程序在用）。`alt-shift`、`ctrl-shift` 在 Windows 上可能是切换输入法的系统热键，默认值都要可配置、要在用户机器上实测。脚本用 POSIX sh。
 3. **设置都走 `awsome-config`。** 在 mod 的 `mod.schema.json` 里描述，值写在 `mod.json` 的 `settings` 下（`limits` 和 `default` 并列，不要放进 `default`）。快捷键设置用 `format: "key"` 加 `x-action`。
@@ -51,5 +51,5 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 ## 仓库约定
 
 - 不提交：仓库根目录的截图（`changes-ui.png` 等）、`HANDOFF.md`、任何带本机路径的文件。没有用户要求不推送。
-- `mods/` 下的代码遵守上游许可证。改了上游文件就在 `NOTICE.md` 里记一笔（Apache-2.0 要求标明改动）。
+- 许可证和上游改动记录，等到发布 mod 时再统一处理。
 - 界面审美用 `ui-ux-pro-max` skill 补足：取它的原则（间距、层次、反馈、可访问性），不套网页的实现，因为这套界面是 GPU 渲染的 Herdr mod，不是网页。

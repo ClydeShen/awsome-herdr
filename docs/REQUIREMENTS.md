@@ -527,11 +527,7 @@
 
 ## 9. 当前未提交的改动
 
-- `mods/awsome-filetree/main.js`：Files 原型（已同步到你的 Herdr）。
-- `mods/awsome-icons/ui/`：24 个 Phosphor 图标和许可证；`NOTICE.md` 要补记 Phosphor（MIT）。
-- `config/keys.merge.json`：设置快捷键 `alt-~`。
-- `CLAUDE.md`、`docs/REQUIREMENTS.md`（本文件）。
-- 仓库根目录的 3 张截图（`changes-ui.png` 等）不是我创建的，**不提交**。
+无（2026-11-25 全部已提交）。许可证和上游改动记录，等到发布 mod 时再统一处理。
 
 ---
 
