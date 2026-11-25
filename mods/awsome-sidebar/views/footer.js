@@ -3,7 +3,14 @@
 // opens Better Config, and shows only when that mod is installed.
 import { div } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { theme, run, updates, readTextFile, appHome } from "herdr";
+import { theme, run, updates, readTextFile, appHome, window } from "herdr";
+import { keyFor } from "../menu.js"; // shared awsome-* menu helpers (identical copies in each mod)
+
+// A button's tooltip, with its key when one is bound (docs/REQUIREMENTS.md 2.5).
+const withKey = (label, action) => {
+  const k = keyFor(action, window()?.platform === "macos");
+  return k ? `${label} (${k})` : label;
+};
 import { Icon, SIZE } from "./ui.js";
 
 export class Footer {
@@ -49,14 +56,14 @@ export class Footer {
       .border_t(1)
       .border_color(t.border)
       .child(
-        this.button("settings", "Settings", () => run("app.settings"), t, [
+        this.button("settings", withKey("Settings", "app.settings"), () => run("app.settings"), t, [
           Icon("settings"),
           ...updateDot,
         ]),
       )
       .when(this.hasConfig, (el) =>
         el.child(
-          this.button("mod-settings", "Mod settings", () => run("mod.open", { name: "awsome-config" }), t, [
+          this.button("mod-settings", withKey("Mod settings", "mod.open:awsome-config"), () => run("mod.open", { name: "awsome-config" }), t, [
             Icon("sliders"),
           ]),
         ),
@@ -64,7 +71,7 @@ export class Footer {
       // The gap that puts Add machine at the right end of the line.
       .child(div().flex_1())
       .child(
-        this.button("machine", "Add machine", () => run("mod.open", { name: "machine-add" }), t, [
+        this.button("machine", withKey("Add machine", "mod.open:machine-add"), () => run("mod.open", { name: "machine-add" }), t, [
           Icon("plus", 12),
           Icon("server"),
         ]),

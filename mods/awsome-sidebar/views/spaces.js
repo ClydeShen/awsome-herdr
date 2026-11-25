@@ -954,6 +954,7 @@ export class Spaces {
       .flex_none()
       .justify_center()
       .rounded(8)
+      .cursor_pointer()
       .when(lit, (el) => el.bg(t.selected))
       .when(!lit, (el) => el.hover((s) => s.bg(t.hover)))
       .when(spaceSortOf().id === "manual" && this.pressed === w.id && this.over !== w.id, (el) =>

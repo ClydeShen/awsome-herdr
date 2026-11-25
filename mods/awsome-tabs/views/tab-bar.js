@@ -2,6 +2,7 @@
 import { div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings } from "herdr";
+import { keyFor } from "../menu.js"; // shared awsome-* menu helpers (identical copies in each mod)
 import { find } from "../actions/engine.js";
 import { TEXT, Icon, IconButton, DropLine } from "./ui.js";
 
@@ -254,7 +255,8 @@ export const tabBarMethods = {
   // Dropping a tab on the + puts it last.
   newTabButton(tabs) {
     const asLast = (event) => ({ ...event, local_position: { x: Infinity } });
-    return this.simple("tab-new", Icon("plus", 14), "New tab", () =>
+    const quick = keyFor("tab.new", window()?.platform === "macos"); // the one-step default terminal
+    return this.simple("tab-new", Icon("plus", 14), quick ? `New tab (${quick})` : "New tab", () =>
       openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...((shared("awsome-menu.size") ?? {}).plus ?? { width: 300, height: 480 }), props: { scope: "plus", space: spaces().find((s) => s.active)?.id } }),
     )
       .on_mouse_move((event, cx) => {

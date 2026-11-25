@@ -25,10 +25,12 @@ function place(s) {
 
 // The shells on this machine, in a fixed order. Windows: where.exe and wsl -l -q (UTF-16);
 // macOS and Linux: /etc/shells. The default one starts with a plain tab.new, as Herdr's + does.
+// On another machine (`on`), its own shells are read with POSIX commands; when that fails, the one
+// entry left is its default terminal, which that machine chooses.
 async function discoverTerminals(on) {
   const platform = window()?.platform;
   const out = [];
-  if (platform === "windows") {
+  if (!on && platform === "windows") {
     const r = await exec("where.exe", ["pwsh", "powershell", "cmd", "bash"], { on, timeout: 8000 }).catch(() => null);
     const found = String(r?.stdout ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const has = (exe) => found.find((p) => p.toLowerCase().endsWith(BACKSLASH + exe));
@@ -55,6 +57,7 @@ async function discoverTerminals(on) {
       out.push({ id: base, label: base, argv: [path], default: path === mine });
     }
     out.sort((a, b) => Number(Boolean(b.default)) - Number(Boolean(a.default)));
+    if (!out.length) out.push({ id: "default", label: "Default terminal", default: true });
   }
   return out;
 }
@@ -64,7 +67,9 @@ export default class AwsomeMenu extends View {
     this.handle = cx.focus_handle();
     this.handle.focus();
     this.nav = { at: -1, open: null, subAt: -1 };
-    const cache = shared(`${NAME}.cache`) ?? {};
+    // Cached per machine, so a remote space never shows this machine's terminals or agents.
+    const machineKey = this.space()?.machine ?? "local";
+    const cache = (shared(`${NAME}.cache`) ?? {})[machineKey] ?? {};
     this.terminals = cache.terminals ?? null;
     this.agents = cache.agents ?? null;
     this.git = null;
@@ -81,7 +86,7 @@ export default class AwsomeMenu extends View {
       this.terminals = terminals;
       this.agents = agents;
       this.git = git;
-      setShared(`${NAME}.cache`, { terminals, agents: agents.map(({ key, name, icon, tint, run: argv, installed }) => ({ key, name, icon, tint, run: argv, installed })) });
+      setShared(`${NAME}.cache`, { ...(shared(`${NAME}.cache`) ?? {}), [machineKey]: { terminals, agents: agents.map(({ key, name, icon, tint, run: argv, installed }) => ({ key, name, icon, tint, run: argv, installed })) } });
       cx.notify();
     });
   }
@@ -135,7 +140,7 @@ export default class AwsomeMenu extends View {
         run: () => openOverlay({ mod: "worktree", kind: "dialog", width: 560, height: 480, props: { space: sid, folder, action: "open" } }) },
       ...(scope === "space" ? [
         "-",
-        { id: "rename", label: "Rename", icon: UI("pencil-simple"), keys: keyFor("space.rename", mac) ?? "F2", run: () => run("space.rename", { id: sid }) },
+        { id: "rename", label: "Rename", icon: UI("pencil-simple"), keys: keyFor("space.rename", mac), run: () => run("space.rename", { id: sid }) },
         { id: "reveal", label: reveal, icon: UI("folder-open"), disabled: !folder || Boolean(s?.machine), reason: s?.machine ? "The space is on another machine" : "The space has no folder",
           run: () => revealFolder(folder).catch(say("Could not open the folder")) },
         { id: "copy", label: "Copy path", icon: UI("copy"), disabled: !folder, reason: "The space has no folder", run: (cx) => { cx.write_to_clipboard(folder); notify({ title: "Copied", body: folder, level: "info", timeout: 2000 }); } },

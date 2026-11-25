@@ -21,15 +21,15 @@ function menuEntries(m, self) {
   const reveal = mac ? "Reveal in Finder" : platform === "windows" ? "Reveal in File Explorer" : "Open in file manager";
   const say = (title) => (e) => notify({ title, body: String(e?.message ?? e), level: "error" });
   return tidy([
-    !m.dir && { id: "preview", label: "Preview", icon: UI("eye"), run: () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() }) },
-    !m.dir && m.local && { id: "open", label: "Open in default app", icon: UI("arrow-square-out"), run: () => openExternal(m.abs).catch(say("Could not open the file")) },
+    !m.dir && { id: "preview", label: "Preview", icon: UI("eye"), keys: "P", run: () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() }) },
+    !m.dir && { id: "open", label: "Open in default app", icon: UI("arrow-square-out"), disabled: !m.local, reason: "The file is on another machine", run: () => openExternal(m.abs).catch(say("Could not open the file")) },
     m.dir && { id: "root", label: "Open as root", icon: UI("tree-structure"), keys: keyFor(`${NAME}.into`, mac), run: () => setShared(`${NAME}.goto`, { root: m.root, rel: m.rel, n: Date.now() }) },
     "-",
-    { id: "send", label: "Send to agent", icon: UI("paper-plane-right"), run: (cx) => sendToAgent(cx, m.abs) },
+    { id: "send", label: "Send to agent", icon: UI("paper-plane-right"), keys: "A", run: (cx) => sendToAgent(cx, m.abs) },
     "-",
-    { id: "rel", label: "Copy relative path", icon: UI("copy"), run: (cx) => copy(cx, m.rel) },
-    { id: "abs", label: "Copy absolute path", icon: UI("copy"), run: (cx) => copy(cx, m.abs) },
-    m.local && { id: "reveal", label: reveal, icon: UI("folder-open"), run: () => revealExternal(m.abs).catch(say("Could not open the folder")) },
+    { id: "rel", label: "Copy relative path", icon: UI("copy"), keys: "Y", run: (cx) => copy(cx, m.rel) },
+    { id: "abs", label: "Copy absolute path", icon: UI("copy"), keys: mac ? "\u21e7Y" : "Shift+Y", run: (cx) => copy(cx, m.abs) },
+    { id: "reveal", label: reveal, icon: UI("folder-open"), disabled: !m.local, reason: "The folder is on another machine", run: () => revealExternal(m.abs).catch(say("Could not open the folder")) },
   ]);
 }
 const ICON = (name) => `mods/${NAME}/${name}.svg`;
@@ -1053,7 +1053,7 @@ export default class FileTree extends View {
     const btn = (id, label, tip, on, fn) => this.button(id, label, tip, on, fn, t, R);
     // Tools sit in the title row and change with the view.
     const tools = this.view === "tree" ? [
-      btn("ft-up", ic("arrow-up"), "Up a folder (Ctrl+Alt+Backspace)", false, () => this.goUp()),
+      btn("ft-up", ic("arrow-up"), `Up a folder${keyFor(`${NAME}.up`, window()?.platform === "macos") ? ` (${keyFor(`${NAME}.up`, window()?.platform === "macos")})` : ""}`, false, () => this.goUp()),
       btn("ft-home", ic("house-simple"), this.follow ? "Following the focused pane" : `Back to the focused pane's folder${keyFor(`${NAME}.follow`, window()?.platform === "macos") ? ` (${keyFor(`${NAME}.follow`, window()?.platform === "macos")})` : ""}`, this.follow, () => this.followPane()),
       btn("ft-hidden", ic(this.showHidden ? "eye" : "eye-slash"), this.showHidden ? "Hide dotfiles (.)" : "Show dotfiles (.)", this.showHidden, () => { this.showHidden = !this.showHidden; this.savePrefs(); }),
       btn("ft-size", ic("ruler"), this.showSize ? "Show dates" : "Show sizes", Boolean(this.showSize), () => { this.showSize = !this.showSize; this.savePrefs(); }),

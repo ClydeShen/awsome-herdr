@@ -487,7 +487,7 @@ export class Agents {
       .text_size(TEXT.small)
       .text_color(t.dim)
       .child(
-        "No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.",
+        "No agents yet. Right-click a space or use + to start one.",
       );
   }
 
@@ -693,6 +693,7 @@ export class Agents {
           .min_w(0)
           .max_w(namesSpace ? 140 : 200)
           .truncate()
+          .tooltip(name)
           .text_color(idle ? t.muted : t.foreground)
           .child(name),
       )
