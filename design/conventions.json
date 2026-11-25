@@ -136,6 +136,28 @@
           "confirmKey("
         ]
       }
+    },
+    {
+      "id": "settings-page",
+      "what": "A settings page",
+      "references": [
+        {
+          "app": "VS Code Settings editor",
+          "behavior": "A table of contents on the left; settings grouped under headings; each shows its title and a one-line description with the control; a modified setting is marked and its own menu resets just that one; the setting's id is not shown on the row."
+        },
+        {
+          "app": "macOS System Settings / Windows 11 Settings",
+          "behavior": "A sidebar of pages; each page groups related settings in one rounded box with thin separators, a heading above each group; title and a short description on the left, the control on the right."
+        }
+      ],
+      "ours": "Nav list on the left (sidebar rows, current page with the indicator bar). Each page: title and one short line; groups under 11px headings; each group one bordered card (radius 10) with rows separated by 1px lines; row = title 13 medium and one-line description 12 muted on the left, control and a fixed 24px slot for its reset icon on the right; a changed setting shows a 6px accent dot after its title and the reset icon. Icon buttons (24px, 16px icons, tooltips) instead of text buttons. The setting's key path only in the title's tooltip.",
+      "planned": true,
+      "code": {
+        "awsome-config": [
+          "arrow-counter-clockwise",
+          "Reset to "
+        ]
+      }
     }
   ]
 }

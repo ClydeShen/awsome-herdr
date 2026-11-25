@@ -400,7 +400,10 @@ def main():
         except Exception:
             return 0
         path = (event.get("tool_input") or {}).get("file_path") or ""
-        rel = os.path.relpath(os.path.abspath(path), ROOT).replace("\\", "/") if path else ""
+        try:
+            rel = os.path.relpath(os.path.abspath(path), ROOT).replace(chr(92), "/") if path else ""
+        except ValueError:  # another drive on Windows: not part of this repo
+            return 0
         if not re.match(r"^(mods|config|design|scripts)/", rel):
             return 0
     for check in CHECKS:
