@@ -13,6 +13,8 @@ Everything under `mods/` was written by other people and is redistributed here u
 
 The interface icons in `awsome-icons/ui/` come from Phosphor Icons (https://github.com/phosphor-icons/core, regular weight, MIT). Their licence text sits beside them as `LICENSE-phosphor.txt`. The file icons come from the Material Icon Theme for VS Code (MIT). Its licence text sits beside the icons as `LICENSE-material-icon-theme.txt` inside `awsome-icons`. `filetree` is a port of claude-code-filetree by Kurt Buhler (MIT), and `file-icons` is modified from Herdr Desktop's own `files` mod (Apache-2.0), as the notices above say.
 
+`.agents/skills/design-taste-frontend` is the agent skill "taste-skill" by Leonxlnx (https://github.com/Leonxlnx/taste-skill, commit `d1a2bb41d927083ac7118f60cfc9cdf711810ea0`, recorded in `skills-lock.json`), MIT, see `licenses/LICENSE-taste-skill`. It is kept unchanged.
+
 ## What was changed from upstream
 
 Changed files are marked here, as the Apache licence asks. Changes are made in this repo; these mods no longer follow upstream.
