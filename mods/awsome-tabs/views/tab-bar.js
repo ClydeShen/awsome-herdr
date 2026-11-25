@@ -96,6 +96,11 @@ export const tabBarMethods = {
       .on_mouse_down("left", (event, cx) => this.beginTabDrag(tab, event, cx))
       .on_mouse_move((event, cx) => this.hoverTab(tab, event, cx))
       .on_mouse_up("left", (event, cx) => this.finishTabDrag(tab, event, cx))
+      // Middle-click closes the tab, as in a browser: on release, the same as the close button.
+      .on_mouse_up("middle", (_e, cx) => {
+        cx.stop_propagation();
+        this.closeTab(tab, cx);
+      })
       .on_mouse_down("right", (_e, cx) => {
         cx.stop_propagation();
         this.cancelDrags(cx);
@@ -127,10 +132,14 @@ export const tabBarMethods = {
   },
 
   closeTabButton(tab) {
-    return this.simple(`close-${tab.id}`, Icon("close", 12), "Close tab", (_e, cx) => {
-      this.cancelDrags(cx);
-      run("tab.close", { id: tab.id });
-    }).on_mouse_up("left", (_e, cx) => cx.stop_propagation());
+    return this.simple(`close-${tab.id}`, Icon("close", 12), "Close tab (middle-click)", (_e, cx) => this.closeTab(tab, cx))
+      .on_mouse_up("left", (_e, cx) => cx.stop_propagation());
+  },
+
+  // The close button and a middle-click both come here; Herdr asks first when it needs to.
+  closeTab(tab, cx) {
+    this.cancelDrags(cx);
+    run("tab.close", { id: tab.id });
   },
 
   dragPreview(t) {
