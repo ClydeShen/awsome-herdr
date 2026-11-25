@@ -80,7 +80,8 @@ const SORTS = [
   { id: "parent", label: "Grouped by main space", icon: "git-branch" },
   { id: "prefix", label: "Grouped by prefix", icon: "tag" },
 ];
-const sortOf = () => SORTS.find((s) => s.id === shared("agents.sort")) ?? SORTS[0];
+// Grouped by space unless chosen otherwise (docs/REQUIREMENTS.md 4.2.6).
+const sortOf = () => SORTS.find((s) => s.id === shared("agents.sort")) ?? SORTS[1];
 const SECTION = { 4: "Needs you", 3: "Done", 2: "Working", 1: "Idle" };
 const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working" };
 
@@ -293,98 +294,62 @@ export class Agents {
     });
   }
 
+  // A sub-agent: indented 12px a level with a 1px guide line under its parent's dot (as in the Files tree).
   subRow(t, s, shown, compact) {
     const k = s.t;
     const st = kidStatus(k, this.listed);
-    const pic = icon(k.program, 14, t.foreground);
     const on = k.address === shown;
+    const depth = s.lines.length;
     return h_flex()
       .id(`sub-${k.address}`)
-      .pl(39)
+      .relative()
+      .pl(8 + depth * 12)
       .pr(8)
       .rounded(8)
-      .h(26)
+      .h(28)
       .flex_none()
-      .gap(0)
+      .gap(8)
       .items_center()
-      .text_size(12.5)
-      .when(on, (el) => el.bg(t.raised))
+      .cursor_pointer()
+      .when(on, (el) => el.bg(t.selected))
       .hover((s) => s.bg(t.hover))
       .on_click(() =>
         this.listed.has(k.address)
           ? run("pane.focus", { terminal: k.address })
           : this.peek(k.address),
       )
-      .children(
-        s.lines.map((l) =>
-          div()
-            .self_start()
-            .mt(-4)
-            .w(9)
-            .h(17)
-            .mr(4)
-            .flex_none()
-            .when(Boolean(l), (el) => el.border_l(1.5).border_color(t.input))
-            .when(l === "└" || l === "├", (el) => el.border_b(1.5).rounded_bl(6)),
-        ),
-      )
-      .when(Boolean(pic), (el) => el.child(div().mr(8).child(pic)))
+      .children(Array.from({ length: depth }, (_, d) => div().absolute().left(8 + d * 12 + 4).top(0).bottom(0).w(1).bg(t.border)))
+      .child(this.statusDot(t, st))
       .child(
         div()
           .flex_1()
+          .min_w(0)
           .truncate()
-          .text_color(on ? t.foreground : t.muted)
+          .text_color(on ? t.foreground : st === "idle" ? t.muted : t.foreground)
           .child(k.name || k.template || k.program?.name || k.address),
       )
-      .child(this.status(t, { status: st }, compact));
+      .child(this.statusText(t, st, null));
   }
 
-  // compact: a ! for blocked where a header already says "Needs you".
-  status(t, a, compact = false) {
-    const color = t[a.status] ?? t.dim;
-    if (a.status === "working")
-      return Icon("spinner").size(12).mx(1).flex_none().text_color(t.working).spin(900);
-    if (a.status === "blocked" && compact)
-      return div()
-        .size(14)
-        .flex_none()
-        .rounded(4)
-        .bg(t.blocked + "26")
-        .text_size(TEXT.avatar)
-        .font_bold()
-        .text_color(t.blocked)
-        .flex()
-        .items_center()
-        .justify_center()
-        .child("!");
-    if (a.status === "blocked")
-      return div()
-        .flex_none()
-        .px(6)
-        .h(18)
-        .rounded(5)
-        .bg(t.blocked + "26")
-        .text_size(TEXT.avatar)
-        .font_semibold()
-        .text_color(t.blocked)
-        .flex()
-        .items_center()
-        .child("Needs you");
-    // Idle: a ring; done: a dot.
-    if (a.status === "idle")
-      return div()
-        .size(7)
-        .mx(3)
-        .flex_none()
-        .rounded(4)
-        .border(1.5)
-        .border_color(t.idle ?? t.dim);
+  // The 8px status dot in front of a row; working breathes (the one moving thing, 2.2).
+  statusDot(t, status) {
+    const color = { working: t.working, blocked: t.blocked, done: t.done, idle: t.dim }[status] ?? t.dim;
     return div()
-      .size(7)
-      .mx(3)
+      .size(8)
       .flex_none()
-      .rounded(4)
-      .bg(a.status === "done" ? color : t.dim + "00");
+      .rounded_full()
+      .bg(color)
+      .when(status === "working", (el) => el.loop("opacity", { from: 0.35, to: 1, period: 1200 }));
+  }
+
+  // The word at the right of a row: how long it has worked, or what it needs.
+  statusText(t, status, elapsed) {
+    const [word, color] =
+      status === "working" ? [elapsed, t.muted]
+      : status === "blocked" ? ["needs you", t.blocked]
+      : status === "done" ? ["done", t.done]
+      : ["idle", t.dim];
+    return div().flex_none().text_size(11).text_color(color).child(word ?? "");
   }
 
   // opts, from the lists view: `view` already read, `heading: false` under its tabs.
@@ -411,6 +376,7 @@ export class Agents {
           .flex_1()
           .min_h(0)
           .px(view.collapsed ? 0 : 8)
+          .gap(4)
           .overflow_y_scrollbar()
           .mode("always")
           .children(rows),
@@ -507,13 +473,11 @@ export class Agents {
   heading(sort, t) {
     return h_flex()
       .px(16)
-      .h(41)
-      .pt(14)
-      .pb(5)
+      .h(32)
       .flex_none()
       .items_center()
       .justify_between()
-      .child(div().text_size(TEXT.label).font_medium().text_color(t.dim).child("Agents"))
+      .child(div().text_size(11).font_medium().text_color(t.muted).child("Agents"))
       .child(this.renderSortMenu(sort));
   }
 
@@ -565,8 +529,8 @@ export class Agents {
       count: group.members.length,
       labelColor: t[group.status],
       folded,
-      divided: index > 0,
-      action: showTop ? this.status(t, { status: top }, true) : null,
+      mono: view.sort?.id === "grouped" || view.sort?.id === "parent",
+      action: showTop ? this.statusDot(t, top) : null,
       onClick: (cx) => this.toggleFold(group.id, cx),
     });
   }
@@ -604,12 +568,13 @@ export class Agents {
           .flex_none()
           .items_center()
           .justify_center()
-          .child(this.status(t, a, true)),
+          .child(this.statusDot(t, a.status)),
       );
   }
 
+  // An agent: 28px, status dot, program icon, name, and at the right what it is doing (4.2.6).
   agentRow(a, subs, view, t) {
-    const pic = icon(a.program, 16, t.foreground);
+    const pic = icon(a.program, 16, t.muted);
     const hovered = this.hovered === a.address;
     const when = this.since(a);
     // An agent on another machine (`vps/t7`) says which.
@@ -617,11 +582,11 @@ export class Agents {
     return h_flex()
       .id(`ag-${a.address}`)
       .px(8)
-      .h(30)
+      .h(28)
       .flex_none()
       .rounded(8)
       .items_center()
-      .gap(9)
+      .gap(8)
       .when(a.focused, (el) => el.bg(t.selected))
       .cursor_pointer()
       .hover((s) => s.bg(t.hover))
@@ -631,23 +596,15 @@ export class Agents {
         cx.notify();
       })
       .on_click(() => run("pane.focus", { pane: a.pane }))
+      .child(this.statusDot(t, a.status))
       .when(Boolean(pic), (el) => el.child(this.agentIcon(a, pic, subs)))
       .child(this.agentName(a, view, t))
       .when(Boolean(machine), (el) =>
-        el.child(div().text_size(TEXT.badge).text_color(t.dim).child(machine)),
+        el.child(div().text_size(11).font_family("JetBrains Mono").text_color(t.muted).child(machine)),
       )
       .when(subs.length > 0, (el) => el.child(this.foldButton(a, subs, t)))
       .when(hovered, (el) => el.child(this.pinButton(a, t)))
-      .when(!hovered && Boolean(when), (el) =>
-        el.child(
-          div()
-            .flex_none()
-            .text_size(TEXT.caption)
-            .text_color(t.dim)
-            .child(duration(view.now - when)),
-        ),
-      )
-      .child(this.status(t, a, view.byPriority && !a.pinned));
+      .when(!hovered, (el) => el.child(this.statusText(t, a.status, when ? duration(view.now - when) : null)));
   }
 
   // A tab with no agent, under its space in the lists view: its program and its name.
@@ -695,7 +652,7 @@ export class Agents {
 
   // The program, quietly after a row's name under its space.
   programName(prog, t) {
-    return div().flex_1().min_w(0).truncate().text_size(TEXT.caption).text_color(t.dim).child(prog);
+    return div().flex_1().min_w(0).truncate().text_size(11).text_color(t.muted).child(prog);
   }
 
   // With sub-agents, clicking the icon folds them.
@@ -741,7 +698,7 @@ export class Agents {
       )
       // The space, quietly after the name.
       .when(namesSpace && Boolean(a.space_name), (el) =>
-        el.child(div().flex_1().min_w(0).truncate().text_size(TEXT.caption).text_color(t.dim).child(a.space_name)),
+        el.child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.muted).child(a.space_name)),
       )
       // Under its space, the program instead.
       .when(view.nested && Boolean(prog) && prog !== name, (el) => el.child(this.programName(prog, t)));

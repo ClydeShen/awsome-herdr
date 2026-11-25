@@ -284,7 +284,7 @@
 | 当前 space | 叠 `selected` + 左侧指示条（4×24，`accent`，§2.3） |
 | 左侧 | space 图标或 8px 小圆点，占 16 宽（P1b 才有图标和颜色，P1 先是圆点） |
 | 名字 | 13，`foreground`，JetBrains Mono（标识类文字，§2.2），过长省略 |
-| 右侧 | 分支名 11、Mono、`muted`，最多占行宽的 45%；领先 / 落后用小徽标（高 20、左右 4、圆角 8、字号 11、等宽数字，`muted`，如 `↑2`） |
+| 右侧 | 分支名 11、Mono、`muted`，**名字优先占位（最多 150px），分支名占剩下的宽度、靠右、放不下就省略**；`main` / `master` 这类常见分支名不显示（上游做法）；领先 / 落后用小徽标（高 20、左右 4、圆角 8、字号 11、等宽数字，`muted`，如 `↑2`） |
 | 需要你 | 名字右侧一个 8px 的 `blocked` 圆点；悬停提示 `An agent needs you` |
 
 **Agents 区（按 space 分组）**
@@ -296,7 +296,8 @@
 | 状态 | 工作中：`working` 点 + `muted` 的时长（`2m`）；需要你：`blocked` 点 + `blocked` 色 `needs you`；完成：`done` 点 + `done`；空闲：`dim` 点 + `dim` 的 `idle` |
 | sub agent | 每级缩进 12，左侧 1px `border` 参考线（和 Files 树一样，§2.2；不用 shadcn 的 25px 缩进） |
 | 当前 agent | 叠 `selected`（不加指示条，指示条只给导航的当前项） |
-| 点击 | agent → `agent.focus`；没有 pane 的 sub agent → `terminal.keep` 开一个新 pane |
+| 点击 | agent → 跳到它的 pane；没有 pane 的 sub agent → Herdr 的 `terminal.peek` 浮在当前 tab 上查看（自带"保留成 tab"和关闭，天然有去有回，比直接开新 pane 好，保留上游做法） |
+| 分组方式 | 默认按 space 分组；排序菜单（标题右侧的时钟图标）里仍可切换，已保存的选择优先 |
 
 **space 右键菜单 / 标签栏 `+` 菜单（共用 `awsome-menu`，基于 `menu.js`）**
 

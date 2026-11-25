@@ -140,6 +140,61 @@
           "menuNav("
         ]
       }
+    },
+    {
+      "id": "agent-focus",
+      "mod": "awsome-sidebar",
+      "to": "the pane an agent runs in (its space and tab)",
+      "forward": {
+        "mouse": "click the agent",
+        "keys": "Alt+Up / Alt+Down (Herdr's agent.prev / agent.next)",
+        "code": [
+          "pane.focus"
+        ]
+      },
+      "back": {
+        "mouse": "click the space or tab you came from",
+        "keys": "Alt+Up / Alt+Down again",
+        "code": [
+          "space.select"
+        ]
+      }
+    },
+    {
+      "id": "subagent-peek",
+      "mod": "awsome-sidebar",
+      "to": "a sub-agent without a pane, peeked over the tab",
+      "forward": {
+        "mouse": "click the sub-agent",
+        "keys": "",
+        "code": [
+          "terminal.peek"
+        ]
+      },
+      "back": {
+        "mouse": "the peek's own close button (Herdr)",
+        "keys": "",
+        "code": []
+      }
+    },
+    {
+      "id": "space-menu",
+      "mod": "awsome-menu",
+      "to": "the space menu",
+      "forward": {
+        "mouse": "right-click a space, or the tab bar's +",
+        "keys": "",
+        "code": [
+          "onDismiss"
+        ]
+      },
+      "back": {
+        "mouse": "click outside the menu",
+        "keys": "Esc",
+        "code": [
+          "this.close()"
+        ]
+      }
     }
   ]
 }

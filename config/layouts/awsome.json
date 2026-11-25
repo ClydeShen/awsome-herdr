@@ -44,7 +44,10 @@
               "id": "agents",
               "type": "block",
               "content": {
-                "mod": "agents"
+                "mod": "awsome-sidebar",
+                "props": {
+                  "view": "agents"
+                }
               },
               "size": {
                 "weight": 1

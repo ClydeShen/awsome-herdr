@@ -22,15 +22,19 @@ export const Icon = (name, size = 14) =>
   svg(`mods/awsome-sidebar/icons/${name}.svg`).size(size).flex_none();
 
 export function Badge(text) {
+  // shadcn SidebarMenuBadge: 20px tall, 4px across, radius 8, 11 medium muted (docs/REQUIREMENTS.md 4.2.6).
   const t = theme();
   return div()
     .flex_none()
-    .px(5)
-    .py(1)
-    .rounded(RADIUS.small)
-    .border_1()
-    .border_color(t.border)
-    .text_size(TEXT.badge)
+    .h(20)
+    .min_w(20)
+    .px(4)
+    .rounded(8)
+    .flex()
+    .items_center()
+    .justify_center()
+    .text_size(11)
+    .font_medium()
     .text_color(t.muted)
     .child(String(text));
 }
@@ -66,34 +70,35 @@ export function GroupHeader({
   count,
   labelColor,
   folded = false,
-  divided = false,
+  mono = false,
   action,
   onClick,
 }) {
+  // docs/REQUIREMENTS.md 4.2.6: 28px, 11 medium muted (SidebarGroupLabel); no bare count, a tooltip says it.
   const t = theme();
   return h_flex()
     .id(id)
-    .h(SIZE.group)
+    .h(28)
     .flex_none()
     .px(8)
     .gap(6)
     .items_center()
-    .text_size(TEXT.caption)
+    .text_size(11)
     .text_color(t.muted)
     .cursor_pointer()
-    .when(divided, (el) => el.mt(4).border_t(1).border_color(t.border))
+    .tooltip(`${count} agent${count === 1 ? "" : "s"}`)
     .hover((s) => s.text_color(t.foreground))
     .on_click((_e, cx) => onClick(cx))
-    .child(Icon(folded ? "chevron-right" : "chevron-down", 12).text_color(t.dim))
+    .child(Icon(folded ? "chevron-right" : "chevron-down", 12).text_color(t.muted))
     .child(
       div()
         .min_w(0)
         .truncate()
         .font_medium()
+        .when(mono, (el) => el.font_family("JetBrains Mono"))
         .text_color(labelColor ?? t.muted)
         .child(label),
     )
-    .child(Badge(count))
     .child(div().flex_1())
     .when(Boolean(action), (el) => el.child(action));
 }

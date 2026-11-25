@@ -34,7 +34,7 @@ const SPACE_SORTS = [
 const spaceSortOf = () => SPACE_SORTS.find((s) => s.id === shared("spaces.sort")) ?? SPACE_SORTS[0];
 
 const USUAL_BRANCHES = new Set(["main", "master"]);
-const rowHeight = ({ tree }) => (tree ? 28 : 30);
+const rowHeight = () => 28; // SidebarMenuButton sm (docs/REQUIREMENTS.md 4.2.6)
 
 // Watches and terminal events handle most changes. Poll visible repositories
 // occasionally to catch edits and commits made outside Herdr.
@@ -810,12 +810,15 @@ export class Spaces {
   branchName(g, name, t) {
     const branch = g?.branch === "(detached)" ? "detached" : (g?.branch ?? "detached");
     const shown = g && !USUAL_BRANCHES.has(branch) && branch !== name;
+    // The name keeps its room; the branch takes what is left, at the right, and gives way first.
     return div()
       .flex_1()
       .min_w(0)
       .truncate()
-      .text_size(TEXT.caption)
-      .text_color(t.dim)
+      .text_right()
+      .text_size(11)
+      .font_family("JetBrains Mono")
+      .text_color(t.muted)
       .when(shown, (el) => el.tooltip(branch).child(branch));
   }
 
@@ -824,10 +827,10 @@ export class Spaces {
     const pr = w ? this.prBadge(w, t) : null;
     return h_flex()
       .flex_none()
-      .gap(5)
+      .gap(4)
       .items_center()
-      .text_size(TEXT.label)
-      .text_color(t.dim)
+      .text_size(11)
+      .text_color(t.muted)
       .when(Boolean(pr), (el) => el.child(pr))
       .when(active && g?.ahead > 0, (el) => el.child(Badge(`\u2191${g.ahead}`)))
       .when(active && g?.behind > 0, (el) => el.child(Badge(`\u2193${g.behind}`)));
@@ -1016,33 +1019,24 @@ export class Spaces {
       });
   }
 
+  // A space: a 16px slot with an 8px dot (colors and icons come with Appearance, P1b), the name in
+  // the code font, a dot when an agent needs you, and at the right the branch and ahead/behind.
   rowTitle(w, g, tree, t) {
     return h_flex()
-      .gap(9)
+      .gap(8)
       .items_center()
-      .when(Boolean(tree), (el) => el.when(!this.under, (e) => e.pl(22)).child(Icon("branch", 13).text_color(t.dim)))
+      .when(Boolean(tree), (el) => el.when(!this.under, (e) => e.pl(22)).child(Icon("branch", 13).text_color(t.muted)))
       .when(!tree, (el) => el.child(this.avatar(w, t)))
       .child(
-        div().flex_initial().min_w(48).truncate().tooltip(w.name).text_color(t.foreground).child(w.name),
+        div().flex_none().max_w(150).truncate().tooltip(w.name).font_family("JetBrains Mono").text_color(t.foreground).child(w.name),
       )
+      .when(w.status === "blocked", (el) => el.child(div().id(`needs-${w.id}`).size(8).flex_none().rounded_full().bg(t.blocked).tooltip("An agent needs you")))
       .child(this.branchName(g, w.name, t))
       .child(this.gitTail(g, w.active, t, w));
   }
 
   avatar(w, t) {
-    const color = (shared("space.colors") ?? {})[w.id] ?? "ansi6";
-    const fill = color.startsWith("#") ? color : (AVATAR_COLORS[color] ?? t[color]);
-    return h_flex()
-      .size(18)
-      .flex_none()
-      .rounded(5)
-      .bg(fill)
-      .items_center()
-      .justify_center()
-      .text_size(TEXT.avatar)
-      .font_bold()
-      .text_color("#ffffff")
-      .child([...w.name][0]?.toUpperCase() ?? "?");
+    return h_flex().size(16).flex_none().items_center().justify_center().child(div().size(8).rounded_full().bg(t.muted));
   }
 
   compact({ w, i }, t) {
@@ -1165,13 +1159,14 @@ export class Spaces {
 
   header(t, collapsed) {
     return h_flex()
-      .h(31)
+      .h(32)
       .pl(16)
       .pr(10)
       .items_center()
       .justify_between()
-      .text_size(TEXT.label)
-      .text_color(t.dim)
+      .text_size(11)
+      .font_medium()
+      .text_color(t.muted)
       .when(!collapsed, (el) => el.child("Spaces"))
       .child(this.headerButtons(collapsed));
   }
@@ -1185,6 +1180,7 @@ export class Spaces {
       .min_h(0)
       .px(8)
       .pb(14)
+      .gap(4)
       .overflow_y_scrollbar()
       .mode("always")
       .on_mouse_down("left", () => {
