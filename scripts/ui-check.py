@@ -165,13 +165,25 @@ def c3_layout():
     ]
     bv = load("design", "tokens.json").get("sidebar", {}).get("values", {})
     if "chevronSlot" in bv:
-        icon_c = bv["px"] + bv["icon"] / 2                     # an ungrouped space's icon centre
-        member_c = bv["px"] + bv["indent"] + bv["icon"] / 2     # a member's icon centre
-        member_name = bv["px"] + bv["indent"] + bv["icon"] + bv["gap"]
         checks += [
-            (bv["px"] + bv["chevronSlot"] / 2 == icon_c, "sidebar: a group's chevron must be centred on an ungrouped space's icon"),
-            (bv["px"] + bv["chevronSlot"] + bv["groupDot"] / 2 == member_c, "sidebar: a group's dot must be centred on its members' icons"),
-            (bv["px"] + bv["chevronSlot"] + bv["groupDot"] + bv["groupNameGap"] == member_name, "sidebar: a group's name must start where its members' names start"),
+            (bv["chevronSlot"] == bv["icon"], "sidebar: a group's chevron slot must be as wide as a space's icon, so the chevron sits on the icon column"),
+            (bv["groupRadius"] == bv["radius"], "sidebar: a group block must have a row's radius, so a selected first or last row meets its corners"),
+            (bv["groupGap"] == 2 * bv["rowGap"], "sidebar: groups stand 8 apart (SidebarGroup p-2), twice the row gap"),
+        ]
+    tk = load("design", "tokens.json")
+    pv, mv = tk.get("picker", {}).get("values"), tk["menu"]["values"]
+    if pv:
+        req = open(P("docs", "REQUIREMENTS.md"), encoding="utf-8").read()
+        line = next((l for l in req.splitlines() if "**图标固定" in l), "")
+        icons = re.findall(r"[a-z]+(?:-[a-z]+)*", line.split("：", 1)[-1]) if line else []
+        checks += [
+            (pv["pad"] == mv["pad"] and pv["radius"] == mv["radius"] and pv["sep"] == mv["sep"], "picker: pad, radius and separator must be the menu's (one family, L12)"),
+            (pv["cell"] == mv["row"] and pv["cellRadius"] == mv["itemRadius"], "picker: a cell is a menu row high with a menu item's radius"),
+            (pv["cellGap"] == 0, "picker: cells touch like menu rows; no gaps"),
+            (pv["swatch"] == pv["icon"] == mv["icon"], "picker: color dots are as big as the icons"),
+            (pv["swatch"] + 2 * (pv["ringGap"] + pv["ring"]) <= pv["cell"], "picker: the current color's ring must fit inside its cell"),
+            (len(icons) == pv["columns"] * pv["iconRows"], f"picker: the icon list in REQUIREMENTS §4.2.2 has {len(icons)} icons; it must fill whole rows of the grid ({pv['columns']} x {pv['iconRows']}), no empty cells"),
+            (all(os.path.exists(P("mods", "awsome-icons", "ui", n + ".svg")) for n in icons), "picker: every listed icon must exist in mods/awsome-icons/ui"),
         ]
     sv = load("design", "tokens.json").get("settings", {}).get("values", {})
     if sv:
