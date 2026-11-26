@@ -2,7 +2,7 @@
 
 My [Herdr](https://herdr.dev/) setup in one repo: a set of mods, a layout that uses them, and one script that puts it all on a new machine.
 
-一键安装我的 Herdr 配置：9 个 mod（7 个界面 mod、1 个设置对话框、1 个图标包）、一个布局和一个设置。
+
 
 ## Install
 
