@@ -11,7 +11,7 @@ const SNAPSHOTS = "refs/awsome-changes/discard";
 export function trashCommand(platform, path) {
   if (platform === "windows") {
     const win = path.split("/").join(String.fromCharCode(92));
-    const quoted = `'${win.split("'").join("''")}'`;
+    const quoted = `'${win.replace(/['\u2018-\u201B]/g, (c) => c + c)}'`;
     return [
       "powershell",
       [

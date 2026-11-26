@@ -177,7 +177,7 @@ function location() {
   return { cwd: pane?.cwd || f?.cwd || space?.folder || null, on, stay };
 }
 const windows = (on) => !on && window()?.platform === "windows";
-const psQuote = (s) => "'" + s.replaceAll("'", "''") + "'";
+const psQuote = (s) => "'" + s.replace(/['\u2018-\u201B]/g, (c) => c + c) + "'";
 
 async function listDir(path, on) {
   if (windows(on)) {

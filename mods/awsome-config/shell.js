@@ -7,7 +7,7 @@
 // no-op), and a missing folder is lenient via -ErrorAction SilentlyContinue
 // (mirrors 2>/dev/null).
 
-export const psQuote = (s) => "'" + String(s).replace(/'/g, "''") + "'";
+export const psQuote = (s) => "'" + String(s).replace(/['‘’‚‛]/g, "$&$&") + "'";
 
 export function pickListMods(modsDir, platform) {
   if (platform === "windows") {
