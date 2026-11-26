@@ -4,7 +4,7 @@ import { h_flex, Scrollbar, v_virtual_list } from "gpui-base";
 import { spaces, panes, readTextFile, theme, shared, setShared, run, layout } from "herdr";
 import { diffRows, splitDiffRows, conflictRows } from "../git/model.js";
 import { WHOLE_FILE_LINES, languageOf, syntaxColors, tokenizeLine } from "../syntax.js";
-import { TEXT, SIZE, codeFont, codeSize, FileIcon, Panel, PaneBar, DiffStat, Message, TextButton } from "./ui.js";
+import { TEXT, SIZE, codeFont, codeSize, FileIcon, Panel, PaneBar, DiffStat, Message, PaneButton, PANEL } from "./ui.js";
 import { fileIcon, isLight } from "../file-icons.js";
 
 const TAB_OPEN_TIMEOUT_MS = 1500;
@@ -149,16 +149,36 @@ export const diffMethods = {
     setShared("awsome-changes.full-file", full);
   },
 
-  FullFileButton() {
-    return TextButton({
-      id: "diff-full-file",
-      label: "Full file",
-      active: this.fullFile(),
-      onClick: (cx) => {
-        this.toggleFullFile();
-        cx.notify();
-      },
-    });
+  // How a diff is shown (§4.5b B3): two switches that hold state, so always visible, beside the
+  // diff they change (L16). Both act on every diff tab.
+  diffViewButtons() {
+    const full = this.fullFile();
+    const split = (shared("awsome-changes.diff-layout") ?? this.diffLayout) === "split";
+    return h_flex()
+      .flex_none()
+      .gap(PANEL.groupGap)
+      .items_center()
+      .child(
+        PaneButton({
+          id: "diff-full-file",
+          icon: "arrows-out-line-vertical",
+          label: full ? "Show changes only" : "Show full file",
+          active: full,
+          onClick: (cx) => {
+            this.toggleFullFile();
+            cx.notify();
+          },
+        }),
+      )
+      .child(
+        PaneButton({
+          id: "diff-split",
+          icon: "columns",
+          label: split ? "Show inline" : "Show side by side",
+          active: split,
+          onClick: (cx) => this.setDiffLayout(split ? "inline" : "split", cx),
+        }),
+      );
   },
 
   diffArgs() {
@@ -360,7 +380,7 @@ export const diffMethods = {
       .child(div().flex_none().truncate().max_w(260).font_medium().child(head.title))
       .child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(head.detail))
       .child(DiffStat(head))
-      .child(this.FullFileButton());
+      .child(this.diffViewButtons());
   },
 
   renderColumnTitles() {

@@ -73,7 +73,30 @@ export function changedFiles(status, numstats) {
 }
 
 /** Build directory-first display rows, omitting descendants of closed folders. */
-export function fileTree(files, closed = new Set()) {
+// The most serious status among a folder's files (§4.3a): conflict, deleted, modified, new.
+const SEVERITY = { U: 4, D: 3, M: 2, R: 1, C: 1, A: 1, "?": 1 };
+function worstOf(node, statusOf) {
+  let worst = null;
+  const counts = {};
+  const visit = (n) => {
+    for (const file of n.files) {
+      const s = statusOf(file);
+      counts[s] = (counts[s] ?? 0) + 1;
+      if ((SEVERITY[s] ?? 0) > (SEVERITY[worst] ?? 0)) worst = s;
+    }
+    for (const child of n.dirs.values()) visit(child);
+  };
+  visit(node);
+  return { worst, counts };
+}
+
+// A Git status as a word, for tooltips (§4.3a: "Modified · +4 −1").
+export const STATUS_WORD = { M: "modified", A: "new", "?": "new", D: "deleted", R: "renamed", C: "copied", U: "conflict" };
+
+// statusOf(file): the status a row shows, which depends on the group; folders take the worst one.
+// A folder whose only content is one folder joins it on one row ("mods/awsome-filetree"), as VS
+// Code's compact folders do (§4.5).
+export function fileTree(files, closed = new Set(), statusOf = (file) => file.status) {
   const root = { dirs: new Map(), files: [] };
   for (const file of files) {
     const parts = file.path.split("/");
@@ -94,8 +117,14 @@ export function fileTree(files, closed = new Set()) {
   const rows = [];
   function walk(node, depth) {
     const directories = [...node.dirs].sort(([a], [b]) => a.localeCompare(b));
-    for (const [name, directory] of directories) {
-      rows.push({ kind: "folder", name, path: directory.path, depth });
+    for (let [name, directory] of directories) {
+      while (!directory.files.length && directory.dirs.size === 1) {
+        const [[sub, only]] = [...directory.dirs];
+        name = `${name}/${sub}`;
+        directory = only;
+      }
+      const { worst, counts } = worstOf(directory, statusOf);
+      rows.push({ kind: "folder", name, path: directory.path, depth, status: worst, counts });
       if (!closed.has(directory.path)) walk(directory, depth + 1);
     }
     for (const file of node.files) {
@@ -300,7 +329,7 @@ export function parseLog(text) {
     .split("\x1e")
     .filter((record) => record.includes("\0"))
     .map((record) => {
-      const [hash, short, author, email, at, parents, refs, subject, body = ""] = record
+      const [hash, short, author, email, at, parents, refs, committer, committedAt, subject, body = ""] = record
         .replace(/^\n/, "")
         .split("\0");
       return {
@@ -309,6 +338,8 @@ export function parseLog(text) {
         author,
         email,
         at: Number(at),
+        committer,
+        committedAt: Number(committedAt),
         parents: parents ? parents.split(" ") : [],
         refs: parseRefs(refs),
         subject,
@@ -388,24 +419,53 @@ export function layoutLanes(commits) {
 
 // Combine `show --numstat -z` and `show --name-status -z` output for one commit.
 // Binary files report "-" counts. Status falls back to M when a path is missing.
+// A commit's files from `--numstat -z` and `--name-status -z`, with renames (-M): a rename is
+// "R100\0old\0new" in name-status and "add\tdel\t\0old\0new" in numstat (§4.5b B1).
 export function commitFiles(numstat, nameStatus) {
   const status = new Map();
   const fields = nameStatus.split("\0");
-  for (let i = 0; i + 1 < fields.length; i += 2) status.set(fields[i + 1], fields[i][0]);
-  return numstat
-    .split("\0")
-    .filter(Boolean)
-    .map((line) => {
-      const [add, del, path] = line.split("\t");
-      const binary = add === "-";
-      return {
-        path,
-        add: binary ? 0 : Number(add),
-        del: binary ? 0 : Number(del),
-        binary,
-        status: status.get(path) ?? "M",
-      };
+  for (let i = 0; i < fields.length; ) {
+    const code = fields[i];
+    if (!code) break;
+    if (code[0] === "R" || code[0] === "C") {
+      status.set(fields[i + 2], { status: code[0], from: fields[i + 1] });
+      i += 3;
+    } else {
+      status.set(fields[i + 1], { status: code[0] });
+      i += 2;
+    }
+  }
+  const files = [];
+  const parts = numstat.split("\0");
+  for (let i = 0; i < parts.length; i++) {
+    if (!parts[i]) continue;
+    const [add, del, inline] = parts[i].split("\t");
+    let path = inline;
+    if (!inline) {
+      path = parts[i + 2];
+      i += 2;
+    }
+    const binary = add === "-";
+    const named = status.get(path);
+    files.push({
+      path,
+      add: binary ? 0 : Number(add),
+      del: binary ? 0 : Number(del),
+      binary,
+      status: named?.status ?? "M",
+      from: named?.from ?? null,
     });
+  }
+  return files;
+}
+
+// "2026-11-26 14:03:12 +08:00": the full time with its zone, for a tooltip.
+export function stampFull(at) {
+  const d = new Date(at * 1000);
+  const two = (n) => String(Math.abs(n)).padStart(2, "0");
+  const offset = -d.getTimezoneOffset();
+  const zone = `${offset < 0 ? "-" : "+"}${two(Math.trunc(offset / 60))}:${two(offset % 60)}`;
+  return `${stamp(at)}:${two(d.getSeconds())} ${zone}`;
 }
 
 const UNITS = [

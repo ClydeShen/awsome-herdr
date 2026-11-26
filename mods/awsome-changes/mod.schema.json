@@ -176,6 +176,30 @@
             }
           },
           "title": "Panel"
+        },
+        "confirm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "discard": {
+              "title": "Ask before discarding",
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "title": "Discard"
+        },
+        "discard": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot": {
+              "title": "Keep a snapshot before discarding",
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "title": "Discard"
         }
       }
     }

@@ -714,7 +714,8 @@ export class Spaces {
         h_flex()
           .gap(5)
           .items_center()
-          .child(div().flex_1().min_w(0).truncate().tooltip(login).text_size(TEXT.small).text_color(t.muted).child(login))
+          // The full command only when it's cut off: the sidebar less its padding and the copy button (L20).
+          .child(div().flex_1().min_w(0).truncate().when(login.length * 6.5 > (this.width ?? 260) - 48, (el) => el.tooltip(login)).text_size(TEXT.small).text_color(t.muted).child(login))
           .child(
             div()
               .id(`machine-login-copy-${m}`)
@@ -907,6 +908,8 @@ export class Spaces {
     const branch = g?.branch === "(detached)" ? "detached" : (g?.branch ?? "detached");
     const shown = g && !USUAL_BRANCHES.has(branch) && branch !== name;
     // The name keeps its room; the branch takes what is left, at the right, and gives way first.
+    // Its tooltip only when it's cut off: the row less the insets, icon, gaps and the name (L20).
+    const room = (this.width ?? 260) - 32 - 16 - 16 - Math.min(150, String(name ?? "").length * 7.8);
     return div()
       .flex_1()
       .min_w(0)
@@ -915,7 +918,7 @@ export class Spaces {
       .text_size(11)
       .font_family("JetBrains Mono")
       .text_color(t.muted)
-      .when(shown, (el) => el.tooltip(branch).child(branch));
+      .when(shown, (el) => el.when(branch.length * 6.6 > room, (el) => el.tooltip(branch)).child(branch));
   }
 
   // At the right: the checkout's pull request, and ahead/behind on the selected space.
@@ -1098,7 +1101,8 @@ export class Spaces {
       .when(Boolean(tree), (el) => el.when(!this.under, (e) => e.pl(22)).child(Icon("branch", 13).text_color(t.muted)))
       .when(!tree, (el) => el.child(this.avatar(w, t)))
       .child(
-        div().flex_none().max_w(150).truncate().tooltip(w.name).font_family("JetBrains Mono").text_color(t.foreground).child(w.name),
+        // The full name only when it's cut off (7.8px a character of JetBrains Mono 13; L20).
+        div().flex_none().max_w(150).truncate().when(w.name.length * 7.8 > 150, (el) => el.tooltip(w.name)).font_family("JetBrains Mono").text_color(t.foreground).child(w.name),
       )
       .when(w.status === "blocked", (el) => el.child(div().id(`needs-${w.id}`).size(8).flex_none().rounded_full().bg(t.blocked).tooltip("An agent needs you")))
       .child(this.branchName(g, w.name, t))

@@ -34,8 +34,10 @@ const DEFAULTS = {
     },
     {
       id: "changes",
-      label: "Changes",
-      icon: "changes",
+      // The whole Git panel (Changes and History views): "Changes" and its icon name one of those
+      // views inside it (docs/REQUIREMENTS.md §4.5a).
+      label: "Git",
+      icon: "mods/awsome-icons/ui/git-branch.svg",
       when: { node: "changes" },
       action: { type: "panel", container: "panel", stack: "panel-body", target: "changes" },
     },

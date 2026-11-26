@@ -174,27 +174,29 @@ export function IconButton({
     .child(spinning ? Icon(icon, small ? 12 : 15).spin(SPIN_MS) : Icon(icon, small ? 12 : 15));
 }
 
-// A small labelled action, for a heading with room to say what it does.
-export function TextButton({ id, icon, label, onClick, active = false }) {
+// The one text button (§2.2): raised background, 1px input border, foreground text, the hover
+// layer on top; 24 high in a panel (shadcn Button size sm), radius 6, text 12.
+export function TextButton({ id, label, onClick }) {
   const t = theme();
   return h_flex()
     .id(id)
-    .h(SIZE.iconSmall)
+    .h(24)
     .flex_none()
-    .px(5)
-    .gap(4)
+    .self_start()
+    .px(8)
     .items_center()
-    .rounded(RADIUS.small)
-    .text_size(TEXT.caption)
-    .text_color(active ? t.foreground : t.dim)
-    .when(active, (el) => el.bg(t.selected))
+    .rounded(6)
+    .bg(t.raised)
+    .border_1()
+    .border_color(t.input ?? t.border)
+    .text_size(P.text)
+    .text_color(t.foreground)
     .cursor_pointer()
-    .hover((s) => s.bg(t.hover).text_color(t.foreground))
+    .hover((s) => s.bg(t.hover))
     .on_click((_e, cx) => {
       cx.stop_propagation();
       onClick(cx);
     })
-    .when(Boolean(icon), (el) => el.child(Icon(icon, 12)))
     .child(label);
 }
 
@@ -331,7 +333,7 @@ export function TextBox({ id, state, focused, label, height = 84 }) {
 }
 
 // A primary action and, joined to it, the trigger for choosing another one.
-export function SplitButton({ id, icon, label, enabled, onClick, menu }) {
+export function SplitButton({ id, icon, label, enabled, reason, onClick, menu }) {
   const t = theme();
   return h_flex()
     .id(id)
@@ -356,13 +358,14 @@ export function SplitButton({ id, icon, label, enabled, onClick, menu }) {
         .border_color(t.input)
         .text_color(enabled ? t.foreground : t.dim)
         .accessibility_label(label)
+        .when(!enabled && Boolean(reason), (el) => el.tooltip(reason))
         .when(enabled, (el) =>
           el
             .cursor_pointer()
             .hover((s) => s.bg(t.hover))
             .on_click((_e, cx) => onClick(cx)),
         )
-        .child(Icon(icon, 14))
+        .child(UiIcon(icon, 14))
         .child(label),
     )
     .child(menu);
@@ -466,33 +469,15 @@ export function MenuOption({ id, icon, label, selected, onClick }) {
     .when(selected, (el) => el.child(Icon("check", 14)));
 }
 
-// ── The panel frame and History (docs/REQUIREMENTS.md §4.6a) ──────────────────
+// ── The panel frame (docs/REQUIREMENTS.md §2.9) and History (§4.6a) ──────────────
 
-// design/tokens.json `history`; scripts/ui-check.py C9 keeps the two equal.
+// design/tokens.json `panel`: the frame Files and Changes share; scripts/ui-check.py C9 keeps it
+// equal to the token and to the copy in Awsome Files.
+export const PANEL = { header: 30, px: 10, gap: 8, text: 12, icon: 14, pad: 3, radius: 4, groupGap: 2, separator: 12, inset: 4, rowPx: 6, tree: 22, indent: 12, chevron: 12, fileIcon: 16, treeGap: 4, list: 28, title: 28, titleText: 11, body: 13, secondary: 11, delta: 64, half: 32, box: 84, boxPx: 10, boxPy: 7, button: 32, buttonRadius: 8, trigger: 30, end: 12, section: 12, line: 20 };
+const P = PANEL;
+
+// design/tokens.json `history`: the graph's own values.
 export const HISTORY = {
-  inset: 8,
-  px: 8,
-  gap: 8,
-  row: 28,
-  radius: 8,
-  text: 13,
-  secondary: 11,
-  icon: 16,
-  header: 30,
-  tab: 22,
-  tabPx: 8,
-  tabGap: 5,
-  tabRadius: 6,
-  tabText: 12,
-  tabIcon: 14,
-  tabBetween: 2,
-  title: 32,
-  titleText: 11,
-  action: 20,
-  actionIcon: 16,
-  actionGap: 2,
-  actionRadius: 6,
-  chevron: 12,
   lane: 16,
   lanes: 6,
   dot: 8,
@@ -514,60 +499,19 @@ export const HISTORY = {
 };
 const H = HISTORY;
 
-// Phosphor, shared by every awsome-* mod (§2.2).
-export const UiIcon = (name, size) => svg(`mods/awsome-icons/ui/${name}.svg`).size(size).flex_none();
+// Phosphor, shared by every awsome-* mod (§2.2). `name` may also be a full svg path.
+export const UiIcon = (name, size) =>
+  svg(name.includes("/") ? name : `mods/awsome-icons/ui/${name}.svg`).size(size).flex_none();
 
-// The panel's top row: the Changes / History tabs and nothing else, as high as a pane's header.
-export function PanelTabs(children) {
-  const t = theme();
-  return h_flex()
-    .h(H.header)
-    .flex_none()
-    .pl(H.inset)
-    .gap(H.tabBetween)
-    .items_center()
-    .bg(t.background)
-    .border_b(1)
-    .border_color(t.border)
-    .role("tab_list")
-    .children(children);
-}
-
-// One tab: Herdr tabs' panelButton. icon: an svg path.
-export function PanelTab({ id, icon, label, tip, active, onClick }) {
-  const t = theme();
-  return h_flex()
-    .id(id)
-    .h(H.tab)
-    .px(H.tabPx)
-    .gap(H.tabGap)
-    .flex_none()
-    .items_center()
-    .rounded(H.tabRadius)
-    .text_size(H.tabText)
-    .text_color(active ? t.foreground : t.muted)
-    .when(active, (el) => el.bg(t.selected))
-    .hover((s) => s.bg(t.hover))
-    .cursor_pointer()
-    .role("tab")
-    .aria_selected(Boolean(active))
-    .tooltip(tip)
-    .on_click((_e, cx) => onClick(cx))
-    .child(svg(icon).size(H.tabIcon).flex_none())
-    .child(label);
-}
-
-// A group title's action. `active`: a switch that is on.
-export function ToolButton({ id, icon, label, onClick, active = false, spinning = false }) {
+// The one header button: Herdr's pane header (P2b's PaneButton). `active`: the shown view, or a
+// switch that is on.
+export function PaneButton({ id, icon, label, onClick, active = false, spinning = false }) {
   const t = theme();
   return div()
     .id(id)
-    .size(H.action)
+    .p(P.pad)
     .flex_none()
-    .flex()
-    .items_center()
-    .justify_center()
-    .rounded(H.actionRadius)
+    .rounded(P.radius)
     .cursor_pointer()
     .text_color(active ? t.foreground : t.dim)
     .when(active, (el) => el.bg(t.selected))
@@ -578,37 +522,154 @@ export function ToolButton({ id, icon, label, onClick, active = false, spinning 
       cx.stop_propagation();
       onClick(cx);
     })
-    .child(spinning ? UiIcon(icon, H.actionIcon).spin(SPIN_MS) : UiIcon(icon, H.actionIcon));
+    .child(spinning ? UiIcon(icon, P.icon).spin(SPIN_MS) : UiIcon(icon, P.icon));
 }
 
-// A group's title row, the sidebar's: a chevron (or an icon) in the icon column, the title at
-// the name column, actions at the end. `onClick` folds the group; `actions` show only while open.
-export function GroupTitle({ id, open = true, icon, title, actions = [], divided = true, onClick }) {
+// Files' header (§4.3, §2.9): the name, the view buttons, a separator, that view's tools.
+export function FrameHeader({ name, views, tools }) {
+  const t = theme();
+  const group = (items) => h_flex().flex_none().gap(P.groupGap).items_center().children(items);
+  return h_flex()
+    .h(P.header)
+    .flex_none()
+    .px(P.px)
+    .gap(P.gap)
+    .items_center()
+    .bg(t.background)
+    .border_b(1)
+    .border_color(t.border)
+    .text_size(P.text)
+    .child(div().flex_1().min_w(0).truncate().font_family(codeFont()).text_color(t.muted).child(name))
+    .child(group(views))
+    .child(div().w(1).h(P.separator).flex_none().bg(t.border))
+    .child(group(tools));
+}
+
+// The first line of Files' summary: the branch and how far it is from upstream.
+export function BranchLine({ branch, sync }) {
+  const t = theme();
+  return h_flex()
+    .h(P.list)
+    .flex_none()
+    .px(P.px)
+    .gap(P.gap)
+    .items_center()
+    .text_size(P.text)
+    .child(UiIcon("git-branch", P.icon).text_color(t.muted))
+    .child(div().min_w(0).truncate().font_family(codeFont()).text_color(t.foreground).child(branch))
+    .when(Boolean(sync), (el) => el.child(div().flex_none().text_color(t.muted).child(sync)));
+}
+
+// A group's title (§2.9): the chevron in the content column, the label, a count, and actions that
+// show while the pointer is on the row (`hovered`, kept by the caller through `onHover`).
+export function GroupTitle({ id, open = true, title, count, actions = [], hovered = false, onHover, onClick }) {
   const t = theme();
   return h_flex()
     .id(id)
-    .h(H.title)
+    .h(P.title)
     .flex_none()
-    .mx(H.inset)
-    .pl(H.px)
-    .gap(H.gap)
+    .mx(P.inset)
+    .px(P.rowPx)
+    .gap(P.treeGap)
     .items_center()
-    .text_size(H.titleText)
-    .when(divided, (el) => el.border_t(1).border_color(t.border))
-    .when(Boolean(onClick), (el) => el.cursor_pointer().on_click((_e, cx) => onClick(cx)))
+    .rounded(P.radius)
+    .text_size(P.titleText)
+    .font_medium()
+    .text_color(t.muted)
+    .cursor_pointer()
+    .on_hover((over, cx) => onHover?.(over, cx))
+    .on_click((_e, cx) => onClick(cx))
+    .child(UiIcon(open ? "caret-down" : "caret-right", P.chevron).text_color(t.dim))
+    .child(h_flex().flex_shrink_1().min_w(0).gap(6).items_center().children(title))
+    .when(count !== undefined && count !== null, (el) =>
+      el.child(
+        div()
+          .flex_none()
+          .px(5)
+          .rounded(P.radius)
+          .border_1()
+          .border_color(t.border)
+          .text_size(10)
+          .font_family(codeFont())
+          .child(String(count)),
+      ),
+    )
+    .child(div().flex_1())
+    .when(hovered && actions.length > 0, (el) => el.child(h_flex().flex_none().gap(P.groupGap).children(actions)));
+}
+
+// A file or folder row (§2.9, the same row as Files' tree): guides, a chevron slot, the icon, the
+// name in its status color, then a 64px slot for +N −N, or for `actions` while hovered.
+// `flat`: a list without folders keeps no chevron slot, so its icons line up at the content line
+// (x 10) with the icons around it (§4.5b B1).
+export function TreeRow({ id, depth = 0, chevron = null, flat = false, icon, name, color, strike = false, dir, delta, actions, selected, ringed = false, tip, onHover, onClick, onMenu }) {
+  const t = theme();
+  return h_flex()
+    .id(id)
+    .relative()
+    .h(P.tree)
+    .flex_none()
+    .pl(P.rowPx + depth * P.indent)
+    .pr(P.rowPx)
+    .gap(P.treeGap)
+    .items_center()
+    .rounded(P.radius)
+    .cursor_pointer()
+    .when(Boolean(selected), (el) => el.bg(t.selected))
+    .hover((s) => s.bg(t.hover))
+    .when(Boolean(tip), (el) => el.tooltip(tip))
+    .on_hover((over, cx) => onHover?.(over, cx))
+    .on_click((_e, cx) => onClick(cx))
+    .when(Boolean(onMenu), (el) => el.on_mouse_down("right", (_e, cx) => onMenu(cx)))
+    // The keyboard cursor: 1px accent inside the row, only while the panel has the keyboard (§2.3).
+    .when(ringed, (el) => el.child(div().absolute().inset_0().rounded(P.radius).border_1().border_color(t.accent)))
+    .children(
+      Array.from({ length: depth }, (_, d) =>
+        div().absolute().left(P.rowPx + d * P.indent + P.chevron / 2).top(0).bottom(0).w(1).bg(t.border),
+      ),
+    )
+    .when(!flat, (el) =>
+      el.child(
+        chevron === null
+          ? div().w(P.chevron).flex_none()
+          : UiIcon(chevron ? "caret-down" : "caret-right", P.chevron).text_color(t.dim),
+      ),
+    )
+    .child(icon)
     .child(
       div()
-        .w(H.icon)
         .flex_none()
-        .flex()
-        .items_center()
-        .justify_center()
-        .text_color(onClick ? t.dim : t.muted)
-        .child(onClick ? UiIcon(open ? "caret-down" : "caret-right", H.chevron) : UiIcon(icon, H.icon)),
+        .max_w(220)
+        .truncate()
+        .font_family(codeFont())
+        .text_size(P.body)
+        .text_color(color ?? t.foreground)
+        .when(strike, (el) => el.line_through())
+        .child(name),
     )
-    .child(h_flex().flex_1().min_w(0).gap(6).items_center().children(title))
-    .when(open && actions.length > 0, (el) =>
-      el.child(h_flex().flex_none().gap(H.actionGap).children(actions)),
+    .child(
+      div()
+        .flex_1()
+        .min_w(0)
+        .truncate()
+        .font_family(codeFont())
+        .text_size(P.secondary)
+        .text_color(t.muted)
+        .child(dir ?? ""),
+    )
+    .when(Boolean(actions), (el) =>
+      el.child(h_flex().w(P.delta).flex_none().justify_end().gap(P.groupGap).children(actions)),
+    )
+    .when(!actions && Boolean(delta), (el) =>
+      el.child(
+        h_flex()
+          .w(P.delta)
+          .flex_none()
+          .text_size(P.secondary)
+          .font_family(codeFont())
+          .child(div().w(P.half).text_right().text_color(t.ansi2).child(delta?.add ? `+${delta.add}` : ""))
+          .child(div().w(P.half).text_right().text_color(t.ansi1).child(delta?.del ? `−${delta.del}` : "")),
+      ),
     );
 }
 
@@ -616,11 +677,11 @@ export function GroupTitle({ id, open = true, icon, title, actions = [], divided
 // color(lane): that lane's color; ring: a hollow ring (HEAD, a merge) instead of a dot.
 export function LaneCell({ row, lanes, color, ring }) {
   const x = (lane) => H.lane * lane + H.lane / 2;
-  const centre = H.row / 2;
+  const centre = P.list / 2;
   // A ring is hollow: a line stops at its edge rather than run through it.
   const gap = ring ? H.ring / 2 : 0;
   const y = (lane, v, towards) =>
-    v !== 0.5 || lane !== row.lane ? v * H.row : centre + (towards > 0.5 ? gap : -gap);
+    v !== 0.5 || lane !== row.lane ? v * P.list : centre + (towards > 0.5 ? gap : -gap);
   const paths = new Map();
   for (const [a, ya, b, yb, c] of row.segments) {
     const fill = color(c);
@@ -646,7 +707,7 @@ export function LaneCell({ row, lanes, color, ring }) {
     .relative()
     .flex_none()
     .w(Math.min(lanes, H.lanes) * H.lane)
-    .h(H.row)
+    .h(P.list)
     .overflow_hidden()
     .children(
       [...paths].map(([fill, path]) =>
@@ -658,8 +719,9 @@ export function LaneCell({ row, lanes, color, ring }) {
 
 // A branch or tag on a commit, in Herdr changes' count-chip shape. kind: current, head (a
 // detached HEAD), branch, remote, tag, more (the "+3" of the ones left out); color: the
-// commit's lane, which outlines a local branch.
-export function RefLabel({ kind, name, color }) {
+// commit's lane, which outlines a local branch. `full`: the whole name, as a commit's details
+// show it (§4.5b B1), where the graph row shortens it.
+export function RefLabel({ kind, name, color, full = false }) {
   const t = theme();
   const current = kind === "current" || kind === "head";
   const quiet = kind === "remote" || kind === "more";
@@ -668,14 +730,12 @@ export function RefLabel({ kind, name, color }) {
   return div()
     .px(H.labelPx)
     .py(1)
-    .max_w(H.labelMax)
-    .min_w(H.labelMin)
-    .flex_shrink_1()
+    .when(!full, (el) => el.max_w(H.labelMax).min_w(H.labelMin).flex_shrink_1().truncate())
+    .when(full, (el) => el.flex_none())
     .rounded(H.labelRadius)
     .border_1()
     .border_color(edge)
     .when(current, (el) => el.bg(t.accent))
-    .truncate()
     .text_size(H.labelText)
     .font_family(codeFont())
     .text_color(fg)

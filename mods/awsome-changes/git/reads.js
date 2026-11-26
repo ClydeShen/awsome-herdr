@@ -3,7 +3,8 @@
 import { changedFiles, parseLog, commitFiles, githubRepo } from "./model.js";
 
 const NO_HELPERS = ["--no-renames", "--no-ext-diff", "--no-textconv"];
-const LOG_FORMAT = "--format=%H%x00%h%x00%an%x00%ae%x00%at%x00%P%x00%D%x00%s%x00%b%x1e";
+// The committer (%cn, %ct) is shown when it isn't the author, as after a rebase (§4.5b B1).
+const LOG_FORMAT = "--format=%H%x00%h%x00%an%x00%ae%x00%at%x00%P%x00%D%x00%cn%x00%ct%x00%s%x00%b%x1e";
 
 const lines = (text) => text.split("\n").filter(Boolean);
 
@@ -140,7 +141,7 @@ export async function readLog(git, count, skip, revs = []) {
 export async function readCommitFiles(git, hash) {
   // Together, --numstat and --name-status print only the last, so ask twice.
   const show = (flag) =>
-    git(["show", "--diff-merges=first-parent", "--format=", ...NO_HELPERS, flag, "-z", hash]);
+    git(["show", "--diff-merges=first-parent", "--format=", "-M", "--no-ext-diff", "--no-textconv", flag, "-z", hash]);
   const numstat = await show("--numstat");
   const names = await show("--name-status");
   if (numstat.code !== 0 || names.code !== 0) {

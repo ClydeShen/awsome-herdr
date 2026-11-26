@@ -124,7 +124,7 @@
           "title": "Changed lines",
           "description": "Off uses Herdr's editor, with selection and folding.",
           "type": "boolean",
-          "default": true
+          "default": false
         },
         "markdown": {
           "title": "Markdown opens as",

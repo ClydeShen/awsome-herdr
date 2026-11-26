@@ -9,7 +9,7 @@
 // but the token colours: syntax.js colours a diff's code, and Awsome Viewer has the same file.
 import { View } from "gpui-kit";
 import { TextareaState } from "gpui-base";
-import { props, shared, setShared, nextCommand, layout, run, notify, closeOverlay, checking } from "herdr";
+import { props, shared, setShared, nextCommand, layout, run, notify, closeOverlay, checking, window } from "herdr";
 import { loadSettings, duration } from "./settings.js";
 import { followFileIcons } from "./file-icons.js";
 import { panelCommands } from "./panel.js";
@@ -17,6 +17,7 @@ import { gitMethods } from "./git/repository.js";
 import { sidebarMethods } from "./views/sidebar.js";
 import { diffMethods } from "./views/diff.js";
 import { paneHeaderMethods } from "./views/pane-header.js";
+import { discardMethods } from "./git/discard.js";
 
 const CONTEXT_POLL_MS = 300;
 const STATUS_POLL_MS = 10000;
@@ -26,6 +27,8 @@ const DEFAULT_SETTINGS = {
   limits: { files: 1000, diff_lines: 1500, line_length: 4000, commits_per_page: 50 },
   default: { view: "tree", diff: "inline", history: "list" },
   panel: { toggle: false },
+  confirm: { discard: true },
+  discard: { snapshot: true },
 };
 
 function savedCollapsed() {
@@ -44,6 +47,23 @@ class AwsomeChanges extends View {
     if (p.pane) {
       this.mode = "pane-header";
       this.hovered = false;
+      return;
+    }
+    // Discard's confirmation: this mod opened again as a dialog (the shared confirm.js).
+    if (p.ask) {
+      this.mode = "ask";
+      this.ask = p.ask;
+      this.menuHandle = cx.focus_handle();
+      this.menuHandle.focus();
+      return;
+    }
+    // A row's right-click menu: this mod opened again as a popup (as Awsome Files does).
+    if (p.menu) {
+      this.mode = "menu";
+      this.menu = p.menu;
+      this.menuHandle = cx.focus_handle();
+      this.menuHandle.focus();
+      this.at = -1;
       return;
     }
     if (p.overlay) {
@@ -65,7 +85,9 @@ class AwsomeChanges extends View {
     this.focus = cx.focus_handle();
     this.historyView = localStorage.getItem("commit-view") === "graph" ? "graph" : "list";
     this.range = localStorage.getItem("commit-range") === "all" ? "all" : "current";
-    this.hoveredFile = null;
+    this.hoverKey = null;
+    // A choice left in shared state from before a restart is never run again (a discard!).
+    this.rowActionAt = shared("awsome-changes.row-action")?.at;
     this.wantMore = false;
     this.closed = new Set();
     this.collapsed = new Set(savedCollapsed());
@@ -121,8 +143,17 @@ class AwsomeChanges extends View {
     this.amendLoading = false;
     this.amendHead = null;
     this.typing = false;
-    // Enter makes a new line here; only the button commits.
-    this.input = TextareaState.new({ placeholder: "Commit message", rows: 4 });
+    this.makeInput("");
+  }
+
+  // Enter makes a new line; Ctrl+Enter (macOS Cmd+Enter) commits. The placeholder names the
+  // branch (docs/REQUIREMENTS.md §2.9), and a state can't change its placeholder, so a new branch
+  // makes a new state that keeps what was typed.
+  makeInput(value) {
+    this.inputBranch = this.branch ?? null;
+    const keys = window()?.platform === "macos" ? "Cmd+Enter" : "Ctrl+Enter";
+    const on = this.inputBranch ? ` on ${this.inputBranch}` : "";
+    this.input = TextareaState.new({ placeholder: `Message (${keys} to commit${on})`, rows: 4, value });
     this.input.on("change", (_e, cx) => {
       this.message = this.input.value();
       this.messageRevision++;
@@ -176,6 +207,24 @@ class AwsomeChanges extends View {
     if (command === "inline" || command === "split") this.setDiffLayout(command, cx);
     if (command === "history-list" || command === "history-graph")
       this.setHistoryView(command.slice("history-".length), cx);
+    // scripts/ui-open-check.py opens the row menu this way, for the first changed file (L7).
+    if (command === "check-open:row" && this.mode === "sidebar") {
+      const file = this.files[0];
+      if (file) this.openRowMenu(file, file.staged ? "staged" : "unstaged", `file:check:${file.path}`, cx);
+    }
+    // For checks and screenshots: History with one commit's details (read-only).
+    // `check-open:commit` picks the first merge (or the first commit); `check-open:commit:N` the Nth.
+    if (command.startsWith("check-open:commit") && this.mode === "sidebar") {
+      this.setTab("commit", cx);
+      const index = Number(command.split(":")[2]);
+      const pick = (cx, tries) => {
+        const commit = Number.isInteger(index) ? this.commits[index] : (this.commits.find((c) => c.parents.length > 1) ?? this.commits[0]);
+        if (commit) {
+          if (this.selectedCommit?.hash !== commit.hash) this.openCommit(commit, cx);
+        } else if (tries > 0) cx.timer.after(250, (cx) => pick(cx, tries - 1));
+      };
+      pick(cx, 20);
+    }
     if (command.startsWith("open:")) {
       const file = this.files.find((f) => f.path === command.slice(5));
       if (file)
@@ -191,6 +240,12 @@ class AwsomeChanges extends View {
       cx.notify();
     }
     if (this.contextKey() !== this.context) this.refresh(cx);
+    // A row menu's choice, made in the popup copy, runs here where the repository is.
+    const action = shared("awsome-changes.row-action");
+    if (action && action.at !== this.rowActionAt && this.mode === "sidebar") {
+      this.rowActionAt = action.at;
+      if (action.context === this.context && Date.now() - action.at < 10000) this.rowAction(action, cx);
+    }
     // The graph asked for its next page while drawing; reading starts here, outside the draw.
     if (this.wantMore) {
       this.wantMore = false;
@@ -216,6 +271,6 @@ class AwsomeChanges extends View {
   }
 }
 
-Object.assign(AwsomeChanges.prototype, gitMethods, sidebarMethods, diffMethods, paneHeaderMethods);
+Object.assign(AwsomeChanges.prototype, gitMethods, sidebarMethods, diffMethods, paneHeaderMethods, discardMethods);
 
 export default AwsomeChanges;

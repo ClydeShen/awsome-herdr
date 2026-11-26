@@ -161,6 +161,7 @@ export const gitMethods = {
     this.committed = committed;
     this.branch = branch;
     this.repo = repo;
+    if (this.input && branch !== this.inputBranch) this.makeInput(this.message);
     if (this.tab === "commit") this.loadCommits(cx);
   },
 
@@ -371,6 +372,15 @@ export const gitMethods = {
     });
   },
 
+  // Why Commit can't run now, for its tooltip (§4.5); null while it can, or while busy.
+  commitBlocker() {
+    if (this.canCommit() || this.busy || this.loading) return null;
+    if (this.conflicts) return "Resolve conflicts first";
+    if (this.commitMode !== "amend" && !this.stagedCount) return "Stage changes first";
+    if (!this.message.trim()) return "Enter a commit message";
+    return null;
+  },
+
   canCommit() {
     if (
       !this.input ||
@@ -476,12 +486,26 @@ export const gitMethods = {
       this.closeCommit(cx);
       return;
     }
+    // Picking a commit asks to see it: a folded Details block opens again.
+    if (this.collapsed.delete("h-detail")) localStorage.setItem("collapsed", JSON.stringify([...this.collapsed]));
+    this.selectedCommit = commit;
+    this.loadCommitFiles(commit, cx);
+  },
+
+  // The files a commit changed. Loading… shows only after 300ms (§4.5b B1), so a quick read
+  // doesn't flash it; Retry after an error comes back here.
+  loadCommitFiles(commit, cx) {
     const context = this.context;
     const token = ++this.commitToken;
-    this.selectedCommit = commit;
     this.commitFiles = [];
     this.commitFilesError = null;
     this.commitFilesLoading = true;
+    this.commitFilesSlow = false;
+    cx.timer.after(300, (cx) => {
+      if (token !== this.commitToken || !this.commitFilesLoading) return;
+      this.commitFilesSlow = true;
+      cx.notify();
+    });
     cx.notify();
     cx.spawn(async (cx) => {
       try {

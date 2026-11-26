@@ -840,7 +840,7 @@ export const viewerMethods = {
           .child(
             h_flex()
               .gap(2)
-              .child(PaneButton({ id: "viewer-slot-tab", icon: "arrow-square-out", label: "Open in tab", onClick: (cx) => this.openInNewTab(file, cx) }))
+              .child(PaneButton({ id: "viewer-slot-tab", icon: "tabs", label: "Open in tab", onClick: (cx) => this.promoteToTab(file, cx) }))
               .child(PaneButton({ id: "viewer-slot-close", icon: "x", label: "Close preview", onClick: () => run("layout.hide", { id: SLOT_NODE }) })),
           ),
       )

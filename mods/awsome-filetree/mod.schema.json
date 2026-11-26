@@ -132,6 +132,19 @@
               "default": 250
             }
           }
+        },
+        "row": {
+          "type": "object",
+          "additionalProperties": false,
+          "title": "Rows",
+          "properties": {
+            "statusLetter": {
+              "title": "Status letter",
+              "description": "A file's Git status as a letter after its name. Off: the name's color says it.",
+              "type": "boolean",
+              "default": false
+            }
+          }
         }
       }
     }

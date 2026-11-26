@@ -118,7 +118,8 @@ export const tabBarMethods = {
         div()
           .max_w(this.settings.tabs.max_width)
           .truncate()
-          .tooltip(tab.name)
+          // The full name only when it's cut off (~6.6px a character of Geist 12; L20).
+          .when(tab.name.length * 6.6 > this.settings.tabs.max_width, (el) => el.tooltip(tab.name))
           .child(tab.zoomed ? `${tab.name} Z` : tab.name),
       )
       .when(tab.status === "working", (el) =>

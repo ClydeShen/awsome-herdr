@@ -195,6 +195,46 @@ def c3_layout():
     for ok, msg in checks:
         if not ok:
             fail("C3", "L5", msg, "change config/layouts/awsome.json, or design/tokens.json layout first")
+    c3_list_ends()
+
+
+# Scrolling regions in the two panels that are not lists (a file shown inside Files' panel).
+LIST_END_EXEMPT = {"ft-md"}
+
+
+def statement_after(code, at):
+    """The rest of the expression that starts at `at`: up to a `;` at depth 0, or the `)` that
+    closes the call it sits in."""
+    depth = 0
+    for i in range(at, len(code)):
+        c = code[i]
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth < 0:
+                return code[at:i]
+        elif c == ";" and depth == 0:
+            return code[at:i]
+    return code[at:]
+
+
+def c3_list_ends():
+    """Every scrolling list in Files and Changes ends with panel.end of space (§4.5b B4, L18)."""
+    for rel in ("mods/awsome-changes/views/sidebar.js", "mods/awsome-filetree/main.js"):
+        f = P(*rel.split("/"))
+        if not os.path.isfile(f):
+            continue
+        code = strip_comments(open(f, encoding="utf-8").read())
+        for m in re.finditer(r"""v_virtual_list\(\s*["'`]([\w-]+)|\.id\(\s*[`"']([\w-]+)[^)]*\)((?:(?!\.id\().)*?)\.overflow_y_scrollbar\(\)""", code, re.S):
+            name = m[1] or m[2]
+            if name in LIST_END_EXEMPT:
+                continue
+            start = m.start() if m[1] else code.rfind("return", 0, m.start()) if code.rfind("return", 0, m.start()) > code.rfind(";", 0, m.start()) else m.start()
+            if "P.end" not in statement_after(code, start):
+                line = code[: m.start()].count("\n") + 1
+                fail("C3", "L18", f"{rel}:{line} the scrolling list {name!r} has no panel.end space after its last row",
+                     "end it with P.end (pb, a last spacer item, or a closing div) so the end reads as the end")
 
 
 # ── code ───────────────────────────────────────────────────────────────────────
@@ -284,13 +324,41 @@ def c7_menus():
                 fail("C7", "L2", f"{path}:{line} sizes a popup by hand", "use menuHeight(entries) / confirmHeight(...)")
 
 
+ICON_ATTR = re.compile(r"""\bicon:\s*(?:UI\(\s*|ic\(\s*)?["'`](?:mods/awsome-icons/ui/)?([a-z0-9-]+)(?:\.svg)?["'`]""")
+LABEL_ATTR = re.compile(r"""\blabel:\s*((?:[^,{}()]|\([^()]*\))*?)\s*(?:,|\}|$)""", re.S)
+
+
+def icon_labels(code):
+    """(icon, label) for every action icon: single-line objects (menu entries) and PaneButton({...})
+    calls that name both. A ternary label gives each of its words."""
+    chunks = re.findall(r"\{[^{}\n]*\}", code) + re.findall(r"PaneButton\(\{(.*?)\}\)", code, re.S)
+    seen = set()
+    for c in chunks:
+        i, l = ICON_ATTR.search(c), LABEL_ATTR.search(c)
+        if i and l:
+            for s in STRING.findall(l.group(1)):
+                if (i[1], s[1]) not in seen:
+                    seen.add((i[1], s[1]))
+                    yield i[1], s[1]
+
+
 def c8_icons():
-    """Every UI("name") / ic("name") icon exists in awsome-icons/ui."""
+    """Every UI("name") / ic("name") icon exists in awsome-icons/ui, and every action icon keeps the
+    one meaning design/icons.json gives it (L16)."""
     have = {f[:-4] for f in os.listdir(P("mods", "awsome-icons", "ui")) if f.endswith(".svg")}
+    registry = load("design", "icons.json")["icons"]
     for path, src in mod_js():
-        for m in re.finditer(r"""\b(?:UI|ic)\(\s*["'`]([a-z0-9-]+)["'`]""", strip_comments(src)):
+        code = strip_comments(src)
+        for m in re.finditer(r"""\b(?:UI|ic)\(\s*["'`]([a-z0-9-]+)["'`]""", code):
             if m[1] not in have:
                 fail("C8", "L4", f"{path} uses icon {m[1]!r}, which is not in mods/awsome-icons/ui", "download it from phosphor-icons/core (regular) into awsome-icons/ui")
+        for icon, label in icon_labels(code):
+            entry = registry.get(icon)
+            if entry is None:
+                fail("C8", "L16", f"{path}: icon {icon!r} ({label!r}) has no meaning in design/icons.json", "register what the icon means; one icon, one meaning")
+            elif label not in entry["labels"]:
+                fail("C8", "L16", f"{path}: icon {icon!r} means {entry['meaning']!r}, but here it is {label!r}",
+                     "use the icon whose meaning this is; if it really is the same meaning, add the label to design/icons.json")
 
 
 def c9_tokens():
@@ -317,20 +385,27 @@ def c9_tokens():
             if got != want:
                 diff = sorted(set(got.items()) ^ set(want.items()))
                 fail("C9", "L2", f"mods/{mod}/{name} {const} differs from design/tokens.json {key}: {diff}", "change design/tokens.json first (with its source), then the constant")
-    # The awsome-changes panel frame and History (docs/REQUIREMENTS.md §4.6a). Its values are
-    # the sidebar's and the pane header's: they stay equal, so the panel can't drift (L15).
-    ui = P("mods", "awsome-changes", "views", "ui.js")
-    if os.path.isfile(ui) and "history" in tok:
-        got = js_object(open(ui, encoding="utf-8").read(), r"export const HISTORY") or {}
-        want = tok["history"]["values"]
+    # The panel frame Files and Changes share (docs/REQUIREMENTS.md §2.9) and the History graph
+    # (§4.6a). The frame's values are the pane header's, the sidebar's and the confirm dialog's:
+    # they stay equal, so neither panel can drift from the other (L15).
+    for mod, rel, const, key in (("awsome-filetree", "main.js", "PANEL", "panel"),
+                                 ("awsome-changes", "views/ui.js", "PANEL", "panel"),
+                                 ("awsome-changes", "views/ui.js", "HISTORY", "history")):
+        f = P("mods", mod, *rel.split("/"))
+        if not os.path.isfile(f) or key not in tok:
+            continue
+        got = js_object(open(f, encoding="utf-8").read(), r"export const %s" % const) or {}
+        want = tok[key]["values"]
         if got != want:
             diff = sorted(set(got.items()) ^ set(want.items()))
-            fail("C9", "L2", f"mods/awsome-changes/views/ui.js HISTORY differs from design/tokens.json history: {diff}", "change design/tokens.json first (with its source), then the constant")
-        same = {k: ("sidebar", k) for k in ("inset", "px", "gap", "row", "radius", "text", "secondary", "icon", "action", "actionIcon")}
-        same.update({"title": ("sidebar", "labelHeight"), "titleText": ("sidebar", "labelText"), "header": ("paneHeader", "height")})
+            fail("C9", "L2", f"mods/{mod}/{rel} {const} differs from design/tokens.json {key}: {diff}", "change design/tokens.json first (with its source), then the constant")
+    if "panel" in tok:
+        want = tok["panel"]["values"]
+        same = {k: ("paneHeader", k) for k in ("px", "gap", "text", "icon", "pad", "radius", "groupGap", "separator")}
+        same.update({"header": ("paneHeader", "height"), "list": ("sidebar", "row"), "button": ("confirm", "button"), "buttonRadius": ("confirm", "radius")})
         for k, (group, other) in same.items():
             if want.get(k) != tok[group]["values"][other]:
-                fail("C9", "L15", f"design/tokens.json history.{k} ({want.get(k)}) must equal {group}.{other} ({tok[group]['values'][other]})", "the panel frame reuses the sidebar and pane header values; change those instead")
+                fail("C9", "L15", f"design/tokens.json panel.{k} ({want.get(k)}) must equal {group}.{other} ({tok[group]['values'][other]})", "the panel frame reuses the pane header, sidebar and confirm values; change those instead")
 
 
 def c10_way_back():
@@ -507,13 +582,31 @@ def long_texts():
 
 
 def c14_restraint():
-    """Long interface text is reviewed: a new sentence over 60 characters must be cut or listed."""
+    """Long interface text is reviewed: a new sentence over 60 characters must be cut or listed.
+    A tooltip never repeats what its element already shows (L20)."""
     base = json.load(open(TEXT_BASELINE, encoding="utf-8")) if os.path.exists(TEXT_BASELINE) else {}
     for path, texts in long_texts().items():
         for text in texts:
             if text not in base.get(path, []):
                 fail("C14", "L10", f"{path}: long interface text ({len(text)} chars): {text[:70]!r}",
                      "say it shorter, or not at all if the layout already says it (2.1 restraint); a text that must stay goes into scripts/ui-text-baseline.json with the user's OK")
+    for path, src in mod_js():
+        code = strip_comments(src)
+        for m in re.finditer(r"\.tooltip\(\s*([A-Za-z_][\w.?]*)\s*\)", code):
+            expr = m[1]
+            # Inside .when(cut-off, (el) => el.tooltip(x)): shown only when the text is cut off.
+            if re.search(r"=>\s*\w+\s*$", code[max(0, m.start() - 40): m.start()]):
+                continue
+            around = code[max(0, m.start() - 300): m.end() + 300]
+            if re.search(r"\.child\(\s*%s\s*\)" % re.escape(expr), around) and expr not in TOOLTIP_REPEAT_BASELINE.get(path, []):
+                line = code[: m.start()].count("\n") + 1
+                fail("C14", "L20", f"{path}:{line} the tooltip repeats what the element shows ({expr})",
+                     "a tooltip says only what the row doesn't: status in words, facts with no place on the row, the full text only when it is cut off")
+
+
+# Tooltips allowed to repeat their element's text unconditionally. Empty since 2026-11-26 (the
+# sidebar's and tab bar's five now show only when cut off); keep it empty.
+TOOLTIP_REPEAT_BASELINE = {}
 
 
 CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions, c13_defaults, c14_restraint]

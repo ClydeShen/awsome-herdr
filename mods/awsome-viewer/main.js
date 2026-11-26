@@ -32,7 +32,7 @@ import { keyMethods } from "./views/keys.js";
 import { viewerMethods } from "./views/viewer.js";
 import { contextMenuMethods } from "./views/context-menu.js";
 
-const DEFAULT_SETTINGS = { refresh: { tree: "10s", file: "2s" }, editors: [], fileManager: { name: "", command: [] }, gutter: true, markdown: "preview" };
+const DEFAULT_SETTINGS = { refresh: { tree: "10s", file: "2s" }, editors: [], fileManager: { name: "", command: [] }, gutter: false, markdown: "preview" };
 const SYNC_MS = 300;
 const CLEANUP_KEY = "awsome-viewer.cleanup";
 const CLEANUP_OVERFLOW = "awsome-viewer.cleanupOverflow";
@@ -77,7 +77,7 @@ class AwsomeViewer extends View {
     if (this.viewerId) cacheOwners.add(this.viewerId);
     this.viewerSpace = p.space;
     this.viewerFile = p.file;
-    this.gutterOn = true;
+    this.gutterOn = DEFAULT_SETTINGS.gutter;
     this.markdownDefault = DEFAULT_SETTINGS.markdown;
     this.hunks = [];
     this.openHunks = new Set();
@@ -89,9 +89,10 @@ class AwsomeViewer extends View {
       const { settings } = await loadSettings("awsome-viewer", DEFAULT_SETTINGS);
       this.markdownDefault = settings.markdown === "code" ? "code" : "preview";
       cx.notify();
-      // Folding can't change once a view is made, so turning the gutter off starts a new one.
-      if (settings.gutter === false) {
-        this.gutterOn = false;
+      // A view is made for one way of drawing (folding can't change once it's made), so a
+      // setting other than the default starts the file over the other way.
+      if (Boolean(settings.gutter) !== this.gutterOn) {
+        this.gutterOn = Boolean(settings.gutter);
         this.hunks = [];
         this.code?.release();
         this.code = null;

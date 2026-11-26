@@ -112,9 +112,13 @@ export const paneHeaderMethods = {
         ),
       )
       .when(p.status === "done", (el) => el.child(div().size(7).flex_none().rounded(4).bg(t.done)))
+      // A diff's own switches (how it is shown) are state, so always there; a 1x12 line parts
+      // them from the pane's actions, as on the preview column's header (§4.5b B3, L16).
+      .when(p.mod === "awsome-changes", (el) =>
+        el.child(this.diffViewButtons()).when(Boolean(this.hovered), (el) => el.child(div().w(1).h(12).flex_none().bg(t.border))),
+      )
       .when(Boolean(this.hovered), (el) =>
         el
-          .when(p.mod === "awsome-changes", (el) => el.child(this.FullFileButton()))
           .child(
             this.paneButton(t, `ph-r-${pane}`, "split-right", "pane.split", {
               direction: "right",

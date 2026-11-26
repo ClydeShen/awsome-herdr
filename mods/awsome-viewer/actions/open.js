@@ -119,6 +119,13 @@ export const openMethods = {
     cx?.notify();
   },
 
+  // The preview column's Open in tab: the tab takes the file over and the column closes, the way
+  // VS Code's preview editor becomes a kept one in place, so the file isn't on screen twice.
+  promoteToTab(file, cx) {
+    this.openInNewTab(file, cx);
+    run("layout.hide", { id: "preview" });
+  },
+
   // Hands a changed file to Awsome Changes, the way its own list does. `top` is the Git
   // root, which is what it knows a file by.
   showDiff(target, cx) {
