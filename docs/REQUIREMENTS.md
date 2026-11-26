@@ -25,7 +25,7 @@
 
 ### 2.1 原则
 
-1. **贴近 Herdr 原生**：能用 Herdr 自带的组件和 mod 就用（`confirm`、`notify` toast、`tooltip`、`Popover`、`pickFiles`），尺寸、圆角、用语跟 Herdr 自带界面一致。我们的界面放进 Herdr 里，应当像是它本来就有的。
+1. **贴近 Herdr 原生**（2026-11-26 用户再次强调，`docs/UI-LESSONS.md` L14）：**能复用 Herdr 就复用；新功能扩展的界面和交互要尽可能贴近 Herdr 的设计元素和视觉语言；代码复用不了，就复用它的设计系统和 UI / UX 风格；不能有新的 pattern。** 做新界面先找 Herdr 自带 mod 里同类的元素（`pane`、`menu`、`confirm`、`tabs`、`spaces`、`files`、`peek`），读源码取值。能用 Herdr 自带的组件和 mod 就用（`confirm`、`notify` toast、`tooltip`、`Popover`、`pickFiles`），尺寸、圆角、用语跟 Herdr 自带界面一致。我们的界面放进 Herdr 里，应当像是它本来就有的。
 2. **极简、克制**：一行只放必要的东西；不做彩色标签、竖线装饰、渐变、装饰动画；同一种意思只有一种画法（§2.3）。
 3. **常识优先**：行为跟文件管理器、VS Code、浏览器一致（单击选中、Ctrl/Shift 多选、F2 重命名、Enter 打开、Esc 取消、Backspace / Enter 系列管文件夹的进出）。**不发明新手势**，不让同一个手势在不同面板里意思不同。
 4. **最少步数**：常用动作 1～2 步；危险动作多一步确认，但只多一步。

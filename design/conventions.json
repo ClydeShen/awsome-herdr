@@ -338,7 +338,8 @@
         "awsome-viewer": [
           "slot"
         ]
-      }
+      },
+      "herdr": "Reuses Herdr's layout (a hidden layout block shown with layout.show / hide, sized by weights, size kept by Herdr) and its pane frame (background, 1px border, radius 10, accent border when focused). Herdr's own files mod previews inside its panel; that is the fallback in layouts without the block."
     },
     {
       "id": "viewer-header-actions",
@@ -358,7 +359,8 @@
         "awsome-viewer": [
           "PaneButton("
         ]
-      }
+      },
+      "herdr": "Copies the look and pattern of Herdr's pane header (mods/pane): 30 high, 14px icon buttons in p3, radius 4, dim until hovered, shown while the pointer is on the header. The code can't be reused: the column is a layout block, not a pane."
     }
   ]
 }

@@ -365,6 +365,15 @@ def c11_flows():
                     fail("C11", "L6", f"flow {fid} ({mod}): {side} code {needle!r} is not in the mod", "build the step, or correct design/flows.json")
 
 
+# Conventions written before L14 (2026-11-26) without a 'herdr' field. Only ever shrinks: fill the
+# field when the panel is next touched and take the id out.
+HERDR_BASELINE = {
+    "key-recording", "submenu", "context-menu", "close-tab-middle-click", "folder-navigation",
+    "confirm-dialog", "settings-page", "agent-menu", "agent-close-confirm", "inline-rename",
+    "list-selection", "appearance-picker", "tab-groups", "drag-reorder",
+}
+
+
 def c12_conventions():
     """Each interaction names how two well-known apps do it, says what we do, and is really built."""
     code_of = {}
@@ -378,6 +387,11 @@ def c12_conventions():
                  "look up how two well-known apps do it and write it in design/conventions.json")
         if not c.get("ours"):
             fail("C12", "L8", f"convention {cid}: says nothing about what we do", "fill in 'ours'")
+        # L14: Herdr comes first. Reuse its code; if the code can't be reused, reuse its look and
+        # its patterns. Every interaction says which Herdr element it follows, or why none fits.
+        if not c.get("herdr") and cid not in HERDR_BASELINE:
+            fail("C12", "L14", f"convention {cid}: says nothing about Herdr's own way",
+                 "write in 'herdr' which Herdr mod or element it reuses (code, or look and pattern), or 'none: <why>'")
         if c.get("planned"):
             continue
         for mod, needles in (c.get("code") or {}).items():
