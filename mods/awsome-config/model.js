@@ -5,7 +5,8 @@
 // mod.json. Under properties.settings, each setting has the standard title, description,
 // type, default, enum, minimum and maximum, plus format "duration", "size" or "key", and
 // x-step, x-unit and x-labels ({ "id": "Label" } for an enum). A "key" setting names, in
-// x-action, the keys.json action it binds ("mod.open:better-search"). mod.json's own settings block holds
+// x-action, the keys.json action it binds ("mod.open:better-search"), and in x-default-macos its
+// default on macOS, where cmd stands in for ctrl. mod.json's own settings block holds
 // only what the person changed. A key there the schema doesn't describe still shows.
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -100,9 +101,11 @@ function leaves(node, prefix = "", out = []) {
 }
 
 // Every setting a mod has: those its mod.schema.json describes, in order, then any others
-// in its settings block, with a guessed type.
-export function fieldsOf(schema, settings) {
+// in its settings block, with a guessed type. On macOS a key setting's default is its
+// x-default-macos when it has one.
+export function fieldsOf(schema, settings, platform) {
   const fields = leaves(schema?.properties?.settings).map(([key, spec]) => {
+    const macos = platform === "macos" && typeof spec["x-default-macos"] === "string";
     const choices = Array.isArray(spec.enum)
       ? Object.fromEntries(spec.enum.map((v) => [v, isObject(spec["x-labels"]) && typeof spec["x-labels"][v] === "string" ? spec["x-labels"][v] : humanize(String(v))]))
       : null;
@@ -112,7 +115,7 @@ export function fieldsOf(schema, settings) {
       title: typeof spec.title === "string" ? spec.title : humanize(key),
       description: typeof spec.description === "string" ? spec.description : "",
       type: typeOf(spec),
-      default: spec.default,
+      default: macos ? spec["x-default-macos"] : spec.default,
       choices,
       min: typeof spec.minimum === "number" ? spec.minimum : null,
       max: typeof spec.maximum === "number" ? spec.maximum : null,

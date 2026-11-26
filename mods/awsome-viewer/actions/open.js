@@ -59,13 +59,13 @@ export const openMethods = {
     if (live.length !== Object.keys(entries).length) setShared(VIEWERS, Object.fromEntries(live));
   },
 
-  newViewer(file, space, preview) {
+  newViewer(file, space, preview, extra = {}) {
     const id = `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     // Tabs that aren't this one, so it can tell its own when it opens.
     const others = panes()
       .filter((p) => p.mod === "awsome-viewer")
       .map((p) => p.tab);
-    this.setViewer(id, { space, file, preview, tab: null, others, at: Date.now() });
+    this.setViewer(id, { space, file, preview, tab: null, others, at: Date.now(), ...extra });
     run("tab.new", {
       space,
       name: baseName(file.path),
@@ -122,6 +122,17 @@ export const openMethods = {
   // The preview column's Open in tab: the tab takes the file over and the column closes, the way
   // VS Code's preview editor becomes a kept one in place, so the file isn't on screen twice.
   promoteToTab(file, cx) {
+    const space = spaces().find((s) => s.active)?.id;
+    const open = space && this.liveViewers(space).find(([, entry]) => entry.file?.path === file.path);
+    // Unsaved edits go along into a new tab, unasked (docs/REQUIREMENTS.md section 4.8).
+    if (space && !open && this.dirty()) {
+      cx.spawn(async () => {
+        await this.handOverEdits();
+        this.newViewer(file, space, false, { carry: true });
+        run("layout.hide", { id: "preview" });
+      });
+      return;
+    }
     this.openInNewTab(file, cx);
     run("layout.hide", { id: "preview" });
   },

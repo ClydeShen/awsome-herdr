@@ -132,7 +132,7 @@ export default class AwsomeConfig extends View {
       try {
         schema = JSON.parse((await readTextFile(`${appHome()}/mods/${name}/mod.schema.json`)) ?? "null");
       } catch {}
-      const fields = fieldsOf(schema, manifest?.settings);
+      const fields = fieldsOf(schema, manifest?.settings, window()?.platform);
       if (manifest && !fields.length) continue;
       if (!manifest && !schema?.properties?.settings && !/"settings"/.test(raw)) continue;
       const keptPath = `${this.keptFolder()}/${name}.json`;
@@ -334,7 +334,7 @@ export default class AwsomeConfig extends View {
           // The copy follows at once, so a reset never reads as a loss.
           mod.raw = text;
           mod.manifest = JSON.parse(text);
-          mod.fields = fieldsOf(mod.schema, mod.manifest.settings);
+          mod.fields = fieldsOf(mod.schema, mod.manifest.settings, window()?.platform);
           await this.keep(mod);
           for (const [key, value] of edits) {
             const field = mod.fields.find((f) => f.key === key);

@@ -4,7 +4,8 @@ import { v_flex, h_flex, v_virtual_list, Scrollbar, v_resizable, resizable_panel
 import { theme, shared, setShared, notify, spaces, run, openOverlay, closeOverlay, props, window, exec } from "herdr";
 import { menuView, menuHeight, menuWidth, menuKey } from "../menu.js";
 import { confirmView, confirmHeight, confirmKey, CONFIRM } from "../confirm.js"; // shared awsome-* confirmation (identical copies in each mod)
-import { fileTree, timeAgo, shortAgo, stamp, stampFull, grouped, STATUS_WORD } from "../git/model.js";
+import { fileTree, timeAgo, shortAgo, stamp, stampFull, grouped } from "../git/model.js";
+import { gitColor, GIT_ORDER, GIT_WORD } from "../git-status.js";
 import {
   TEXT,
   SPIN_MS,
@@ -31,9 +32,6 @@ import {
 
 // The graph's lane colors, one hue each, blue first like the current branch's label (§4.6a).
 const laneColors = (t) => [t.ansi4, t.ansi2, t.ansi5, t.ansi6, t.ansi3, t.ansi1];
-// Git status → the name's color (§2.4). Untracked counts as new.
-const STATUS_COLOR = { A: "ansi2", "?": "ansi2", D: "ansi1", R: "ansi6", C: "ansi6", U: "ansi5" };
-const statusColor = (t, status) => (status ? t[STATUS_COLOR[status] ?? "ansi3"] : null);
 const UI = (name) => `mods/awsome-icons/ui/${name}.svg`;
 
 // A commit message is plain text, not Markdown (§4.5b B1): every ASCII punctuation mark is
@@ -680,12 +678,12 @@ export const sidebarMethods = {
       chevron: !closed,
       icon: FileIcon({ icons: this.fileIcons, path: `${this.root}/${row.path}`, dir: true, open: !closed, t, size: P.fileIcon }),
       name: row.name,
-      color: statusColor(t, row.status),
+      color: gitColor(t, row.status),
       actions,
       // What's inside (the folder shows only its worst status's color); the path only if cut off.
       tip: tipFor([
         cutOff(row.name, "", this.rowRoom(row.depth, false)) ? row.path : "",
-        ...Object.entries(row.counts ?? {}).map(([s, n]) => `${grouped(n)} ${STATUS_WORD[s] ?? s}`),
+        ...GIT_ORDER.filter((s) => row.counts?.[s]).map((s) => `${grouped(row.counts[s])} ${GIT_WORD[s]}`),
       ]),
       ringed: this.ringed(`folder:${key}`),
       onHover: this.hover(`folder:${key}`),
@@ -730,7 +728,7 @@ export const sidebarMethods = {
       flat: this.view === "flat",
       icon: FileIcon({ icons: this.fileIcons, path: `${this.root}/${file.path}`, color: t.muted, t, size: P.fileIcon }),
       name,
-      color: statusColor(t, status),
+      color: gitColor(t, status),
       strike: status === "D",
       dir: this.view === "flat" ? parts.join("/") : "",
       delta: file.conflict ? null : { add: stats.add ? grouped(stats.add) : "", del: stats.del ? grouped(stats.del) : "" },
@@ -740,7 +738,7 @@ export const sidebarMethods = {
       // the row cuts it off. Never the name or +N −N again: the row shows them.
       tip: tipFor([
         cutOff(name, this.view === "flat" ? parts.join("/") : "", this.rowRoom(depth, this.view === "flat")) ? file.path : "",
-        capital(file.conflict ? file.conflictKind : STATUS_WORD[status]),
+        capital(file.conflict ? file.conflictKind : GIT_WORD[status]),
         scope === "unstaged" && file.staged ? `Also staged +${grouped(file.stagedStats.add)} −${grouped(file.stagedStats.del)}` : "",
         scope === "staged" && file.unstaged ? `Also unstaged +${grouped(file.unstagedStats.add)} −${grouped(file.unstagedStats.del)}` : "",
         file.binary ? "Binary file" : "",
@@ -1210,7 +1208,7 @@ export const sidebarMethods = {
       flat: true,
       icon: FileIcon({ icons: this.fileIcons, path: `${this.root}/${file.path}`, color: t.muted, t, size: P.fileIcon }),
       name,
-      color: statusColor(t, file.status),
+      color: gitColor(t, file.status),
       strike: file.status === "D",
       dir: parts.join("/"),
       delta: file.binary ? { add: "", del: "" } : { add: file.add ? grouped(file.add) : "", del: file.del ? grouped(file.del) : "" },
@@ -1222,7 +1220,7 @@ export const sidebarMethods = {
       // The status in words, where a rename came from, binary; the path only if cut off.
       tip: tipFor([
         cutOff(name, parts.join("/"), this.rowRoom(0, true)) ? file.path : "",
-        capital(STATUS_WORD[file.status]),
+        capital(GIT_WORD[file.status]),
         file.from ? `Renamed from ${file.from}` : "",
         file.binary ? "Binary file" : "",
       ]),

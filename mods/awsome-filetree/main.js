@@ -10,6 +10,7 @@ import { v_flex, h_flex, Editor, EditorState, InputState, Input, Scrollbar, v_vi
 import { fileIcon as packIcon, followFileIcons } from "./file-icons.js";
 import { menuView, menuHeight, menuWidth, menuKey, keyFor, tidy } from "./menu.js"; // shared awsome-* menu (identical copies in each mod) // identical copy of awsome-icons' loader (mods cannot import across folders)
 import { confirmView, confirmHeight, confirmKey, CONFIRM } from "./confirm.js"; // shared awsome-* confirmation (identical copies in each mod)
+import { gitLetter, gitColor, GIT_WORD, weightier, gitBucket } from "./git-status.js";
 import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
 
 const NAME = "awsome-filetree";
@@ -56,6 +57,17 @@ export const PANEL = { header: 30, px: 10, gap: 8, text: 12, icon: 14, pad: 3, r
 const P = PANEL;
 // "1,015": the runtime's toLocaleString adds no separators.
 const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+// A character of 11px interface text, estimated: measured about 5.4 (2026-11-27), 5.6 to be safe.
+const CHAR = 5.6;
+// §2.9: the summary stays on one line, units 10 apart: the words, then git letters, then
+// letters without the +N −N totals.
+function summaryFit(parts, totalTexts, avail) {
+  const counts = (letters) => parts.reduce((a, [n, , word]) => a + (grouped(n).length + 1 + (letters ? 1 : word.length)) * CHAR, 0) + 10 * Math.max(0, parts.length - 1);
+  const sums = totalTexts.length ? 10 + totalTexts.reduce((a, s) => a + s.length * CHAR, 0) + 10 * (totalTexts.length - 1) : 0;
+  if (counts(false) + sums <= avail) return { letters: false, totals: true };
+  if (counts(true) + sums <= avail) return { letters: true, totals: true };
+  return { letters: true, totals: false };
+}
 const PER_FOLDER = 2000;
 const FIND_LIMIT = 200;
 const PRUNE = [".git", "node_modules", "target", ".venv", "__pycache__", "dist", ".next"];
@@ -65,7 +77,6 @@ const DEFAULTS = { follow: true, column: "date", open: "preview" };
 // watch would see it, and every refresh would start the next one.
 const READ = ["--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "diff.autoRefreshIndex=false"];
 const LANG = { ts: "js", tsx: "js", mts: "js", cts: "js", jsx: "js", mjs: "js", cjs: "js", toml: "yaml", yml: "yaml", jsonc: "json", svelte: "html", vue: "html", htm: "html", sh: "bash", zsh: "bash" };
-const RANK = { "?": 1, A: 2, C: 2, R: 3, T: 3, M: 3, D: 4, U: 5 };
 // Natural order, case-insensitive ("file2" before "file10"); this runtime has no Intl.
 const collator = {
   compare(a, b) {
@@ -96,7 +107,6 @@ function relTo(root, abs) {
   if (a === r) return "";
   return a.startsWith(r + "/") ? a.slice(r.length + 1) : null;
 }
-const stronger = (a, b) => (!a ? b : (RANK[b] ?? 0) > (RANK[a] ?? 0) ? b : a);
 
 // ── formatting ─────────────────────────────────────────────────────────────────────────
 function formatSize(bytes) {
@@ -146,9 +156,6 @@ function frameLook() {
   const radius = Number(pane?.radius ?? 6);
   return { radius: Math.max(0, Math.min(6, Number.isFinite(radius) ? radius : 6)), header: Math.max(26, Math.min(40, Number(pane?.header?.height) || 30)) };
 }
-// The one set of Git colors (docs/REQUIREMENTS.md §2.4), the same as Changes: modified ansi3,
-// new ansi2, deleted ansi1, renamed ansi6, conflict ansi5.
-const gitColor = (t, s) => (!s ? null : s === "U" ? t.ansi5 : s === "D" ? t.ansi1 : s === "?" || s === "A" || s === "C" ? t.ansi2 : s === "R" ? t.ansi6 : t.ansi3);
 // The title row's view buttons (§2.9). Only Tree now: Recent is gone (it showed only what Claude
 // Code's hook reported); Search (§4.7) will be the second, and the group shows from two views on.
 const VIEWS = [["tree", "Tree", "folder"]];
@@ -241,14 +248,14 @@ function parseStatus(stdout, git) {
     const xy = rec.slice(0, 2), raw = rec.slice(3), rel = map(raw);
     if (!rel) continue;
     if (xy === "!!") { if (git.ignored.size < 5000) git.ignored.add(rel); continue; }
-    const change = xy === "??" || (xy.includes("A") && !xy.includes("D")) ? 0 : xy.includes("D") && !xy.includes("U") ? 2 : 1;
+    const letter = gitLetter(xy);
+    if (!letter) continue;
+    const change = gitBucket(letter);
     if (xy === "??" && raw.endsWith("/")) git.untracked.add(rel);
     else git.files.set(rel, change);
     up(rel, (d) => { const c = git.counts.get(d) ?? [0, 0, 0]; c[change]++; git.counts.set(d, c); });
-    const letter = xy === "??" ? "?" : /U/.test(xy) || xy === "AA" || xy === "DD" ? "U" : ["D", "M", "R", "C", "A", "T"].find((c) => xy.includes(c)) ?? "";
-    if (!letter) continue;
-    git.status.set(rel, stronger(git.status.get(rel), letter));
-    up(rel, (d) => git.status.set(d, stronger(git.status.get(d), letter)));
+    git.status.set(rel, weightier(git.status.get(rel), letter));
+    up(rel, (d) => git.status.set(d, weightier(git.status.get(d), letter)));
   }
 }
 
@@ -939,7 +946,7 @@ export default class FileTree extends View {
 
   row(r, t, R, now) {
     const { rel, e, depth, open } = r, g = this.git;
-    const status = g.status.get(rel) ?? (this.underUntracked(rel) ? "?" : null);
+    const status = g.status.get(rel) ?? (this.underUntracked(rel) ? "A" : null);
     const ignored = !status && this.isIgnored(rel);
     const gc = gitColor(t, status), hidden = e.name.startsWith(".");
     const nameColor = (ignored ? t.dim : gc ?? (hidden ? t.muted : t.foreground));
@@ -951,16 +958,15 @@ export default class FileTree extends View {
     // The tooltip says only what the row doesn't (docs/REQUIREMENTS.md §2.5, UI-LESSONS L20): the
     // status in words (the row shows it by color), a folder's contents and totals (a folder row
     // shows neither), the time when the row isn't showing it, and the path only if the name is cut off.
-    const words = { M: "Modified", A: "New", "?": "New", D: "Deleted", R: "Renamed", U: "Conflict" };
-    const held = counts ? [[counts[1], "modified"], [counts[0], "new"], [counts[2], "deleted"]].filter(([n]) => n).map(([n, w]) => `${grouped(n)} ${w}`) : [];
+    const held = counts ? [[counts[0], "new"], [counts[1], "modified"], [counts[2], "deleted"]].filter(([n]) => n).map(([n, w]) => `${grouped(n)} ${w}`) : [];
     const sum = e.dir ? g.diff.get(rel) : null;
-    const side = (meta ? meta.length * 6.6 + P.treeGap : 0) + (loc?.[0] ? String(loc[0]).length * 6.6 + 10 : 0) + (loc?.[1] ? String(loc[1]).length * 6.6 + 10 : 0);
+    const side = (meta ? meta.length * CHAR + P.treeGap : 0) + (loc?.[0] ? String(loc[0]).length * CHAR + 10 : 0) + (loc?.[1] ? String(loc[1]).length * CHAR + 10 : 0);
     const room = this.width - 2 * (P.inset + P.rowPx) - depth * P.indent - P.chevron - P.fileIcon - 2 * P.treeGap - side;
     const tip = [
       e.name.length * 7.8 > room ? rel : "",
       ...(e.dir
         ? [...held, sum?.[0] || sum?.[1] ? `+${grouped(sum[0] ?? 0)} −${grouped(sum[1] ?? 0)}` : ""]
-        : [words[status] ?? (ignored ? "Ignored by Git" : ""), meta && !this.showSize ? "" : e.mtime ? `Changed ${fullStamp(e.mtime)}` : ""]),
+        : [(status ? GIT_WORD[status][0].toUpperCase() + GIT_WORD[status].slice(1) : undefined) ?? (ignored ? "Ignored by Git" : ""), meta && !this.showSize ? "" : e.mtime ? `Changed ${fullStamp(e.mtime)}` : ""]),
     ].filter(Boolean).join(" · ");
     return h_flex().id(`ft-${rel}`).h(P.tree).flex_none().relative().pl(P.rowPx + depth * P.indent).pr(P.rowPx).gap(P.treeGap).items_center().rounded(P.radius).cursor_pointer().when(Boolean(tip), (el) => el.tooltip(tip))
       .when(selected, (el) => el.bg(t.selected)).when(!selected, (el) => el.hover((s) => s.bg(t.hover)))
@@ -984,16 +990,22 @@ export default class FileTree extends View {
       .child(div().truncate().child(this.root ? "± no git repo · git status starts after git init" : ""));
     const totals = g.diff.get("") ?? [0, 0];
     const c = g.counts.get("") ?? [0, 0, 0], total = c[0] + c[1] + c[2];
-    const parts = [[c[1], gitColor(t, "M"), "modified"], [c[0], t.ansi2, "new"], [c[2], t.ansi1, "deleted"]].filter(([n]) => n > 0);
+    const parts = [[c[0], gitColor(t, "A"), "new", "A"], [c[1], gitColor(t, "M"), "modified", "M"], [c[2], gitColor(t, "D"), "deleted", "D"]].filter(([n]) => n > 0);
+    const totalTexts = [totals[0] ? `+${grouped(totals[0])}` : "", totals[1] ? `−${grouped(totals[1])}` : ""].filter(Boolean);
+    const fit = summaryFit(parts, totalTexts, this.width - 2 * P.px);
+    const short = fit.letters || !fit.totals;
+    const countsText = parts.map(([n, , word]) => `${grouped(n)} ${word}`).join(" · ");
+    const full = [countsText, totalTexts.join(" ")].filter(Boolean).join(" · ");
     const room = Math.max(40, this.width - 2 * P.px - 2 * (parts.length - 1));
     // §2.9: no branch here (the sidebar row and the status bar show it); the counts, the totals, the bar.
     return v_flex().flex_none().pb(6).border_b(1).border_color(t.border)
       .child(h_flex().h(P.list).px(P.px).gap(10).items_center().text_size(P.secondary).text_color(t.muted)
+        .when(short, (el) => el.tooltip(full))
         .when(!total, (el) => el.child(div().child("clean")))
-        .children(parts.map(([n, color, word]) => h_flex().flex_none().gap(3).items_center().child(div().text_color(color).child(grouped(n))).child(word)))
+        .children(parts.map(([n, color, word, letter]) => h_flex().flex_none().gap(3).items_center().child(div().text_color(color).child(grouped(n))).child(fit.letters ? letter : word)))
         .child(div().flex_1())
-        .when(Boolean(totals[0]), (el) => el.child(div().flex_none().text_color(t.ansi2).child(`+${grouped(totals[0])}`)))
-        .when(Boolean(totals[1]), (el) => el.child(div().flex_none().text_color(t.ansi1).child(`−${grouped(totals[1])}`))))
+        .when(fit.totals && Boolean(totals[0]), (el) => el.child(div().flex_none().text_color(t.ansi2).child(`+${grouped(totals[0])}`)))
+        .when(fit.totals && Boolean(totals[1]), (el) => el.child(div().flex_none().text_color(t.ansi1).child(`−${grouped(totals[1])}`))))
       .child(total
         ? h_flex().mx(P.px).h(2).gap(1).children(parts.map(([n, color]) => div().h_full().w(Math.max(3, (room * n) / total)).bg(color)))
         : div().mx(P.px).h(2).bg(t.raised));

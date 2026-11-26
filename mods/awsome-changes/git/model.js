@@ -1,5 +1,6 @@
 // Pure transformations: Git output → changed files → tree/diff display rows.
 // No Herdr APIs or filesystem access belong here, so parsing stays testable.
+import { gitLetter, weightier } from "../git-status.js";
 
 /** Parse `git diff --numstat -z` without losing tabs inside filenames. */
 function parseNumstat(text) {
@@ -59,9 +60,9 @@ export function changedFiles(status, numstats) {
         // `unstaged` stays true for a conflict; the sidebar lists conflicts apart.
         staged: !fresh && !conflict && xy[0] !== " " && xy[0] !== "?",
         unstaged: fresh || conflict || xy[1] !== " ",
-        status: conflict ? "U" : xy.includes("D") ? "D" : fresh || xy.includes("A") ? "A" : "M",
-        stagedStatus: conflict ? "U" : xy[0],
-        unstagedStatus: fresh ? "A" : conflict ? "U" : xy[1],
+        status: gitLetter(xy),
+        stagedStatus: conflict ? "U" : gitLetter(xy[0]),
+        unstagedStatus: fresh ? "A" : conflict ? "U" : gitLetter(xy[1]),
         stagedStats,
         unstagedStats,
         add: stagedStats.add + unstagedStats.add,
@@ -74,7 +75,6 @@ export function changedFiles(status, numstats) {
 
 /** Build directory-first display rows, omitting descendants of closed folders. */
 // The most serious status among a folder's files (§4.3a): conflict, deleted, modified, new.
-const SEVERITY = { U: 4, D: 3, M: 2, R: 1, C: 1, A: 1, "?": 1 };
 function worstOf(node, statusOf) {
   let worst = null;
   const counts = {};
@@ -82,16 +82,13 @@ function worstOf(node, statusOf) {
     for (const file of n.files) {
       const s = statusOf(file);
       counts[s] = (counts[s] ?? 0) + 1;
-      if ((SEVERITY[s] ?? 0) > (SEVERITY[worst] ?? 0)) worst = s;
+      worst = weightier(worst, s);
     }
     for (const child of n.dirs.values()) visit(child);
   };
   visit(node);
   return { worst, counts };
 }
-
-// A Git status as a word, for tooltips (§4.3a: "Modified · +4 −1").
-export const STATUS_WORD = { M: "modified", A: "new", "?": "new", D: "deleted", R: "renamed", C: "copied", U: "conflict" };
 
 // statusOf(file): the status a row shows, which depends on the group; folders take the worst one.
 // A folder whose only content is one folder joins it on one row ("mods/awsome-filetree"), as VS
@@ -428,10 +425,10 @@ export function commitFiles(numstat, nameStatus) {
     const code = fields[i];
     if (!code) break;
     if (code[0] === "R" || code[0] === "C") {
-      status.set(fields[i + 2], { status: code[0], from: fields[i + 1] });
+      status.set(fields[i + 2], { status: gitLetter(code[0]), from: fields[i + 1] });
       i += 3;
     } else {
-      status.set(fields[i + 1], { status: code[0] });
+      status.set(fields[i + 1], { status: gitLetter(code[0]) });
       i += 2;
     }
   }

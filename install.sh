@@ -5,7 +5,7 @@ set -eu
 
 SRC=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
-MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree awsome-menu"
+MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree awsome-menu awsome-statusline"
 LEGACY="better-changes better-icons better-sidebar better-files better-tabs better-search file-icons filetree" # names this repo used before the awsome-* rename
 LAYOUT=awsome
 
@@ -64,6 +64,13 @@ def save(p, d):
 keys_path = os.path.join(home, "keys.json")
 keys = load(keys_path, {})
 add = load(os.path.join(cfg, "keys.merge.json"), {})
+# macOS spellings of the same actions (cmd where others use ctrl) replace the ones in keys.merge.json.
+if sys.platform == "darwin":
+    for section, binds in load(os.path.join(cfg, "keys.merge.macos.json"), {}).items():
+        actions = set(binds.values())
+        kept = {k: a for k, a in add.get(section, {}).items() if a not in actions}
+        kept.update(binds)
+        add[section] = kept
 changed = False
 for section, binds in add.items():
     have = keys.setdefault(section, {})

@@ -70,13 +70,19 @@
 - **一律用 `theme()` 的语义令牌**，不写死色值（`CLAUDE.md` 的规则）。
 - **Git 状态：全局唯一一套 5 种**，用在 Files、顶部汇总、Changes、Recent、Repositories 五处：
 
-| 状态 | 令牌 | 颜色之外的线索 |
-|---|---|---|
-| Modified | `ansi3`（黄） | 悬停提示写明状态 |
-| New（已暂存的新增和未跟踪合并） | `ansi2`（绿） | 同上 |
-| Deleted | `ansi1`（红） | **删除线** |
-| Renamed | `ansi6`（青） | 悬停提示 |
-| Conflict | `ansi5`（洋红） | 悬停提示 |
+| 状态 | 字母 | 令牌 | 颜色之外的线索 |
+|---|---|---|---|
+| Modified | `M` | `ansi3`（黄） | 悬停提示写明状态 |
+| New（已暂存的新增和未跟踪合并） | `A` | `ansi2`（绿） | 同上 |
+| Deleted | `D` | `ansi1`（红） | **删除线** |
+| Renamed | `R` | `ansi6`（青） | 悬停提示 |
+| Conflict | `U` | `ansi5`（洋红） | 悬停提示 |
+
+- **字母、颜色、文字、严重度只有一个来源**（2026-11-27，用户："there are many places use this system, all of them need aligned"）：`git-status.js`，在 `awsome-filetree`、`awsome-changes`、`awsome-viewer` 里逐字节相同（C5），其他代码不另写映射（C15）。字母和 Herdr 自带 `changes` 的一样（`A` 含未跟踪）。
+  - git 的两位状态码（porcelain `XY`，或 `--name-status` 的一个字母）换成字母，按这个顺序取第一个成立的：**冲突** `U`（含 `U`，或 `AA`、`DD`）→ **删除** `D`（含 `D`）→ **新增** `A`（`??`，或含 `A`、`C`：复制出来的是新文件）→ **重命名** `R`（含 `R`）→ **修改** `M`（其余，含 `T`）。所以 `AM`（新增后又改）是 `A`，`RM` 是 `R`。
+  - 文件夹取里面最严重的：`U` > `D` > `M` = `R` > `A`。
+  - **列出几种状态时的顺序**（2026-11-27，用户定）：新增、修改、重命名、删除、冲突（`GIT_ORDER`）。Files 摘要的计数和比例条、文件夹悬停提示里的明细都按这个顺序。
+  - Files 摘要的三个计数按字母分桶：`A` 算 new，`D` 算 deleted，`M`、`R`、`U` 算 modified。
 
   状态就是**名字的颜色**，默认不画字母、不画小点；设置里有可选的"名字后显示状态字母"（`row.statusLetter`，默认关）。文件夹和 repo 取里面最严重的状态（冲突 > 删除 > 修改 > 新增）。
 - **Agent 状态**：工作中 `working`、需要你 `blocked`、完成 `ansi2`、空闲 `dim`，画成状态点，旁边配文字（`2m`、`needs you`、`done`、`idle`）。
@@ -193,7 +199,12 @@
   - History：`Show graph`（`git-merge`）、`All branches`（`git-fork`，只在图视图）、`Refresh`。
 
 **2 不再有分支行**（2026-11-26 交叉核对后用户同意：分支名已经同时出现在侧边栏当前 space 那一行和底部状态栏，面板里再写一次是重复信息）
-- **Files 的摘要**（§4.3a）：高 28、px 10 的一行，左边 `13 modified · 1 new`（彩色数字加文字，字号 11、`muted`，零值省略），右边 `+618 −559`（11、`ansi2` / `ansi1`）；下面 2px 比例条，左右各留 10；下边 1px `border`。不写分支名、不写 `↑ ↓`。
+- **Files 的摘要**（§4.3a）：高 28、px 10 的一行，左边 `1 new · 13 modified`（彩色数字加文字，顺序 new、modified、deleted，比例条同序，§2.4 `GIT_ORDER`，字号 11、`muted`，零值省略），右边 `+618 −559`（11、`ansi2` / `ansi1`）；下面 2px 比例条，左右各留 10；下边 1px `border`。不写分支名、不写 `↑ ↓`。
+  - **放不下时（2026-11-27，用户报的溢出：面板拖到最小 280 宽、改动很多时，`−N` 被切掉。用户定的方向：始终一行，不截断成 `…`、不换行；放不下时缩成字母、藏掉一部分；按用户的方向直接定，2026-11-27 已实现）**：按估算宽度逐步收缩（每字 5.6：在预览截图里量的，11 号界面字体实测约 5.4，`23 modified` 61 px；单位之间 gap 10）：
+    1. **文字缩成字母**：`23 M  11 A  1,632 D`（字母 `muted`，跟在彩色数字后面，gap 3 不变）。字母和 Herdr 自带 `changes` 的行、Files 的可选状态字母（`row.statusLetter`）同一套：`M` 修改、`A` 新增（含未跟踪）、`D` 删除。
+    2. **还放不下，藏起右边的 `+N −N`**：Files 讲的是文件，行数次要（每个文件行还写着自己的行数）。
+    - 按 5.6 估算，280 宽时第 1 步就能放下全部（`23 M 11 A 1,632 D +1,819 −129,165` 约 200 px），计数到上万、行数到十万也还放得下；第 2 步只在更窄时出现。不截断、不换行。
+    - 缩写或藏了东西时才给这一行加 tooltip，写全：`11 new · 23 modified · 1,632 deleted · +1,819 −129,165`（§2.5 / L20：颜色和字母表达的状态写成字、被藏起的内容）；放得下时没有 tooltip。比例条不变。
 - **Changes**：分支写进提交框的占位文字 `Message (Ctrl+Enter to commit on main)`（macOS `Cmd+Enter`；VS Code 的写法），提交时就在眼前；`↑2 ↓1` 写进 `History (2)` 按钮的提示：`History (2) · 2 not pushed · 1 not pulled`。
 - **History**：没有分支行；当前分支在图里是实心标签，List 视图的组头写着分支名。
 - 有多个 repo 时（P4d），Repositories 列表每行写着它的分支（画板 12），不另加分支行。
@@ -470,9 +481,9 @@
 
 **默认视图：一行只有三样：图标、名字、名字的颜色。** 状态颜色见 §2.4；行数、时间、大小默认不显示。
 
-- **文件夹**：名字取里面最严重状态的颜色，不画数字、不画小点；悬停给明细（`2 modified · 1 new`）。
+- **文件夹**：名字取里面最严重状态的颜色，不画数字、不画小点；悬停给明细（`1 new · 2 modified`）。
 - 其它标记一种状态一种写法：被忽略 = 名字变灰；隐藏文件 = 名字更淡；符号链接 = 名字后一个小箭头图标。
-- **顶部汇总**：**彩色数字加文字**（`3 modified · 1339 new · 2531 deleted`，零值省略）、右边总行数 `+N −N`、一条 2px 的比例细条（§2.9）。~~分支名、领先落后~~（2026-11-26 去掉：侧边栏和状态栏已有分支名）。多 repo 时跟随 Changes 里选中的 repo。
+- **顶部汇总**：**彩色数字加文字**（`1339 new · 3 modified · 2531 deleted`，零值省略）、右边总行数 `+N −N`、一条 2px 的比例细条（§2.9）。~~分支名、领先落后~~（2026-11-26 去掉：侧边栏和状态栏已有分支名）。多 repo 时跟随 Changes 里选中的 repo。
 
 **详细模式（标题栏的滑杆图标开关，记住选择）= 极简 + 三个槽位**：
 
@@ -951,13 +962,208 @@
 - **不做**：替换（会批量改文件，以后单独讨论）。
 - 约 250～350 行。先验证 `rg --json` 在 Herdr 运行时里能顺利解析。设置项：引擎偏好、默认开关、最大结果数、默认排除目录。
 
+### 4.8 awsome-viewer：预览变成编辑器（P6a，2026-11-26，片 1～5 都已做完并装好，待你试用）
+
+**决定的经过**：用户要一个"尽量像 VS Code"的编辑器，并且能和 Herdr、在 Herdr 里运行的 agent 打通，尽量用 Herdr 自带的东西。顺序（用户同意）：**P6a 预览能编辑**（本节）→ P6b 和 agent 打通（选区发给 agent、终端里的 `path:line` 链接跳进编辑器、像 code review 一样在代码和 Markdown 上加评论，一起发给运行中的 agent；借鉴 Plannotator 的思路）→ P6c AI 改代码（让运行中的 agent 改选区，再逐块审查它的改动）。2026-11-26 用临时测试 mod 和用户实测了 Herdr 自带 `Editor` 的能力（下表）。用户决定：**做不到的就不做**（查找、替换、多光标、自动提示）；**Markdown 像 VS Code 一样默认打开源码**。
+
+**Herdr 自带 `Editor` 实测**（Windows，`readonly: false`）
+
+| 能用 | 不能用（原因） |
+|---|---|
+| 撤销 `Ctrl+Z`、重做 `Ctrl+Y` | `Ctrl+Shift+Z`（Herdr 的 `pane.zoom`） |
+| `Tab` / `Shift+Tab`、回车自动缩进、括号和引号自动配对 | 查找、替换（编辑器吞掉 `Ctrl+F`，但 Herdr 没打开查找） |
+| 双击选词、三击选行、拖选、复制粘贴 | 多光标、自动提示（Herdr 没开放） |
+| 折叠：行号旁的箭头（预览截图里 `js` 文件有；测试 mod 用了 Herdr 不认识的 `typescript`，所以当时没有。实现时复查） | |
+| 语法高亮（syntect：`ts` 要映射成 `js`，现有 `languageOf` 已处理） | 注释、跳到行、移动行（编辑器没有这些动作） |
+
+- mod 不能用 `window.dispatch_action` 触发编辑器自己的动作（实测没有反应），所以**编辑器自带的功能只靠它自己的按键**，我们不做 Undo、Find 这类按钮。
+- 补上的功能都走 `keys.json` 的 `mod:awsome-viewer` 分区（命令进 `nextCommand()`），用 `selected_range` + `replace` 改文字：实测保存、跳行（会滚动到那一行）、注释、移动行、复制行都能用，每次是一步撤销。
+
+**范围**
+- awsome-viewer 显示的文本文件，在预览位和独立 tab 里都**直接可以编辑**（`readonly: false`），没有"编辑模式"开关（VS Code 一样）。
+- 仍然只读：渲染的 Markdown、图片、"Changed lines" 行视图（设置 `gutter`，默认已是关）、**远程 space 的文件**（`writeTextFile` 不支持 `on`）、二进制的文件（现有行为，显示原因）、**被截断的大文件**（现有的 `viewable()` 把超长文件截断并在末尾加 `… (file truncated)`；允许编辑的话，保存会把文件的后半截丢掉，所以截断的文件一律只读，并显示 §4.8 的只读标记，tooltip `Too large to edit`）。
+- **Markdown 默认打开源码**：设置 `markdown` 的默认值由 `preview` 改成 `code`（VS Code 打开 `.md` 也是文本，预览另开）。头部 `eye`（`Rendered view`）/ `code`（`Source`）两个按钮不变；渲染视图显示的是**编辑中的内容**，不是磁盘上的。
+
+**保存**（`Ctrl+S`，macOS `Cmd+S`）
+
+| 情况 | 结果 |
+|---|---|
+| 没有改动 | 什么也不做 |
+| 有改动 | `writeTextFile(path, text, base)`（`base` = 上次读到或保存的内容）；成功后改动标记消失，`base` = 新内容。不弹 toast：标记消失就是反馈（VS Code 一样） |
+| 打开以后磁盘上的文件被改过（agent、别的编辑器），写入被拒 | 共用确认框（§2.6 的写法：问句带数量，名字放进等宽字体的名单框）：标题 `Overwrite 1 file changed on disk?`，名单 `viewer.ts`，说明 `It changed after you opened it.`，按钮 `Cancel` + 红色 `Overwrite`。Overwrite = 重新读一次磁盘内容作为 `expected` 再写。VS Code 这时给 `Compare` / `Overwrite`；对比放到 P6c 的审查里做 |
+| 文件已被删除 | 保留内容和改动标记，头部的文件夹后面多写 `Deleted`（`dim`）；保存时重新建出这个文件（`expected = null`）。VS Code 一样 |
+
+- **行尾和编码原样写回**：打开时记下行尾（LF / CRLF）、文件末尾有没有换行、有没有 BOM，保存时还原。Windows 上的仓库常是 CRLF，写错会让整个文件出现在 diff 里。
+- **缩进跟着文件走**：打开时检测缩进（tab 还是空格、几格），调用 `set_tab_size`。用 npm 的 `detect-indent`（纯 JS，打成单个文件放进 mod），检测不出时用 Herdr 默认的 2 空格。VS Code 的 `editor.detectIndentation` 默认开。
+
+**改动标记**：头部文件名前加 `*`（Windows 记事本的标题、JetBrains 的 "Mark modified (*)"），`foreground` 色，不加 tooltip（它是字形，不只靠颜色）。发布给 Awsome Changes 面板头部的 `pane-heads` 标题同样带 `*`。**不用 VS Code 的 `●`**：侧边栏已经用 `●` 表示 space 里有 agent 需要你或已完成（`awsome-sidebar/views/spaces.js`），同一个符号不表示两种意思（ui-ux-pro-max 交叉核对，❓ 待你确认）。
+
+**外部改动**（viewer 现在每 2 秒读一次文件）
+
+| 编辑器里 | 磁盘上变了 | 结果 |
+|---|---|---|
+| 没有改动 | 内容变了 | 直接换成新内容，**光标和选区留在原来的偏移**（夹到新长度内），滚动位置不变。agent 改文件时你看到的总是最新的（VS Code、Sublime 一样） |
+| 有改动 | 内容变了 | 不动你的内容、不弹框；保存时走上面的冲突确认（VS Code 一样） |
+| 任意 | 文件被删 | 见上表"文件已被删除" |
+
+**离开有改动的文件**
+
+| 情况 | 结果 |
+|---|---|
+| 预览位里单击别的文件；预览位的 × / Esc | 先问（§2.6 的写法）：标题 `Save changes to 1 file?`，名单 `viewer.ts`，说明 `Unsaved changes will be lost.`（VS Code 原文 `Your changes will be lost if you don't save them.` 太长，C14 要求缩短）。按钮：**左边**红色 `Don't save`（丢掉改动 = §2.2 的危险动作，和右边隔开，macOS 的保存对话框也是这样分开的）；**右边** `Cancel`、`Save`（最右，Enter）。Esc = Cancel。共用确认框加一个可选的左侧按钮（`other`） |
+| 预览位头部 `Open in tab` | 带着改动一起转到 tab，不问 |
+| `Rendered view` ⇄ `Source` | 同一份内容，不问 |
+| Herdr 关掉 tab 或 pane、退出 Herdr、mod 重新载入（我们拦不住） | 把改动存成**草稿**（`data/awsome-viewer/drafts/`：路径、`base`、内容），下次打开这个文件时恢复，带改动标记，并发一个 toast `Restored unsaved changes to name`。保存或 `Don't save` 后删掉草稿；30 天没碰的草稿在启动时清掉。这是 VS Code 的 hot exit |
+
+**编辑命令**（`mod:awsome-viewer` 键位分区，只在 viewer 有焦点时生效，不抢终端的键；都在 awsome-config 里可改）
+
+| 动作 | Windows / Linux | macOS | 来源和说明 |
+|---|---|---|---|
+| Save | `Ctrl+S` | `Cmd+S` | 所有编辑器 |
+| Go to line… | `Ctrl+G` | `Ctrl+G` | VS Code（macOS 上也是 `Ctrl+G`，`Cmd+G` 是"查找下一个"） |
+| Toggle line comment | `Ctrl+/` | `Cmd+/` | VS Code |
+| Move line up / down | `Ctrl+Shift+↑` / `↓` | `Cmd+Ctrl+↑` / `↓` | Sublime Text。VS Code 的 `Alt+↑↓` 是 Herdr 的 agent 切换 |
+| Duplicate line | `Ctrl+Shift+D` | `Cmd+Shift+D` | Sublime Text。VS Code 的 `Shift+Alt+↓` 在 Windows 上可能是切换输入法 |
+| Delete line | 不绑 | 不绑 | VS Code 是 `Ctrl+Shift+K`，但它在 Herdr 里是全局的 "Go to…" 选择器；让着 Herdr，设置里可以自己绑（2026-11-27） |
+| Insert line below / above | `Ctrl+Enter` / `Ctrl+Shift+Enter` | `Cmd+Enter` / `Cmd+Shift+Enter` | VS Code、Sublime Text |
+| Select line | `Ctrl+L` | `Cmd+L` | VS Code、Sublime Text；再按一次扩到下一行 |
+| Indent / Outdent line | `Ctrl+]` / `Ctrl+[` | `Cmd+]` / `Cmd+[` | VS Code、Sublime Text |
+| Toggle block comment | `Alt+Shift+A` | `Ctrl+Shift+A` | VS Code（`Shift+Alt+A`；Windows 上 `Alt+Shift` 可能是切换输入法，要实测）；macOS 的 `Option+Shift+A` 会打出字符，换成 `Ctrl+Shift+A` |
+| Go to matching bracket | `Ctrl+Shift+M` | `Ctrl+Shift+M` | JetBrains。VS Code 的 `Ctrl+Shift+\` 是 Shift+标点，Herdr 在 Windows 上按产生的字符命名（§8），不可靠 |
+| Join lines | `Ctrl+J` | `Ctrl+J` | VS Code（macOS `Ctrl+J`；Windows 默认不绑）、Sublime Text |
+| Toggle word wrap | `Alt+Z` | `Ctrl+Alt+Z` | VS Code（macOS 的 `Option+Z` 会打出字符） |
+
+编辑器自带：撤销 `Ctrl+Z`、重做 `Ctrl+Y`（macOS 的 `Cmd+Shift+Z` 待在 macOS 上实测）。
+
+- **注释**（VS Code 的规则）：作用于选区碰到的所有整行。全部已注释 → 去掉注释符和它后面的一个空格；否则 → 在这些行**最小缩进的那一列**插入注释符加一个空格，空行跳过；只选了一个空行时也插入。只有块注释的语言（HTML、XML、Markdown、CSS）把整段包成 `<!-- … -->` / `/* … */`，再按一次拆开。注释符按语言查表，取值来自 VS Code 内置语言的 `language-configuration.json`（`comments.lineComment` / `blockComment`），手工录入、不复制代码；表里没有的语言不响应。
+- **移动行 / 复制行**：作用于选区碰到的所有整行，选区跟着走；第一行上移、最后一行下移不动。
+- **第一批补充命令**（2026-11-27，用户要"尽可能全面，贴近 VS Code"；行为照 VS Code 的同名命令）：
+  - 删除行：删掉选区碰到的整行，光标留在下一行的同一列（没有下一行就到上一行）。
+  - 在下方 / 上方插入新行：不管光标在行的哪里，在当前行后 / 前开一行，缩进和当前行一样，光标放到新行。
+  - 选中整行：选中光标所在的整行（含换行符）；已经选中整行时再按，扩到下一行。
+  - 缩进 / 反缩进：选区碰到的每一行加或去掉一级缩进；一级 = 文件检测出的缩进（tab 或 N 个空格，检测不出是 2 个空格）；空行不加。
+  - 块注释：把选中的文字包成该语言的块注释（`/* … */`、`<!-- … -->`）；已经包着就拆开；没选中时插入一对，光标放在中间；语言没有块注释就不响应。
+  - 跳到匹配的括号：光标挨着 `()[]{}` 之一时跳到和它配对的那个；不挨着时跳到包住光标的那一对的右括号。只按括号计数，不识别字符串和注释里的括号（已知的近似）。
+  - 合并行：选区碰到多行时合成一行；只有一行时和下一行合并。换行和下一行开头的空白换成一个空格，光标停在接缝处。
+- **自动换行**（`EditorState` 的 `soft_wrap`）：设置 `Wrap lines`，三选一：`Markdown only`（默认，VS Code 自带设置里 `[markdown]` 的 `editor.wordWrap` 是 `on`，代码不换）、`All files`、`Never`。`Alt+Z` 只切换当前这个 viewer 里的文件，不改设置（VS Code 的 `View: Toggle Word Wrap` 也是这样）。
+- **保存时**（VS Code 的 `files.trimTrailingWhitespace`、`files.insertFinalNewline`，默认都关）：设置 `Trim trailing whitespace on save`、`Insert final newline on save`。打开时，保存前先把改动作为一步撤销放进编辑器里，再写文件。Markdown 不去行尾空格（行尾两个空格表示换行）。
+- 每个命令是**一步撤销**（`replace`，已实测）。
+
+**操作条：Go to line**（2026-11-26 用户改：跳到行不用弹窗。预览已确认，深浅两套截图）
+- **是什么**：头部行（30 高）下面临时出现的一条，整宽，把编辑器往下推，不盖住代码。只在要用时出现，用完收起。以后同类的轻量输入（比如查找，如果哪天能做）都放在这里，同一时间只有一种。
+- **出现**：`Ctrl+G`。出现时输入框拿到焦点；已经开着时再按 `Ctrl+G`，焦点回到输入框并全选里面的字。
+- **收起**：Enter 跳转后收起；Esc（输入框有焦点时）或 × 直接收起。收起后焦点回到编辑器。点回编辑器时条不收起，输入框的边框变回 `border`。
+- **尺寸和颜色**（来源：Herdr 自带 `changes` mod 底部的提交条 `p(10) gap(8)`、输入框 `h(32) px(10) rounded(8) border_1`、聚焦时 `accent` 否则 `border`、文字 12；按钮用 §2.2 唯一的文字按钮样子）：
+  - 条：`p 10`、`gap 8`、高 52，底部 1px `border` 线，底色 `background`（和编辑器、头部行一样）。左右 10 和头部行的 `px 10` 对齐。
+  - 左边标签 `Line`：11.5、`dim`（Herdr `prompt` 的输入框标签）。
+  - 输入框：占满剩下的宽度，32 高、`px 10`、圆角 8、文字 12；边框聚焦时 `accent`，否则 `border`；输入的不是 `行` 或 `行:列` 时按 Enter，边框变成 `ansi1`，直到再改字。
+  - 占位文字 `line or line:column, 1–N`（N = 打开条时的行数）。
+  - 按钮 `Go`：32 高、`px 14`、圆角 8、`raised` 底、`input` 边框、文字 12。
+  - 关闭：`PaneButton`（图标 `x` 14px，`dim`，悬停 `hover`），tooltip `Close (Esc)`。
+- **跳转**：`行` 或 `行:列`；超出范围夹到第一行或最后一行（VS Code 一样）。行数在按下 Enter 时重新数，打开条之后改过文字也不会跳错。
+- **头部由 Awsome Changes 的面板头显示时**（viewer 自己没有头部行）：条在 viewer 最上面；浮在右上角的那组按钮下移到条的下面（`top` = 6 + 53），不压在条上。
+- **只读的文件**（远程、截断）也能用；渲染的 Markdown 和 "Changed lines" 视图里不出现（没有编辑器）。
+- 不做：查找（用户 2026-11-26 决定先不做：编辑器没有焦点时不画选区，找到的字看不出来）。
+
+**只读标记**：远程文件在文件名后显示 14px `pencil-simple-slash`（Phosphor，`dim`），tooltip `Read-only on another machine`。VS Code 用锁，但 `lock-simple` 已经是 `Appearance…` 里可选的 space 图标（`awsome-menu/picker.js`），同一个图标不表示两种意思，所以换成"不能编辑"的铅笔（ui-ux-pro-max 交叉核对）。
+
+**不做**：查找、替换、多光标、自动提示（Herdr 没开放，用户 2026-11-26 决定不做）；自动保存（VS Code 默认也关）；`Compare`（P6c）；格式化（以后可以用 `exec` 调 prettier 等，另议）。
+
+**往返**（登记在 `design/flows.json`）：Go to line 操作条（去：`Ctrl+G`；回：Esc、×）；保存冲突确认（去：`Ctrl+S` 被拒；回：Esc、`Cancel`）；未保存确认（去：离开有改动的文件；回：Esc、`Cancel`）。`Rendered view` ⇄ `Source` 已有。
+**惯例**（`design/conventions.json`）：`editor-save`、`dirty-marker`、`save-conflict`、`external-reload`、`unsaved-prompt`、`hot-exit`、`go-to-line`、`toggle-comment`、`move-line`、`duplicate-line`、`markdown-source-first`、`detect-indentation`、`read-only-marker`。
+
+**开工前要验证**（各做一个小测试）：
+1. 折叠箭头在 viewer 里出现（`languageOf` 给的语言名 Herdr 认识）；`EditorState.value()` 是否保留 `\r\n`；`set_value` 之后撤销历史、光标、滚动位置怎样。
+2. 关 tab 时 `View.close()` 来不来得及写完草稿。
+3. `mod:awsome-viewer` 键位在预览位（布局里的 mod 块）里也生效（测试时是在 tab 里）。**`Ctrl+Shift+↑↓` 有没有被编辑器自己吞掉**（gpui-component 可能把它绑成"选到开头 / 结尾"，像 `Ctrl+F` 那样）；被吞掉就退回实测能用的 `Alt+Shift+↑↓`，并记下输入法的风险。
+4. `detect-indent` 能打包，`herdr-app check` 通过。
+5. viewer 现在的定时读文件，在编辑器有改动时不会覆盖内容。
+
+**实现计划**（2026-11-26，用户确认规格和改动范围后写下；每一片做完都跑 `herdr-app check`、`ui-check.py`，给你一张试用清单，再做下一片）
+
+*改动范围*（用户确认）：主要是 `mods/awsome-viewer`；另外 `confirm.js` 加可选的左侧按钮（逐字节拷贝同步到所有带它的 mod，awsome-viewer 也带一份）；`install.sh` 把 `mod:awsome-viewer` 键位合并进 `keys.json`（用临时 `HERDR_APP_HOME` 试装）。不动 `awsome-filetree` 自己那个只读的 `Editor`（`main.js:797`），不动 Herdr 自带的 mod。
+
+*已验证*（开工前）：`EditorState.value()` 原样保留 `\r\n`，`replace` / `set_value` 也不改它；`detect-indent` 7.0.2（MIT）用 esbuild 打成 938 字节的单文件。
+
+| 片 | 内容 | 主要文件 |
+|---|---|---|
+| 1 | 去掉只读；能不能编辑 = 本机文件、没被截断、不在 "Changed lines" 视图；`*` 改动标记（头部和 `pane-heads`）；`Ctrl+S` 保存；行尾、BOM 原样写回；只读标记（远程、截断）；`markdown` 默认改成 `code`；渲染视图显示编辑中的内容；外部改动：没改动时重新载入并保留光标，有改动时不动 | `views/viewer.js`、`files/model.js`（`viewable` 标出截断）、`main.js`（viewer 也接 `nextCommand`）、`mod.json`、`mod.schema.json`、`icons/` |
+| 2 | 保存冲突确认、未保存确认（三个按钮）；`confirm.js` 加左侧按钮并同步各份拷贝 | `views/viewer.js`、各 mod 的 `confirm.js` |
+| 3 | 草稿（hot exit）：`close()` 时写进 `data/awsome-viewer/drafts/`，打开时恢复并发 toast；保存或 `Don't save` 后删除；30 天清理 | 新文件 `files/drafts.js`、`views/viewer.js` |
+| 4 | 命令：`Go to line` 操作条、注释（语言表）、移动行、复制行；`detect-indent` | 新文件 `files/edits.js`、`files/comments.js`、`detect-indent.js`、`views/viewer.js` |
+| 5 | 键位：`mod.schema.json` 里的快捷键设置（`format: "key"` + `x-action`）、`install.sh` 合并键位；把 conventions 里这些条目的 `planned` 去掉、填上 `code` | `mod.schema.json`、`install.sh`、`design/*.json` |
+
+*实现上的决定*
+- **内部一律用 LF**：读进来时记下行尾（有 `\r\n` 就是 CRLF）和 BOM，去掉后再交给编辑器；保存时加回去。行级命令因此不会碰到多余的 `\r`。
+- **三份文字分开记**：`raw` = 上次和磁盘对齐时的原始内容（保存时作为 `expected`）；`base` = 它去掉 BOM、换成 LF 之后（和编辑器里的比，判断有没有改动）；编辑器里的是当前内容。定时读文件时：没改动 → 换成新内容并更新 `raw` / `base`；有改动 → 什么都不动，所以保存时 `expected` 对不上，就走冲突确认。
+- **命令只给有焦点的那一份 viewer**：预览位和多个 tab 里各有一份 viewer，都会收到 `nextCommand()`；用 `EditorState` 的 `focus` / `blur` 事件记下"编辑器有没有焦点"，没有焦点的那份忽略命令。
+- **截断的文件只读**：`viewable()` 返回值里加 `truncated: true`，不再靠末尾的那句文字判断。
+- **草稿边改边存**（片 3）：有改动时每秒最多写一次草稿，`close()` 再写一次。Herdr 退出时给 `close()` 的时间很短，只靠它写不保险（VS Code 的 hot exit 也是定时备份）。改动撤销回原样、保存、`Don't save` 都删掉草稿。
+- **草稿记着它基于哪一版**：恢复时 `raw` 用草稿里记下的原始内容，不用磁盘上现在的。关掉期间文件被别人改过，保存时就走冲突确认，不会悄悄盖掉。
+- **`Open in tab` 带着改动走**：预览位先把改动写成草稿，新 tab 第一次读文件时取走（不弹 toast），预览位退回磁盘上的内容。这个文件已经开在别的 tab 里时，预览位保留改动，之后离开时照常问。
+- **注释符按扩展名查表**（`files/comments.js`），不按语法高亮的语言名：`toml` 借 `yaml` 的高亮、`jsonc` 借 `json` 的，但注释写法要按文件本身。
+- **Go to line 先做成了弹窗，后改成操作条**：弹窗照 Herdr `prompt` 做，用户试看后改成头部下面的操作条（教训 L21）。操作条画在 viewer 自己的视图里，不经过 overlay 和共享状态的应答。
+
+*片 1 做完后要你试的*：在预览位和 tab 里各改一下文件，看 `*`；`Ctrl+S`；让 agent 改一个你没动过的文件，看它自动刷新、光标不跳；Markdown 打开是源码；远程或很大的文件不能改并显示铅笔图标；折叠箭头出现；`Ctrl+Shift+↑↓` 有没有被编辑器吞掉（片 4 之前先测）。
+
+**ui-ux-pro-max 审查**（2026-11-26，规格阶段）：按它的规则表逐条对照，改了四处：① 改动标记不用 `●`（和侧边栏重复，见上）；② `Don't save` 是丢掉改动的危险动作，改成红色、放左边和 `Save` 隔开（`destructive-emphasis`、§2.2）；③ Go to line 的输入框加标签 `Line`，不只靠占位文字（`input-labels`，Herdr 的 prompt 本来就有）；④ 只读图标换成 `pencil-simple-slash`（`lock-simple` 已是 space 图标）。预览截图后又改了一处：⑤ 两个确认框的标题改成 §2.6 的写法（问句带数量，名字进名单框），截图里标题里的反引号原样显示出来了。其余对得上：确认框有 Cancel 和 Esc（`escape-routes`、`sheet-dismiss-confirm`）；保存成功的反馈是标记消失（`success-feedback`，VS Code 一样）；只读图标有 tooltip（`icon-context`）；改动标记是字形，不只靠颜色（`color-not-only`）；快捷键只在 viewer 有焦点时生效，不碰系统和终端的键（`keyboard-shortcuts`）。操作条（2026-11-26）：⑥ 输入框左边有看得见的标签 `Line`（`input-labels`）；输错时边框变红，不只靠颜色——Enter 不跳转、条不收起（`inline-validation`）；关闭按钮的 tooltip 写上 `Esc`（`escape-routes`）；交叉核对：`x` 在所有 mod 里都表示关闭，标签 `Line` 和文件树的 `Filter files` 不会混淆。
+
+**你来试**：保存；保存冲突（让 agent 先改一下同一个文件）；离开有改动的文件时三个按钮；关 tab 后再打开，草稿恢复；`Ctrl+G` 的操作条（Enter、Esc、×、输错、预览位和 tab 里各一次）；`Ctrl+/` 在 TS、Python、HTML 文件里；移动行、复制行；Markdown 默认打开源码。
+
+---
+
+### 4.9 awsome-statusline：底部状态栏，按模块组装（2026-11-27，方向已确认，预览待确认）
+
+**决定的经过**：用户要编辑器的状态（光标位置、缩进、行尾……）像 VS Code 一样放在最下面的状态栏，要紧凑、尽量用图标，因为以后别的 mod 也要往这条栏上放东西（比如 agent 的详细信息）。两个办法里选了"新开一个 mod，把状态栏按模块装进去"。
+
+**VS Code 的想法**：栏本身只管排版（左半、右半、按优先级排序），每一项由各个扩展自己贡献；每一项既是状态又是入口，点一下就能改它；有编辑器时才出现编辑器那一组；放不下时低优先级的先让位。
+
+**范围**：新 mod `awsome-statusline` 接管布局里 `status` 那一块（现在是 Herdr 的 `workspace-status`，32 高）。Herdr 原有的几项作为它的内置项**原样保留，位置和内容都不改**（用户 2026-11-27：`1 agent` 暂时还在左边，需要调整时再改）：左边机器、分支、`1 agent`，右边命令提示 `Ctrl+Shift+P commands`（代码、字号、颜色、图标取自 `workspace-status`，规则 6 的来源是 Herdr 自己）。
+
+**项的登记**（mod 之间不能互相 import，走共享状态，和 `pane-heads`、`mod-icons` 同一个做法）
+- `shared("awsome-statusline.items")` = `{ "<mod 名>": [ item, … ] }`；每个 mod 只写自己名下那一项（读出、改自己、写回）。mod 关掉或不再有这些项时写 `[]`。
+- `item` = `{ id, side: "left" | "right", order, keep, icon?, text?, tip?, choices?, shown? }`：
+  - `order`：同一边里从外向中间的位置，数字小的靠外（左边靠左、右边靠右）。内置项：机器 10、分支 20、`1 agent` 100，命令提示靠最右；我们的编辑器项 30～60。
+  - `keep`：放不下时谁先让位，数字小的先收成图标、再隐藏；默认 50。
+  - `icon`：mod 自己文件夹里的图标路径；`text`：短文字，不超过约 14 个字符。
+  - `tip`：悬停提示，只放栏上没有的信息（教训 L20），比如 `Indentation: 2 spaces`。
+  - `choices`：`[{ id, label, checked? }]`，有它这一项就可以点开菜单；没有则点击只通知所有者（比如点 `Ln 12, Col 5` 打开跳到行的操作条）。
+- 点击的通道：状态栏把 `{ item: "<mod>.<id>", choice?, at }` 写进 `shared("awsome-statusline.click")`，所有者 mod 在自己的定时检查里取走并处理（和确认框的应答 `awsome-viewer.answer` 同一个做法）。原因：点状态栏会让编辑器失去焦点，"只有编辑器有焦点才响应命令"的规则（§4.8）会把点击挡掉。
+- 菜单：状态栏用共用菜单组件（§2.6、`menu.js`，向上弹出，贴着被点的项），选中后把 `choice` 写进上面的点击。
+
+**排版**
+- 栏：32 高（布局的 `status` 块）、`px 14`、`chrome` 底、上边线 `border`、文字 11.8 `muted`（取自 `workspace-status`）。
+- **左对齐 = 这台设备，以及在这台设备上正在做的事**：机器（`This computer`）、分支、这台设备上当前打开的文件的编辑器状态（光标、缩进、编码、行尾……）。读起来是一条连贯的链：**这台机器 → 这个分支 → 这个文件的状态**（机器 → 分支 → 编辑器），最后才是 `1 agent`。所以我们的编辑器项插在分支和 `1 agent` 之间；`1 agent` 前面空一个大一点的间距（16，其余项之间是 6 + 4），并且它自己带着圆点，一眼看得出是另一个概念，不会和 `CRLF` 连读成一句话。Herdr 内置项的内容和样子不改，只是 `1 agent` 的位置往后挪了几个项。
+- **右对齐 = 外部和辅助的信息**：命令提示（`Ctrl+Shift+P commands`，Herdr 原有）、以后 agent 的详细信息、其他 mod 的辅助信息；我们贡献的右边项靠在命令提示的左边。（参照用户之前备份的 `herdr-mod-reference/session-bar`：左边是文件夹、分支、git，右边是 Claude 的模型、上下文、用量。）
+- 项与项之间 16；中间 `flex_1` 留空。栏上的项，左右两边各自按 `order` 排；放不下时按 `keep` 让位。
+- 每一项是一个小块：`px 6`、`py 2`、圆角 5，悬停 `hover` 底、`foreground` 字（取自 Herdr 的 `Esc` 小按钮，`picker` / `help`）；块与块之间 4，加上块自己的左右 6，文字到文字是 16，和 Herdr 项之间的间距一致。
+- 图标 13、`dim`，图标和文字之间 6（取自 `workspace-status` 的 `label()`）。
+- **紧凑**：每项默认是图标加一个很短的值；图标表达不了的（`CRLF`、`UTF-8`）直接写文字。栏放不下时：先把优先级最低的几项收成只剩图标，再放不下就隐藏，不挤别人，也不换行；右边（辅助信息）先让位，左边（这台设备）最后让位。
+- 没有任何项登记时，这一半是空的，栏就是 Herdr 原来的样子。
+
+**编辑器的项**（登记在**左边**，紧挨着分支；`awsome-viewer` 登记，只有"最近一个拿到焦点的编辑器"登记，其余的 viewer 不登记；它关掉或换成图片 / 渲染的 Markdown 时清空）
+| 项 | 显示 | 点击 | 来源 |
+|---|---|---|---|
+| 光标 | `12:5`，有选区时 `12:5 (8)` | 打开跳到行的操作条 | VS Code 状态栏 `Ln 12, Col 5`、点开 Go to Line |
+| 缩进 | 图标 + `2`（tab 时 `Tab 4`） | 菜单：`Spaces` / `Tabs` 和 `2` `4` `8` | VS Code `Spaces: 2`、点开 Select Indentation |
+| 编码 | `UTF-8`（文件原本有 BOM 时 `UTF-8 BOM`） | 只显示，不能改（用户 2026-11-27：不需要兼容旧系统，只管近 5 年的系统；BOM 是给老工具用的，不提供加 / 去的入口）。保存时原样写回 BOM（§4.8 "行尾和编码原样写回"） | VS Code `UTF-8` |
+| 行尾 | `LF` / `CRLF` | 菜单：`LF`、`CRLF` | VS Code `CRLF`、点开 Select End of Line Sequence |
+| 换行 | 图标，开着时高亮 | 切换当前文件的自动换行 | VS Code 没有状态项；`Alt+Z` 的鼠标版，同一个动作 |
+| 只读 | 图标 `pencil-simple-slash` | — | 和头部的只读标记同一个图标，同一个意思 |
+- 改缩进 = 只改 Tab 键插入什么（`set_tab_size`），不重排文件（VS Code 的 `Indent Using Spaces` 才会重排，不做）。改行尾 / BOM = 改下次保存时写回的样子，并把文件标成有改动（`*`）。
+
+**去 / 回**（登记进 `design/flows.json`）：状态项的菜单（去：点那一项；回：Esc、点别处，和所有菜单一样）；光标项打开操作条（回：Esc、×）。
+
+**要先验证的**（各做一个小测试）：1. 状态栏的 mod 能不能读到别的 mod 刚写的共享状态并马上重画（`workspace-status` 读 `spaces()`、`agents()` 是 Herdr 的，没用过 `shared`）；2. 向上弹出的菜单贴着被点的项（`at: "pointer"` 在底栏点击时的位置）；3. 把布局的 `status` 块换成新 mod，`install.sh` 在临时 `HERDR_APP_HOME` 里装得上、切回旧布局不坏；4. 12 个项放满时的收缩规则。
+**设置**（`awsome-config`）：状态项各自开 / 关（默认全开）。
+
 ---
 
 ## 5. 执行计划
 
 ### 5.1 顺序和依赖
 
-**顺序（已确认）：P0 → P1 → P1b → ~~P1c~~（2026-11-26 推迟，见 §4.2.5）→ P2 → P4b ✅ → P4（拆成 P4a → P4c → P4d → P4e）→ P3b → P3 → P5**。会动用户文件的 P3 放在靠后，等确认对话框和平台适配表在 P4 里用熟了再做。
+**顺序（已确认）：P0 → P1 → P1b → ~~P1c~~（2026-11-26 推迟，见 §4.2.5）→ P2 → P4b ✅ → P4（拆成 P4a → P4c → P4d → P4e）→ P3b → P3 → P5**。会动用户文件的 P3 放在靠后，等确认对话框和平台适配表在 P4 里用熟了再做。**P6（编辑器）用户 2026-11-26 要求先做 P6a**，插在当前位置；P6b、P6c 排在 P6a 之后，P6b 的评论和 P5 的 review 一起设计（同一套评论数据和发给 agent 的格式）。
 
 | 阶段 | 内容 | 依赖 | 风险 |
 |---|---|---|---|
@@ -975,6 +1181,9 @@
 | P3b | 内容搜索 | P2 | 中 |
 | P3 | 文件操作：新建、重命名、删除、拖拽移动、`Ctrl+Z`；批量发送给 agent、批量删除 | P2、P4 的确认对话框和平台适配表 | **高（改磁盘文件，三个系统命令不同）** |
 | P5 | diff 行选择 + review + 发给 agent | P4 | **最大** |
+| P6a | 预览变成编辑器：直接编辑、保存、冲突、外部改动、未保存提示和草稿、跳行、注释、移动和复制行、Markdown 默认源码（§4.8） | P2 | 中高（写用户的文件；行尾写错会让整个文件出现在 diff 里） |
+| P6b | 和 agent 打通：选区发给 agent、终端链接跳进编辑器、agent 打开文件、代码和 Markdown 上的评论一起发给 agent（和 P5 一起设计） | P6a | 中 |
+| P6c | AI 改代码：让运行中的 agent 改选区，逐块审查它的改动 | P6b | 中高 |
 
 ### 5.2 每个阶段怎么做
 
@@ -994,6 +1203,7 @@
 | P3b | 搜索中文、正则；点结果跳到行 |
 | P3 | 新建、重命名、删除到回收站、拖拽移动、`Ctrl+Z`（三个系统各试一次，macOS / Linux 需要你在那边的机器上跑） |
 | P5 | 选行写 review 并发给 agent |
+| P6a | 见 §4.8 末尾"你来试" |
 
 ---
 
@@ -1013,6 +1223,7 @@
 - 配色：shadcn Neutral 的灰阶 + Apple 系统色，主题名 `awsome-dark` / `awsome-light`；浅色侧边栏用纯白；悬停或选中行上的文字降到 4.2～4.4:1，**保持来源原值不改**（你确认）。
 - 当前项：左侧指示条，画法取自 Primer（方案 A，你确认）。
 - 字体：标识类文字用 JetBrains Mono，说明文字用 Geist。
+- 编辑器（2026-11-26）：用 Herdr 自带的 `Editor`；Herdr 没开放的（查找、替换、多光标、折叠、自动提示）不做；Markdown 像 VS Code 一样默认打开源码（§4.8）。
 
 **这次统一时我改掉的地方**（§2.8 有完整表）：拖拽不再要求按住 200ms；组头不显示数字、不靠双击重命名；当前项用左侧指示条（画法取自 Primer，你选了 A），锚点用描边；确认对话框统一成 Enter 确认；菜单用 sentence case。**如果其中哪条你不同意，告诉我。**
 
@@ -1037,6 +1248,12 @@
 
 所有键都**可在 `awsome-config` 里改**。默认值按"逻辑键"定义，写入 `keys.json` 时按平台翻译（"主修饰键"在 macOS 上映射到 `cmd`）。
 
+**按平台写默认键的做法**（P6a 定下，以后的 mod 都照这样做）：
+- `mod.schema.json` 的快捷键设置写 `default`（Windows / Linux 的拼法）；macOS 拼法不同时再写 `x-default-macos`。
+- 仓库里两份键位文件：`config/keys.merge.json`（Windows / Linux）和 `config/keys.merge.macos.json`（只放 macOS 的拼法）。`install.sh` 在 macOS 上按**动作**替换：`keys.merge.json` 里绑到同一个动作的键换成 macOS 文件里的键。
+- awsome-config 在 macOS 上把 `x-default-macos` 当作默认值来显示、重置、写进 `keys.json`。
+- `ui-check.py` C13 检查三处一致：设置的默认值在 `keys.merge.json` 里绑到它的动作，`x-default-macos` 在 `keys.merge.macos.json` 里绑到它的动作，macOS 文件里的动作在 `keys.merge.json` 里也有。
+
 | 动作 | 默认键 | 作用范围 | 说明 |
 |---|---|---|---|
 | 打开 mod 设置 | `` Shift+Alt+` `` | 全局 | Windows 上 Herdr 叫它 `alt-~`，已确认能用。底栏按钮是主入口 |
@@ -1051,6 +1268,11 @@
 | Changes：提交 | `Ctrl+Enter`（macOS `Cmd+Enter`） | 提交框有焦点 | 和 VS Code 一致 |
 | Changes：下一个有改动的 repo | 待定 | Changes 有焦点 | **实测后定** |
 | 取消 / 清空选中 | `Esc` | 当前面板 | |
+| 编辑器：保存 | `Ctrl+S`（macOS `Cmd+S`） | viewer 有焦点 | §4.8 |
+| 编辑器：跳到行 | `Ctrl+G`（macOS 也是 `Ctrl+G`） | viewer 有焦点 | §4.8 |
+| 编辑器：注释 | `Ctrl+/`（macOS `Cmd+/`） | viewer 有焦点 | §4.8 |
+| 编辑器：上移 / 下移行 | `Ctrl+Shift+↑` / `↓`（macOS `Cmd+Ctrl+↑` / `↓`） | viewer 有焦点 | Sublime Text 的键；VS Code 的 `Alt+↑↓` 被 Herdr 占用 |
+| 编辑器：复制行 | `Ctrl+Shift+D`（macOS `Cmd+Shift+D`） | viewer 有焦点 | Sublime Text 的键 |
 
 **键名规则（实测得出）**：Windows 上，**带 Shift 的标点键，Herdr 用它产生的字符命名**（Shift+\` 是 `~`，Shift+, 是 `<`），`shift` 标志是 false；这和键盘布局有关。所以默认键尽量用字母、数字、方向键、Enter、Backspace、F 键，少用 Shift+标点。
 

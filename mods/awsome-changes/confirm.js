@@ -5,8 +5,10 @@
 // and "Don't ask again" only for actions that can be undone elsewhere (the Recycle Bin).
 // Byte-identical copies live in each mod that uses it; change one, copy it to the others.
 //
-//   confirmView({ id, title, names, note, action, danger, dontAsk, onToggle, onConfirm, onCancel, mono })
+//   confirmView({ id, title, names, note, action, danger, dontAsk, onToggle, onConfirm, onCancel, mono, other })
 // dontAsk: null hides the checkbox, true/false shows it checked or not.
+// other: { label, danger, onClick } adds a third answer on the left, apart from Cancel and the
+// action (the Save dialog's "Don't save", macOS's place for it; docs/REQUIREMENTS.md section 4.8).
 
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
@@ -42,7 +44,7 @@ export function confirmKey(key, onConfirm, onCancel) {
   return false;
 }
 
-export function confirmView({ id, title, names = [], note, action, danger = true, dontAsk = null, onToggle, onConfirm, onCancel, mono }) {
+export function confirmView({ id, title, names = [], note, action, danger = true, dontAsk = null, onToggle, onConfirm, onCancel, mono, other = null }) {
   const t = theme();
   const shown = names.slice(0, CONFIRM.shown), more = names.length - shown.length;
   // docs/REQUIREMENTS.md §2.2: one look for text buttons (raised, input border); only danger is red.
@@ -59,7 +61,10 @@ export function confirmView({ id, title, names = [], note, action, danger = true
       .on_click((_e, cx) => onToggle?.(cx))
       .child(div().size(14).rounded(3).border_1().border_color(dontAsk ? t.accent : t.input).bg(dontAsk ? t.accent : t.popover))
       .child("Don’t ask again")))
-    .child(h_flex().justify_end().gap(8).text_size(12)
+    .child(h_flex().gap(8).text_size(12)
+      .when(Boolean(other), (el) => el.child(button(`${id}-other`, other.label, other.danger ? t.blocked : t.raised,
+        other.danger ? inkOn(t.blocked, t) : t.foreground, other.danger ? t.blocked : t.input, (cx) => other.onClick(cx))))
+      .child(div().flex_1())
       .child(button(`${id}-no`, "Cancel", t.raised, t.foreground, t.input, (cx) => onCancel(cx)))
       .child(button(`${id}-yes`, action, fill, danger ? inkOn(fill, t) : t.foreground, danger ? fill : t.input, (cx) => onConfirm(cx))));
 }

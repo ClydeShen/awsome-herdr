@@ -566,6 +566,76 @@
           "setDiffLayout(split ? \"inline\" : \"split\""
         ]
       }
+    },
+    {
+      "id": "editor-go-to-line",
+      "mod": "awsome-viewer",
+      "to": "the Go to line bar under the header",
+      "forward": {
+        "mouse": "",
+        "keys": "Ctrl+G in the editor",
+        "code": [
+          "openLineBar("
+        ]
+      },
+      "back": {
+        "mouse": "the bar's close button",
+        "keys": "Esc",
+        "code": [
+          "closeLineBar("
+        ]
+      }
+    },
+    {
+      "id": "editor-save-conflict",
+      "mod": "awsome-viewer",
+      "to": "the 'changed on disk' confirmation",
+      "forward": {
+        "mouse": "",
+        "keys": "Ctrl+S when the file changed on disk",
+        "code": [
+          "this.ask(\"conflict\""
+        ]
+      },
+      "back": {
+        "mouse": "Cancel",
+        "keys": "Esc",
+        "code": [
+          "answer(\"cancel\")"
+        ]
+      }
+    },
+    {
+      "id": "editor-unsaved-prompt",
+      "mod": "awsome-viewer",
+      "to": "the 'Save changes?' question",
+      "forward": {
+        "mouse": "a click on another file, or the preview column's close button",
+        "keys": "Esc in the preview column",
+        "code": [
+          "askToLetGo("
+        ]
+      },
+      "back": {
+        "mouse": "Cancel",
+        "keys": "Esc",
+        "code": [
+          "answer(\"cancel\")"
+        ]
+      }
+    },
+    {
+      "id": "statusline-menu",
+      "mod": "awsome-statusline",
+      "to": "a status item's menu",
+      "forward": {
+        "mouse": "click the item",
+        "keys": ""
+      },
+      "back": {
+        "mouse": "click elsewhere",
+        "keys": "Esc"
+      }
     }
   ]
 }

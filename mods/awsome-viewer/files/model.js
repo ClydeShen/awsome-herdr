@@ -1,4 +1,5 @@
 // What the folder, Git and editors say, as plain data. No drawing and no side effects.
+import { gitLetter, weightier } from "../git-status.js";
 export const PER_FOLDER = 500;
 export const TOTAL_ROWS = 5000;
 export const MAX_CHARS = 400000;
@@ -288,7 +289,7 @@ export function parseStatus(stdout, top) {
     const xy = entry.slice(0, 2);
     const untracked = xy === "??";
     marks[markKey(`${top}/${entry.slice(3)}`)] = {
-      mark: untracked || xy.includes("A") ? "A" : xy.includes("U") ? "U" : xy.includes("D") ? "D" : "M",
+      mark: gitLetter(xy),
       staged: !untracked && xy[0] !== " " && xy[1] === " ",
     };
   }
@@ -379,17 +380,34 @@ export function buildRows(lines, hunks, open) {
 
 export const hunkKey = (hunk) => `${hunk.kind}-${hunk.oldStart}`;
 
-// A folder holds a change if any changed file is inside it.
-export const holdsChange = (marks, folder) => {
+// A folder's status is the weightiest of the changed files inside it (docs/REQUIREMENTS.md §2.4).
+export const folderMark = (marks, folder) => {
   const prefix = `${markKey(folder)}/`;
-  return Object.keys(marks).some((path) => path.startsWith(prefix));
+  let mark = null;
+  for (const [path, change] of Object.entries(marks)) if (path.startsWith(prefix)) mark = weightier(mark, change.mark);
+  return mark;
 };
 
-// Read-only view text: what can't be shown says why.
+// The text to show: what can't be shown says why. A cut file is marked, so it is never edited:
+// saving it would drop everything after the cut (docs/REQUIREMENTS.md section 4.8).
 export function viewable(text) {
   if (text === null) return { problem: "This file is no longer available." };
   if (text.includes("\0")) return { problem: "This is a binary file, so there's no text to show." };
   return text.length > MAX_CHARS
-    ? { text: `${text.slice(0, MAX_CHARS)}\n… (file truncated)` }
+    ? { text: `${text.slice(0, MAX_CHARS)}\n… (file truncated)`, truncated: true }
     : { text };
+}
+
+// A file's text as the editor holds it: line feeds only, no byte order mark. What was taken
+// off is kept, so a save writes the file back the way it was.
+const BOM = String.fromCharCode(0xfeff);
+export function splitText(raw) {
+  const bom = raw.startsWith(BOM);
+  const body = bom ? raw.slice(1) : raw;
+  const eol = body.includes("\r\n") ? "\r\n" : "\n";
+  return { text: eol === "\r\n" ? body.replace(/\r\n/g, "\n") : body, eol, bom };
+}
+
+export function joinText(text, eol, bom) {
+  return (bom ? BOM : "") + (eol === "\r\n" ? text.replace(/\n/g, "\r\n") : text);
 }

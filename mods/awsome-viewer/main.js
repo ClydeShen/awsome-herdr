@@ -1,4 +1,4 @@
-// Awsome Viewer: a read-only file browser. One class plays three roles, each its own copy:
+// Awsome Viewer: a file browser and editor. One class plays three roles, each its own copy:
 //   the sidebar        the tree, and the box for a prompt to an agent
 //   a viewer           a file in a centre tab
 //   the menu           a popup at the pointer on right-click
@@ -31,8 +31,19 @@ import { savedDotfiles, toolMethods } from "./views/tools.js";
 import { keyMethods } from "./views/keys.js";
 import { viewerMethods } from "./views/viewer.js";
 import { contextMenuMethods } from "./views/context-menu.js";
+import { askMethods, ANSWER } from "./views/ask.js";
+import { pruneDrafts, writeDraft } from "./files/drafts.js";
 
-const DEFAULT_SETTINGS = { refresh: { tree: "10s", file: "2s" }, editors: [], fileManager: { name: "", command: [] }, gutter: false, markdown: "preview" };
+const DEFAULT_SETTINGS = {
+  refresh: { tree: "10s", file: "2s" },
+  editors: [],
+  fileManager: { name: "", command: [] },
+  gutter: false,
+  markdown: "code",
+  wrap: "markdown",
+  trimTrailingWhitespace: false,
+  insertFinalNewline: false,
+};
 const SYNC_MS = 300;
 const CLEANUP_KEY = "awsome-viewer.cleanup";
 const CLEANUP_OVERFLOW = "awsome-viewer.cleanupOverflow";
@@ -52,6 +63,13 @@ class AwsomeViewer extends View {
     this.mode = p.mode ?? "sidebar";
     // The layout's preview column: a viewer with no tab of its own (views/viewer.js SLOT).
     if (this.mode === "slot") { this.mode = "viewer"; this.slot = true; p.viewer = "slot"; }
+    // A question from an editor (views/ask.js), drawn as a dialog.
+    if (this.mode === "ask") {
+      this.askFor = p.ask;
+      this.askFocus = cx.focus_handle();
+      this.askFocus.focus();
+      return;
+    }
     if (this.mode === "menu") {
       this.menuTarget = p.target;
       this.menuSpace = spaces().find((s) => s.active)?.id;
@@ -79,15 +97,32 @@ class AwsomeViewer extends View {
     this.viewerFile = p.file;
     this.gutterOn = DEFAULT_SETTINGS.gutter;
     this.markdownDefault = DEFAULT_SETTINGS.markdown;
+    this.wrapSetting = DEFAULT_SETTINGS.wrap;
+    this.trimOnSave = DEFAULT_SETTINGS.trimTrailingWhitespace;
+    this.finalNewlineOnSave = DEFAULT_SETTINGS.insertFinalNewline;
     this.hunks = [];
     this.openHunks = new Set();
     // The preview's position, so an `#anchor` link can scroll it. A handle must be made here.
     this.previewScroll = ScrollHandle.new();
     this.syncViewer(cx);
     cx.timer.every(SYNC_MS, (cx) => this.syncViewer(cx));
+    // Keys from keys.json's "mod:awsome-viewer" section (docs/REQUIREMENTS.md section 4.8). Every
+    // shown viewer hears them; the one whose editor has the keyboard acts.
+    cx.spawn(async (cx) => {
+      for (;;) {
+        const command = await nextCommand();
+        if (this.closed || !this.editorFocused) continue;
+        this.runCommand(command, cx);
+      }
+    });
     cx.spawn(async (cx) => {
       const { settings } = await loadSettings("awsome-viewer", DEFAULT_SETTINGS);
-      this.markdownDefault = settings.markdown === "code" ? "code" : "preview";
+      this.markdownDefault = settings.markdown === "preview" ? "preview" : "code";
+      this.wrapSetting = settings.wrap;
+      this.trimOnSave = Boolean(settings.trimTrailingWhitespace);
+      this.finalNewlineOnSave = Boolean(settings.insertFinalNewline);
+      // The setting only decides the first state, so an open editor is brought to it once here.
+      if (this.code && this.wraps(this.file) !== this.wrapped) this.toggleWrap();
       cx.notify();
       // A view is made for one way of drawing (folding can't change once it's made), so a
       // setting other than the default starts the file over the other way.
@@ -135,6 +170,8 @@ class AwsomeViewer extends View {
     this.treeFocus = cx.focus_handle();
     this.dotfiles = savedDotfiles();
     if (checkingOnly) return;
+    // Drafts untouched for 30 days go, once per start.
+    cx.spawn(async () => pruneDrafts());
     this.refresh(cx);
     this.findAwsomeChanges(cx);
     this.findNewAgents(this.on, cx);
@@ -161,6 +198,18 @@ class AwsomeViewer extends View {
   // closes goes as soon as it's done. Pictures from the web stay: every tab shares them, and
   // they're downloaded again after a day.
   async close() {
+    // Esc and Herdr's own closing don't pass through the dialog's buttons: closing is "Cancel".
+    if (this.mode === "ask") {
+      if (!this.answered) setShared(ANSWER, { viewer: this.askFor.viewer, at: this.askFor.at, choice: "cancel" });
+      return;
+    }
+    // Unsaved edits become a draft first: what comes after may not get the time.
+    if (this.mode === "viewer" && this.dirty()) {
+      const { raw, eol, bom } = this;
+      await this.draftWork(() => writeDraft(this.file, { raw: this.deleted ? null : raw, text: this.code.value(), eol, bom }));
+    }
+    // Its items leave the status bar with it.
+    if (this.mode === "viewer" && this.isActive()) this.writeStatus([]);
     this.closed = true;
     if (cleanupWorker?.owner === this) cleanupWorker = null;
     this.watchRequest?.cancel?.();
@@ -313,6 +362,7 @@ class AwsomeViewer extends View {
   }
 
   render() {
+    if (this.mode === "ask") return this.askView();
     if (this.mode === "menu") return this.menuView();
     if (this.mode === "viewer") return this.viewerView();
     return this.sidebarView();
@@ -332,6 +382,7 @@ Object.assign(
   keyMethods,
   viewerMethods,
   contextMenuMethods,
+  askMethods,
 );
 
 export default AwsomeViewer;

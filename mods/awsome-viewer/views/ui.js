@@ -371,19 +371,3 @@ export function Select({
     .when(open, (el) => el.content(MenuBody({ id, width, focus, children: options, onKey })));
 }
 
-// A changed file's colour, the same as its letter: green for new, red for gone or in
-// conflict, yellow for edited.
-export const markColor = (mark, t) =>
-  !mark ? null : mark === "A" ? t.ansi2 : mark === "D" || mark === "U" ? t.ansi1 : t.ansi3;
-
-export function StatusLetter(status) {
-  const t = theme();
-  const color = markColor(status, t);
-  return div()
-    .w(12)
-    .flex_none()
-    .text_center()
-    .text_size(TEXT.caption)
-    .text_color(color)
-    .child(status);
-}

@@ -4,6 +4,7 @@
 //   props { scope: "plus", space }     Terminals, Agents, worktree, for the shown space
 //   props { scope: "spaces", spaces }  several selected spaces: Appearance, Group, Copy path, Close
 //   props { scope: "group", group }    a group's header: Rename, Appearance, Collapse, Ungroup
+//   props { scope: "statusline", item, title, choices }   a status-bar item's choices (awsome-statusline)
 // and what their items open (not menus, so Esc or a click outside is the way back):
 //   props { scope: "looks", spaces | groups }   the Appearance picker (picker.js)
 //   props { scope: "close", spaces }   the confirmation for closing several spaces (confirm.js)
@@ -24,7 +25,7 @@ const MONO = "JetBrains Mono";
 const BACKSLASH = String.fromCharCode(92);
 const DEFAULT_SETTINGS = { terminals: { hide: [], extra: [] } };
 // The scopes that are menus; the others are what a menu item opens (scripts/ui-check.py C10).
-const MENUS = ["space", "plus", "spaces", "group"];
+const MENUS = ["space", "plus", "spaces", "group", "statusline"];
 // A space's look (color and icon), kept by folder and machine so it outlives the space
 // (awsome-sidebar draws it). The colors are the names Herdr's space.colors uses.
 const LOOKS = "awsome-sidebar.looks";
@@ -254,6 +255,17 @@ export default class AwsomeMenu extends View {
     return { names: list.map((s) => s.name), note: busy ? `${busy} ${busy === 1 ? "agent is" : "agents are"} still working.` : null };
   }
 
+  // A status-bar item's choices (awsome-statusline opens this). A choice's check mark says what is
+  // on now; picking one writes it back to the bar's click.
+  statusEntries() {
+    const p = props();
+    return tidy([
+      { title: p.title },
+      ...p.choices.map((c) => (c === "-" ? "-" : { id: c.id, label: c.label, icon: c.checked ? UI("check") : undefined,
+        run: () => setShared("awsome-statusline.click", { item: p.item, choice: c.id, at: Date.now() }) })),
+    ]);
+  }
+
   entries() {
     const s = this.space(), sid = s?.id;
     const scope = this.scope();
@@ -312,7 +324,8 @@ export default class AwsomeMenu extends View {
     const scope = this.scope();
     if (scope === "looks") return this.renderLooks();
     if (scope === "close") return this.renderClose();
-    const entries = scope === "spaces" ? this.manyEntries() : scope === "group" ? this.groupEntries() : this.entries();
+    const entries = scope === "spaces" ? this.manyEntries() : scope === "group" ? this.groupEntries()
+      : scope === "statusline" ? this.statusEntries() : this.entries();
     const size = menuFrame(entries);
     const known = shared(`${NAME}.size`) ?? {};
     if (known[scope]?.width !== size.width || known[scope]?.height !== size.height) setShared(`${NAME}.size`, { ...known, [scope]: size });

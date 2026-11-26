@@ -17,7 +17,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 P = lambda *a: os.path.join(ROOT, *a)
-SHARED = ["file-icons.js", "settings.js", "syntax.js", "menu.js", "confirm.js"]
+SHARED = ["file-icons.js", "settings.js", "syntax.js", "menu.js", "confirm.js", "git-status.js"]
 BASELINE = P("scripts", "ui-check-baseline.json")
 CJK = re.compile(r"[　-〿㐀-䶿一-鿿＀-￯]")
 
@@ -538,8 +538,54 @@ def schema_defaults(node, prefix=""):
     return out
 
 
+def key_specs(node, prefix=""):
+    """[dotted key, spec] for every key setting (format "key" with an x-action) under a schema's settings."""
+    out = []
+    for k, v in ((node or {}).get("properties") or {}).items():
+        key = f"{prefix}{k}"
+        if v.get("format") == "key" and isinstance(v.get("x-action"), str):
+            out.append((key, v))
+        out.extend(key_specs(v, key + "."))
+    return out
+
+
+def c13_key_defaults():
+    """A key setting's default is bound in config/keys.merge.json, its macOS default in keys.merge.macos.json,
+    and the macOS file only names actions the shipped file binds (the installer replaces by action)."""
+    shipped = load("config", "keys.merge.json")
+    mac = load("config", "keys.merge.macos.json") if os.path.isfile(P("config", "keys.merge.macos.json")) else {}
+    for mod in sorted(os.listdir(P("mods"))):
+        if not os.path.isfile(P("mods", mod, "mod.schema.json")):
+            continue
+        for key, spec in key_specs(load("mods", mod, "mod.schema.json").get("properties", {}).get("settings")):
+            section, action, default = spec.get("x-section") or "global", spec["x-action"], spec.get("default", "")
+            binds = shipped.get(section, {})
+            if default:
+                found = binds.get(default)
+                if found != action:
+                    fail("C13", "L9", f"mods/{mod}: key {key} defaults to {default!r} in mod.schema.json but config/keys.merge.json {section} has {found!r}",
+                         "make the default in mod.schema.json and the binding in config/keys.merge.json agree")
+            else:
+                bound = [k for k, a in binds.items() if a == action]
+                if bound:
+                    fail("C13", "L9", f"mods/{mod}: key {key} has no default in mod.schema.json but config/keys.merge.json {section} binds {bound[0]!r} to {action!r}",
+                         "remove the binding from config/keys.merge.json, or give the setting its default")
+            if "x-default-macos" in spec:
+                want = spec["x-default-macos"]
+                found = mac.get(section, {}).get(want)
+                if found != action:
+                    fail("C13", "L9", f"mods/{mod}: key {key} defaults to {want!r} on macOS in mod.schema.json but config/keys.merge.macos.json {section} has {found!r}",
+                         "make x-default-macos in mod.schema.json and the binding in config/keys.merge.macos.json agree")
+    for section, binds in mac.items():
+        for key, action in binds.items():
+            if action not in shipped.get(section, {}).values():
+                fail("C13", "L9", f"config/keys.merge.macos.json {section}: {key} binds {action!r}, which config/keys.merge.json does not bind in {section}",
+                     "bind the action in config/keys.merge.json first; the macOS file only replaces bindings of the same action")
+
+
 def c13_defaults():
     """A mod's code defaults and the defaults its mod.schema.json promises are the same."""
+    c13_key_defaults()
     for mod in sorted(os.listdir(P("mods"))):
         schema_path = P("mods", mod, "mod.schema.json")
         if not os.path.isfile(schema_path):
@@ -609,7 +655,29 @@ def c14_restraint():
 TOOLTIP_REPEAT_BASELINE = {}
 
 
-CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions, c13_defaults, c14_restraint]
+# L22: one Git status system. Its letters, colour tokens, words and weights live only in
+# git-status.js (identical copies, C5); any other definition is a second system drifting apart.
+GIT_STATUS_NAMES = r"STATUS_COLOR|STATUS_WORD|statusColor|markColor|StatusLetter|gitColor|gitLetter|GIT_WORD|weightier|gitBucket"
+GIT_STATUS_DEF = re.compile(r"\b(?:const|let|var|function)\s+(?:" + GIT_STATUS_NAMES + r")\b")
+GIT_STATUS_TOKEN = re.compile(r"""(?:\b[MADRCU]|["']\?["'])\s*:\s*["']ansi\d["']|===\s*["'][MADRCU?]["']\s*\?\s*t\.ansi\d""")
+# A weight table keyed by Git letters ({ U: 4, D: 3, … } or { "?": 1, A: 2, … }); other rankings
+# (the sidebar's agent states) have word keys and pass.
+GIT_STATUS_WEIGHT = re.compile(r"""\{\s*(?:["']\?["']|[MADRCU])\s*:\s*\d""")
+
+
+def c15_git_status():
+    """Git status letters, colours, words and weights come only from git-status.js (L22)."""
+    for path, src in mod_js():
+        if path.endswith("/git-status.js"):
+            continue
+        code = strip_comments(src)
+        for rx, what in ((GIT_STATUS_DEF, "defines its own Git status mapping"), (GIT_STATUS_TOKEN, "maps a Git status to a colour itself"), (GIT_STATUS_WEIGHT, "ranks Git statuses itself")):
+            for m in rx.finditer(code):
+                line = code[: m.start()].count("\n") + 1
+                fail("C15", "L22", f"{path}:{line} {what}: {m[0]!r}", "import gitLetter / gitColor / GIT_WORD / weightier / gitBucket from the mod's git-status.js")
+
+
+CHECKS = [c1_sources, c2_contrast, c3_layout, c4_no_new_hex, c5_shared, c6_english, c7_menus, c8_icons, c9_tokens, c10_way_back, c11_flows, c12_conventions, c13_defaults, c14_restraint, c15_git_status]
 
 
 def main():

@@ -7,5 +7,22 @@
     "ctrl-alt-enter": "awsome-filetree.into",
     "ctrl-alt-home": "awsome-filetree.follow",
     "shift-f10": "awsome-filetree.menu"
+  },
+  "mod:awsome-viewer": {
+    "ctrl-s": "awsome-viewer.save",
+    "ctrl-g": "awsome-viewer.goto",
+    "ctrl-/": "awsome-viewer.comment",
+    "ctrl-shift-up": "awsome-viewer.moveUp",
+    "ctrl-shift-down": "awsome-viewer.moveDown",
+    "ctrl-shift-d": "awsome-viewer.duplicate",
+    "ctrl-enter": "awsome-viewer.insertBelow",
+    "ctrl-shift-enter": "awsome-viewer.insertAbove",
+    "ctrl-l": "awsome-viewer.selectLine",
+    "ctrl-]": "awsome-viewer.indent",
+    "ctrl-[": "awsome-viewer.outdent",
+    "alt-shift-a": "awsome-viewer.blockComment",
+    "ctrl-shift-m": "awsome-viewer.matchBracket",
+    "ctrl-j": "awsome-viewer.joinLines",
+    "alt-z": "awsome-viewer.wrap"
   }
 }

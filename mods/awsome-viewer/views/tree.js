@@ -3,11 +3,12 @@ import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { openOverlay, shared, theme, window } from "herdr";
 import { openFolderLabel } from "../files/shell.js";
-import { baseName, holdsChange, markKey, TOTAL_ROWS } from "../files/model.js";
+import { baseName, folderMark, markKey, TOTAL_ROWS } from "../files/model.js";
+import { gitColor } from "../git-status.js";
 import { viewerEntries } from "../actions/open.js";
 import { editorId, foundEditors, ownFileManager } from "../actions/outside.js";
 import { agentName } from "../actions/agents.js";
-import { TEXT, Badge, Button, Chevron, FileIcon, Icon, markColor, IconButton, Message, Panel, PanelHeader, StatusLetter, TextBox } from "./ui.js";
+import { TEXT, Badge, Button, Chevron, FileIcon, Icon, IconButton, Message, Panel, PanelHeader, TextBox } from "./ui.js";
 
 const INDENT = 14;
 // Every row has a border, so the marker's doesn't move the text.
@@ -66,7 +67,7 @@ export const treeMethods = {
     const path = `${this.root}/${relative}`;
     const open = match ? match.open : this.folders.has(relative);
     const change = this.marks[markKey(path)];
-    const color = dir ? (holdsChange(this.marks, path) ? t.ansi3 : null) : markColor(change?.mark, t);
+    const color = gitColor(t, dir ? folderMark(this.marks, path) : change?.mark);
     const selected = !dir && Object.values(viewerEntries()).some((v) => v.file?.path === path);
     const marked = relative === this.cursor && this.showsCursor();
     return h_flex()
@@ -105,12 +106,9 @@ export const treeMethods = {
           .min_w(0)
           .truncate()
           .when(Boolean(color), (el) => el.text_color(color))
+          .when(!dir && change?.mark === "D", (el) => el.line_through())
           .when(Boolean(match && !match.hit && !color), (el) => el.text_color(t.dim))
           .child(name),
-      )
-      .when(Boolean(change), (el) => el.child(StatusLetter(change.mark)))
-      .when(dir && holdsChange(this.marks, path), (el) =>
-        el.child(div().size(6).flex_none().rounded(3).bg(t.ansi3)),
       );
   },
 

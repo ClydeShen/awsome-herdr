@@ -27,7 +27,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
    3. **算清楚再画**：对比度用**真实底色**（侧边栏 `chrome`、卡片 `surface`，以及叠上 `hover` / `selected` 后的颜色）算，深浅两套都算；版式算出每条横线、竖线的位置，和相邻区块的线对齐（底栏、标题行、卡片边）。
    4. **先给预览，用户确认**：用临时预览 mod（只放进 `~/.config/herdr-app/mods`，用 `herdr-app do mod.open` 打开、截图后关掉并移进备份）在深浅两种主题下截图，把截图和规格一起给用户看。确认之后才改正式代码。
    5. **做完再核对**：截图逐像素量关键的线和颜色，和规格对一遍；**再用 `ui-ux-pro-max` 对照截图和代码过一遍**（同上，用户 2026-11-26），能直接按规格修的修掉，要决定的列给用户；交互（右键、拖拽、悬停手感）列清单请用户试。
-7. **界面规则由程序把关，并持续补充。** `python scripts/ui-check.py` 检查颜色出处、对比度、版式对齐、写死的颜色、共用件一致、英文界面、菜单写法、图标、规格常量、操作路径有去有回、交互符合常见软件的惯例、默认设置一致、界面文字克制（C1～C14，登记在 `design/flows.json`、`design/conventions.json`）。它在我每次编辑文件后（`.claude/settings.json` 钩子）和每次提交前（`.githooks/pre-commit`，新克隆的仓库先执行 `git config core.hooksPath .githooks`）自动运行。界面装进 Herdr 后、告诉用户之前，用程序确认它真的显示出来了：弹出层和菜单跑 `python scripts/ui-open-check.py <mod>`（核对实际排版的尺寸，不能是 0），版式跑 `python scripts/ui-shot-check.py`；截图只用来看样子，不用来判断"有没有出现"（L7）。**用户每纠正一次界面问题，就在 `docs/UI-LESSONS.md` 加一条教训**：先写用户的意图和我思路上的错（能在别的功能上认出来的那一层），具体的错只作为例子，并挂到"意图总表"的一类下面、回头检查同一类的其他地方；能程序化的同时加一个检查，并先在仓库副本里故意造这个错，确认能拦住。设计数值只改 `design/tokens.json` 和 `config/themes/sources.json`，不在代码里另写。不许为了让检查通过去关掉检查或放宽阈值；要放宽，先问用户。
+7. **界面规则由程序把关，并持续补充。** `python scripts/ui-check.py` 检查颜色出处、对比度、版式对齐、写死的颜色、共用件一致、英文界面、菜单写法、图标、规格常量、操作路径有去有回、交互符合常见软件的惯例、默认设置一致、界面文字克制、Git 状态（字母、颜色、文字）只有 `git-status.js` 一个来源（C1～C15，登记在 `design/flows.json`、`design/conventions.json`）。它在我每次编辑文件后（`.claude/settings.json` 钩子）和每次提交前（`.githooks/pre-commit`，新克隆的仓库先执行 `git config core.hooksPath .githooks`）自动运行。界面装进 Herdr 后、告诉用户之前，用程序确认它真的显示出来了：弹出层和菜单跑 `python scripts/ui-open-check.py <mod>`（核对实际排版的尺寸，不能是 0），版式跑 `python scripts/ui-shot-check.py`；截图只用来看样子，不用来判断"有没有出现"（L7）。**用户每纠正一次界面问题，就在 `docs/UI-LESSONS.md` 加一条教训**：先写用户的意图和我思路上的错（能在别的功能上认出来的那一层），具体的错只作为例子，并挂到"意图总表"的一类下面、回头检查同一类的其他地方；能程序化的同时加一个检查，并先在仓库副本里故意造这个错，确认能拦住。设计数值只改 `design/tokens.json` 和 `config/themes/sources.json`，不在代码里另写。不许为了让检查通过去关掉检查或放宽阈值；要放宽，先问用户。
 
 ## Herdr 能做什么、不能做什么（以 `~/.config/herdr-app/*.d.ts` 为准）
 
@@ -49,6 +49,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 - 挪走一个正在运行的 mod，窗口会一直报 `... does not exist`，重启 Herdr 才消失，不影响使用。
   - **但临时预览 mod 的对话框（`kind: "dialog"`）如果还开着就被挪走，它会残留在窗口上，盖住下面的界面，`overlay.close` 关不掉。** 处理：把预览 mod 临时放回 `mods/`，等 10 秒，`mod.open` 再 `mod.close`（光 `mod.close` 不够；`status` 的 `overlays` 变空才算关掉），然后再移走。以后用完预览，先确认 `overlays` 为空，再移进备份。
 - **虚拟列表（`v_virtual_list`）的行里不能注册事件处理**（`on_click`、`on_hover` 等）：一注册就抛错，整个列表一行都不画，也没有报错（`status` 的 `errors` 是空的）。行的点击用列表的 `on_item_click(key, cx)`、右键用 `on_item_secondary_click`；`hover` 样式和 `tooltip` 可以用。查这类"静默空白"：在渲染回调里临时 `try/catch`，把错误画进面板（P4b 踩过）。
+- **新的 mod 文件夹第一次被 Herdr 看到时，会被自动塞进当前布局成一个块**（即使 `"place": "none"`）：2026-11-26 临时预览 mod `p6a-preview` 就这样留在了 `layouts/awsome.json` 和 `layouts/.state/awsome.json` 里，窗口右边多出一块关不掉、也没有关闭按钮的面板。临时 mod 用完、移进备份之后，**检查这两个文件里有没有它的块**，有就先备份、再删掉那个块。
 - `herdr-app shot` 在 Herdr 忙时会拍到旧画面；切布局或重建大视图后等 20 秒以上再拍。
 - **我发出去的命令里，成对的反斜杠 `\\` 会被合并成一个。** 写路径或正则时不要依赖反斜杠字面量：用 `String.fromCharCode(92)` 拿反斜杠，用 `[/]` 代替 `\/`。这条坑造成过"上一级"按钮失效（Windows 路径不匹配）。
 - **我只能截图，不能点击、右键、拖拽。** 静态界面自己拍图确认；交互的手感请用户操作后反馈。

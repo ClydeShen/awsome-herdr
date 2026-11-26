@@ -292,18 +292,6 @@ export function DiffStat({ add, del }) {
     .when(del > 0, (el) => el.child(div().text_color(t.ansi1).child(`−${del}`)));
 }
 
-export function StatusLetter(status) {
-  const t = theme();
-  const color = status === "A" ? t.ansi2 : status === "D" || status === "U" ? t.ansi1 : t.blocked;
-  return div()
-    .w(12)
-    .flex_none()
-    .text_center()
-    .text_size(TEXT.caption)
-    .text_color(color)
-    .child(status);
-}
-
 export function Message(text, error = false) {
   const t = theme();
   return div()
