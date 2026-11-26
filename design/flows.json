@@ -669,6 +669,42 @@
         "mouse": "click the summary at the top of Files (files-to-changes)",
         "keys": ""
       }
+    },
+    {
+      "id": "preview-zoom",
+      "mod": "awsome-viewer",
+      "to": "the preview column filling the work area",
+      "forward": {
+        "mouse": "Zoom button in the preview header",
+        "keys": "",
+        "code": [
+          "zoomIn()"
+        ]
+      },
+      "back": {
+        "mouse": "Exit zoom button",
+        "keys": "",
+        "code": [
+          "zoomOut()"
+        ]
+      }
+    },
+    {
+      "id": "preview-keyboard",
+      "mod": "awsome-viewer",
+      "to": "the keyboard in the preview column",
+      "forward": {
+        "mouse": "click in the preview column",
+        "keys": "Alt+H/J/K/L toward it (pane.go)",
+        "code": [
+          "takeFocus(",
+          "\"focus\""
+        ]
+      },
+      "back": {
+        "mouse": "click another pane",
+        "keys": "Alt+H/J/K/L away from it (pane.go, Herdr's own)"
+      }
     }
   ]
 }

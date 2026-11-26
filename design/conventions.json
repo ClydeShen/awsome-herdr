@@ -344,7 +344,7 @@
           "promoteToTab("
         ]
       },
-      "herdr": "Reuses Herdr's layout (a hidden layout block shown with layout.show / hide, sized by weights, size kept by Herdr) and its pane frame (background, 1px border, radius 10, accent border when focused). Herdr's own files mod previews inside its panel; that is the fallback in layouts without the block."
+      "herdr": "Reuses Herdr's layout (a hidden layout block shown with layout.show / hide, sized by weights, size kept by Herdr) and its pane frame (background, 1px border, radius 10, accent border when focused, drawn by the viewer itself because a layout block's focus look only follows panes, section 4.4b). Herdr's own files mod previews inside its panel; that is the fallback in layouts without the block."
     },
     {
       "id": "viewer-header-actions",
@@ -1091,6 +1091,56 @@
           "Show files"
         ]
       }
+    },
+    {
+      "id": "preview-focus-ring",
+      "what": "Showing which pane has the keyboard",
+      "references": [
+        {
+          "app": "Herdr (pane frame)",
+          "behavior": "The focused pane's 1px border turns accent (the layout's pane focus look); the others keep the plain border."
+        },
+        {
+          "app": "VS Code (focusBorder)",
+          "behavior": "The focused part of the workbench gets a 1px focusBorder outline; it goes when focus leaves."
+        }
+      ],
+      "ours": "The preview column's 1px border turns accent while its editor, its line bar or the column itself has the keyboard, and goes back to border when focus leaves. Files and Changes keep no focus border (user 2026-11-27).",
+      "herdr": "Herdr's own pane frame: the same 1px accent on the same radius 10; drawn by awsome-viewer because the layout's focus field never shows on a mod block.",
+      "code": {
+        "awsome-viewer": [
+          "slotFrame(",
+          "hasKeyboard()"
+        ]
+      }
+    },
+    {
+      "id": "preview-zoom",
+      "what": "Zooming a pane to fill the work area and back",
+      "references": [
+        {
+          "app": "Herdr (pane.zoom)",
+          "behavior": "Ctrl+Shift+Z or the header's zoom button shows only that pane in its area; the same key or button puts the others back; going to another tab shows it as it was."
+        },
+        {
+          "app": "VS Code (Toggle Maximized Editor Group)",
+          "behavior": "Maximizes the editor group; the same command restores it, and opening another part restores it too."
+        },
+        {
+          "app": "Windows Terminal (Toggle pane zoom)",
+          "behavior": "One key zooms the focused pane and the same key restores; focusing another pane unzooms."
+        }
+      ],
+      "ours": "The preview column's Zoom button (arrows-out-simple, shown with the header's other buttons on hover) hides the terminals and the side panel; Exit zoom puts back what was shown. Closing the preview, another tab or pane getting focus, or a restart ends the zoom. No key: the user's key bindings stay as they are (user 2026-11-27).",
+      "herdr": "Herdr's pane zoom: the same place in the hover buttons (just left of close) and the same icon shape (zoom.svg / unzoom.svg).",
+      "code": {
+        "awsome-viewer": [
+          "toggleZoom(",
+          "zoomIn(",
+          "zoomOut("
+        ]
+      },
+      "deviation": "Herdr, VS Code and Windows Terminal also zoom by a key; we add none, because the user's tuned key bindings must not change (user 2026-11-27)."
     }
   ]
 }

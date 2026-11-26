@@ -3,6 +3,8 @@
   "icons": {
     "eye": { "meaning": "see it in the preview column", "labels": ["Preview", "Rendered view"], "exception": "Rendered view (the preview column's Markdown view) also uses eye: user 2026-11-26 chose to keep it" },
     "tabs": { "meaning": "open it in a tab", "labels": ["Open in tab"] },
+    "arrows-out-simple": { "meaning": "zoom: fill the work area, as Herdr's pane zoom (same shape as its zoom.svg)", "labels": ["Zoom"] },
+    "arrows-in-simple": { "meaning": "exit zoom, as Herdr's pane unzoom (same shape as its unzoom.svg)", "labels": ["Exit zoom"] },
     "arrow-square-out": { "meaning": "leave Herdr: a system app or the browser", "labels": ["Open in default app", "Open on GitHub"] },
     "copy": { "meaning": "copy to the clipboard", "labels": ["Copy absolute path", "Copy relative path", "Copy full hash"] },
     "arrows-out-line-vertical": { "meaning": "expand vertically (the whole file)", "labels": ["Show full file", "Show changes only"] },

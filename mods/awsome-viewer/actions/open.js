@@ -3,6 +3,7 @@
 // tab: it records the tab it was opened in, and the sidebar and menus act through that.
 import { panes, run, shared, setShared, spaces } from "herdr";
 import { baseName } from "../files/model.js";
+import { hideSlot } from "./zoom.js";
 
 const VIEWERS = "awsome-viewer.viewers";
 const OPENING_MS = 1500;
@@ -129,12 +130,12 @@ export const openMethods = {
       cx.spawn(async () => {
         await this.handOverEdits();
         this.newViewer(file, space, false, { carry: true });
-        run("layout.hide", { id: "preview" });
+        hideSlot();
       });
       return;
     }
     this.openInNewTab(file, cx);
-    run("layout.hide", { id: "preview" });
+    hideSlot();
   },
 
   // Hands a changed file to Awsome Changes, the way its own list does. `top` is the Git

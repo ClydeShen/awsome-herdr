@@ -32,6 +32,7 @@ import { BUSY, pickCopyImage, pickFetchImage, pickRm } from "../files/shell.js";
 import { editorId, foundEditors } from "../actions/outside.js";
 import { fileIcon, isLight } from "../files/file-icons.js";
 import { deleteDraft, readDraft, writeDraft } from "../files/drafts.js";
+import { hideSlot, zoomIn, zoomOut, zoomState, zoomStillFits } from "../actions/zoom.js";
 import { TEXT, FileIcon, Icon, IconButton, Markdown, Message, MenuButton, PaneButton, TextButton, codeFont, codeSize } from "./ui.js";
 import {
   toggleComment,
@@ -145,6 +146,7 @@ export const viewerMethods = {
   },
 
   syncViewer(cx) {
+    if (this.slot) this.syncSlotFrame(cx);
     this.retryCleanup(cx);
     this.takeAnswer(cx);
     this.takeStatusClick(cx);
@@ -534,8 +536,53 @@ export const viewerMethods = {
     this.bom = this.baseBom;
   },
 
+  // Whether this viewer has the keyboard: its editor, its line bar, or the column itself.
+  hasKeyboard() {
+    return Boolean(this.editorFocused || this.lineFocused || this.slotFocus?.is_focused());
+  },
+
+  // The preview column draws its own focus border (a layout block's `focus` only follows panes)
+  // and ends a zoom that no longer fits; nothing else tells it when focus leaves the column.
+  syncSlotFrame(cx) {
+    zoomStillFits(this.slotShown());
+    const keyboard = this.hasKeyboard();
+    if (keyboard !== this.hadKeyboard) {
+      this.hadKeyboard = keyboard;
+      cx.notify();
+    }
+  },
+
+  // pane.go moved onto the column (mod.json "focusable"): the editor takes the keyboard, or the
+  // column itself when there's no editor.
+  takeFocus(cx) {
+    if (this.code && this.editorShown()) this.code.focus();
+    else this.slotFocus?.focus();
+    cx.notify();
+  },
+
+  // The preview column's frame, as a pane's in the layout's main block: 1px border, radius 10,
+  // accent while it has the keyboard. Pressing where no editor is gives the column the keyboard.
+  slotFrame(root, t) {
+    return root
+      .rounded(10)
+      .border_1()
+      .border_color(this.hasKeyboard() ? t.accent : t.border)
+      .track_focus(this.slotFocus)
+      .on_mouse_down("left", (_e, cx) => {
+        if (this.editorShown() || this.lineInput) return;
+        this.slotFocus.focus();
+        cx.notify();
+      });
+  },
+
+  toggleZoom(cx) {
+    if (zoomState()) zoomOut();
+    else zoomIn();
+    cx.notify();
+  },
+
   closeSlot(cx) {
-    const hide = () => run("layout.hide", { id: SLOT_NODE });
+    const hide = () => hideSlot();
     if (this.dirty()) this.askToLetGo(cx, hide);
     else hide();
   },
@@ -746,13 +793,16 @@ export const viewerMethods = {
       this.text = code.value();
       cx.notify();
     });
-    code.on("focus", () => {
+    code.on("focus", (_e, cx) => {
       if (this.code !== code) return;
       this.editorFocused = true;
       setShared(ACTIVE, this.viewerId);
+      cx.notify();
     });
-    code.on("blur", () => {
-      if (this.code === code) this.editorFocused = false;
+    code.on("blur", (_e, cx) => {
+      if (this.code !== code) return;
+      this.editorFocused = false;
+      cx.notify();
     });
     return code;
   },
@@ -1389,6 +1439,11 @@ export const viewerMethods = {
             h_flex()
               .gap(2)
               .child(PaneButton({ id: "viewer-slot-tab", icon: "tabs", label: "Open in tab", onClick: (cx) => this.promoteToTab(file, cx) }))
+              .child(
+                zoomState()
+                  ? PaneButton({ id: "viewer-slot-zoom", icon: "arrows-in-simple", label: "Exit zoom", onClick: (cx) => this.toggleZoom(cx) })
+                  : PaneButton({ id: "viewer-slot-zoom", icon: "arrows-out-simple", label: "Zoom", onClick: (cx) => this.toggleZoom(cx) }),
+              )
               .child(PaneButton({ id: "viewer-slot-close", icon: "x", label: "Close preview", onClick: (cx) => this.closeSlot(cx) })),
           ),
       )
@@ -1422,7 +1477,7 @@ export const viewerMethods = {
 
   viewerView() {
     const t = theme();
-    if (this.slot && !this.slotShown()) return v_flex().size_full().bg(t.background);
+    if (this.slot && !this.slotShown()) return this.slotFrame(v_flex().id("awsome-viewer-viewer").size_full().bg(t.background), t);
     const head = this.viewerHead();
     const inHeader = !this.slot && this.headerShowsTitle();
     const root = v_flex()
@@ -1435,6 +1490,7 @@ export const viewerMethods = {
       .bg(t.background)
       .text_color(t.foreground)
       .text_size(TEXT.body);
+    if (this.slot) this.slotFrame(root, t);
     if (!inHeader && head)
       root.child(
         h_flex()

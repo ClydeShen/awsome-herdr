@@ -17,6 +17,7 @@
 import { View } from "gpui-kit";
 import { InputState, ScrollHandle, TextareaState } from "gpui-base";
 import { appHome, checking, exec, nextCommand, props, setShared, shared, spaces, window } from "herdr";
+import { zoomOut } from "./actions/zoom.js";
 import { loadSettings, duration } from "./settings.js";
 import { followFileIcons } from "./files/file-icons.js";
 import { readMethods } from "./files/reads.js";
@@ -104,6 +105,11 @@ class AwsomeViewer extends View {
     this.openHunks = new Set();
     // The preview's position, so an `#anchor` link can scroll it. A handle must be made here.
     this.previewScroll = ScrollHandle.new();
+    // The preview column's own focus, for when it shows no editor (docs/REQUIREMENTS.md 4.4b).
+    if (this.slot) this.slotFocus = cx.focus_handle();
+    // A zoom doesn't outlive the column: after a restart, a layout switch or a reload the blocks
+    // it hid come back.
+    if (this.slot) zoomOut();
     this.syncViewer(cx);
     cx.timer.every(SYNC_MS, (cx) => this.syncViewer(cx));
     // Keys from keys.json's "mod:awsome-viewer" section (docs/REQUIREMENTS.md section 4.8). Every
@@ -111,7 +117,13 @@ class AwsomeViewer extends View {
     cx.spawn(async (cx) => {
       for (;;) {
         const command = await nextCommand();
-        if (this.closed || !this.editorFocused) continue;
+        if (this.closed) continue;
+        // pane.go onto the preview column (mod.json "focusable"); a tab's viewer is a pane.
+        if (command === "focus") {
+          if (this.slot) this.takeFocus(cx);
+          continue;
+        }
+        if (!this.editorFocused) continue;
         this.runCommand(command, cx);
       }
     });

@@ -134,13 +134,7 @@
                 "width": 1,
                 "color": "border"
               },
-              "radius": 10,
-              "focus": {
-                "border": {
-                  "width": 1,
-                  "color": "accent"
-                }
-              }
+              "radius": 10
             },
             {
               "id": "preview",
@@ -157,17 +151,7 @@
               "min": 280,
               "hidden": true,
               "background": "background",
-              "border": {
-                "width": 1,
-                "color": "border"
-              },
-              "radius": 10,
-              "focus": {
-                "border": {
-                  "width": 1,
-                  "color": "accent"
-                }
-              }
+              "radius": 10
             },
             {
               "id": "main",

@@ -643,7 +643,7 @@
 
 **预览位的头部和外框**（2026-11-26，用户确认预览；原则："预览文件的 UI / UX 尽可能贴近 Herdr 原生 pane 的表达方式和视觉语言"）
 
-- **来源**：Herdr 自带 `pane` mod（`~/.config/herdr-app/mods/pane/main.js`）：头部行高 30、左右 10、间距 8、字号 12；按钮是 14px 图标、`p(3)`、圆角 4，平时 `dim`，悬停变 `foreground` 加 `hover` 底；按钮**只在鼠标移到头部时显示**。外框取布局里 `main` 的 pane 外框：`background` 底、1px `border`、圆角 10、聚焦时 1px `accent` 边框。
+- **来源**：Herdr 自带 `pane` mod（`~/.config/herdr-app/mods/pane/main.js`）：头部行高 30、左右 10、间距 8、字号 12；按钮是 14px 图标、`p(3)`、圆角 4，平时 `dim`，悬停变 `foreground` 加 `hover` 底；按钮**只在鼠标移到头部时显示**。外框取布局里 `main` 的 pane 外框：`background` 底、1px `border`、圆角 10、聚焦时 1px `accent` 边框（布局的 `focus` 对 mod 块不生效，改由 viewer 自己画，见 §4.4b）。
 - **头部**：文件图标、文件名（中等粗细）、文件夹（`dim`）；右边两组图标按钮，组间一条 1px × 12px 的 `border` 线（同文件树标题栏）。
   - **文件视图组**（只有 Markdown 文件，**始终显示**，是状态）：`eye` = `Rendered view`、`code` = `Source`，当前的用 `selected` 底。它是文件的显示方式，和预览列无关，所以与下一组分开；在普通 tab 里的 viewer 也是这一组。
   - **预览列操作组**（只在预览列，**鼠标在头部时显示**）：`arrow-square-out` = `Open in tab`、`x` = `Close preview`；按钮间距 2。
@@ -653,6 +653,37 @@
 **往返**（登记在 `design/flows.json`）：预览位（去：单击 / Space；回：× / Esc / 再单击别的文件换内容）；独立 tab（去：双击 / Enter / `Open in tab`；回：关 tab）；单选 ⇄ 多选（去：Ctrl / Shift + 单击，或 Shift + ↑↓、Ctrl+Space；回：Esc、点空白、选择条 ×，或普通单击）。
 **惯例**（`design/conventions.json`）：`preview-slot`：Windows 资源管理器的预览窗格（一个固定位置的窗格，跟着选中的项显示，可开关）、VS Code 的预览编辑器（单击预览、双击固定）、Finder 的 Quick Look（Space）。
 **验证清单**：实现前：隐藏块里的 viewer 不轮询；文件树键盘焦点不被抢。实现后：`herdr-app check` 三个 mod；`ui-check.py`；用 `herdr-app do layout.show` 等模拟，截图确认；`ui-open-check` 核对预览位尺寸不为 0；点击手感请你试（§5.2 的 P2 一行）。
+
+### 4.4b 预览列用起来像 pane（2026-11-27，预览用户确认，已实现，交互待你试）
+
+**用户的意图**："预览列无法像 pane 一模一样的功能"。预览列看起来像 pane，用起来也要像：能聚焦、能看出聚焦、能放大、能用 `Alt+H/J/K/L` 进出。**快捷键不改**（用户 2026-11-27：现有键位是之前花很长时间调好的；原来规格里的 `Ctrl+Shift+Z` / `Ctrl+Shift+X` 已撤回）。**做不到的不做**（用户 2026-11-27）：分屏（`pane.split`）、拖动把手换位置、`pane.swap`、`pane.rename` 只属于 tab 里的 pane，布局里的 mod 块拿不到（`herdr.d.ts` 的 `movable`、AGENTS.md "Zoomed tabs and one-pane tabs don't drag"）。
+
+**来源**：全部取 Herdr 自己：`pane` mod 的头部按钮（`split-right`、`split-down`、`zoom` / `unzoom`、`close`，只在鼠标在头部时显示）、布局 `main` 的 pane 外框（1px `border`，聚焦 1px `accent`，圆角 10）、`pane.go`（`Alt+H/J/K/L` 用现有键位，不新增、不改键）。
+
+**1. 聚焦边框（修 bug）**
+- 原因（已查）：布局节点的 `focus` 边框只在"焦点 pane 在里面"时画（AGENTS.md："`focus` … when the focused pane is inside"）。预览列是 mod 块，不是 pane，所以 §4.4a 写的"聚焦时 1px `accent`"从来没生效过；文件面板（`panel`）同理。**文件面板不要蓝边**（用户 2026-11-27），它那个无效的 `focus` 字段一并删掉；C3 拦下没有 pane 的节点上的 `focus`（L23）。
+- 做法：布局 `preview` 块去掉 `border` 和 `focus`，保留 `background`、`radius 10`；viewer（只在预览列）自己在根元素画 1px 边框、圆角 10：平时 `border`，**viewer 有键盘时 `accent`**。像素位置和现在的灰边相同，不加粗、不内缩。
+- "有键盘"：编辑器的 `focus` / `blur` 事件；没有编辑器时（Markdown 渲染视图、图片、说明文字）用 viewer 根元素自己的 `FocusHandle`，点一下就聚焦；跳行条输入框聚焦时也算。
+- 对比度（实测令牌）：`accent` 对 `background`，深色 `#0091ff` / `#171717` = 5.5，浅色 `#1e6ef4` / `#ffffff` = 4.6，都高于非文字元素的 3:1；和 `main` 里 pane 的聚焦边框同一个令牌。
+
+**2. `Alt+H/J/K/L` 进出**
+- `mod.json` 加 `"focusable": true`：`pane.go` 能移进预览列（AGENTS.md："`pane.go` also reaches visible mods whose `mod.json` says `focusable: true`"）。收到 `focus` 命令时，把键盘给编辑器（没有编辑器就给根元素）。
+- 出去：Herdr 自己处理（"starts from that mod while it holds the keyboard"），不用写代码；要实测编辑器没有吞掉 `alt-h/j/k/l`。
+
+**3. 放大 / 还原**
+- 头部预览列操作组变成三个按钮（同 Herdr `pane` 的顺序：放大在关闭左边）：`tabs` `Open in tab`（保留，用户 2026-11-27）、`arrows-out-simple` `Zoom`（放大后换成 `arrows-in-simple` `Exit zoom`）、`x` `Close preview`。图标是 Phosphor regular，形状和 Herdr 的 `zoom.svg` / `unzoom.svg` 相同（两个斜向箭头，向外 / 向内）；`arrows-*-simple` 在别处没用过，不和其他意思重复。
+- 放大 = 记下 `panel` 当时是否显示，然后 `layout.hide` `main` 和 `panel`，预览列占满工作区（侧边栏、tab 栏、状态栏不动，和 Herdr 的 pane 放大一样只占自己那块区域）。2026-11-27 已实测：隐藏 `main` 和 `panel` 后预览列铺满，再 `layout.show` 能完整恢复，没有报错。
+- 还原 = `layout.show main`，`panel` 原来显示才显示。记录放在共享状态 `awsome-viewer.zoom`（`{ panel, tab, pane }`：放大时的面板状态和焦点位置），代码在 `actions/zoom.js`。
+- **自动还原**（不让用户困在看不到终端的状态）：预览列被关掉（×、Esc、`Open in tab` 接管，别的 mod 收起预览列时在 300ms 的同步里发现）；切 space；`focused()` 的 tab 或 pane 变了（点 tab 栏、`agent.focus` 到别的 pane、点通知）；Herdr 重启、切布局、mod 重新载入（预览列重新出现时发现有放大记录就还原）。限制：`agent.focus` 落在放大前同一个 pane 上时看不出变化，不还原，点 `Exit zoom`。
+- 按钮只在鼠标在头部时显示（同 Herdr `pane`）。放大没有快捷键（快捷键不改）。
+
+**4. 键**：不加、不改（用户 2026-11-27）。预览列有键盘时按 `Ctrl+Shift+Z` / `Ctrl+Shift+X`，仍是 Herdr 全局的 `pane.zoom` / `pane.close`，作用于 tab 里当前的 pane，和以前一样。
+
+**往返**（`design/flows.json`）：放大 ⇄ 还原（鼠标：`Zoom` ⇄ `Exit zoom`；没有键）；进预览列 ⇄ 出来（键：`Alt+H/J/K/L`；鼠标：点预览列 ⇄ 点别处）。
+**惯例**（`design/conventions.json`）：`preview-focus-ring`（VS Code 的 `focusBorder`、Herdr 自己 pane 的聚焦边框）；`preview-zoom`（Herdr 的 `pane.zoom`、VS Code 的 `Toggle Maximized Editor Group`、Windows Terminal 的 `Toggle pane zoom`：放大后切走或关掉就还原）。
+**ui-ux-pro-max 过的结果**：聚焦必须看得见（Focus States，High）→ 第 1 条；悬停才显示的按钮要有别的方式 → 放大没有键，按用户决定接受（快捷键不改），和 Herdr pane 头部的按钮一样只靠悬停；键盘不能困住（Keyboard Navigation）→ 第 2 条实测出去、第 3 条自动还原。同屏交叉：`main` 里 pane 头部也有放大和关闭，图标形状、意思都一样，不冲突。
+**不做**：分屏、拖动、换位置、重命名、`pane.resize`（Herdr 没有默认键，预览列用分隔线拖宽）；文件面板的聚焦边框（用户 2026-11-27：不要）。
+**验证清单**：`herdr-app check`；`ui-check.py`；截图量边框像素（平时 `border`、聚焦 `accent`，深浅两套）；请你试：点预览列和 `Alt+H/J/K/L` 进出时的蓝边、悬停头部的三个按钮、放大和自动还原。
 
 ### 4.5 awsome-changes：VS Code 化 + commit message + discard ✅（设计已确认）
 

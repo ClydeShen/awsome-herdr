@@ -2,5 +2,6 @@
   "$schema": "./mod.schema.json",
   "version": "1.7.0",
   "place": "none",
-  "title": "Awsome Viewer"
+  "title": "Awsome Viewer",
+  "focusable": true
 }

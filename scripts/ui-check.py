@@ -195,7 +195,21 @@ def c3_layout():
     for ok, msg in checks:
         if not ok:
             fail("C3", "L5", msg, "change config/layouts/awsome.json, or design/tokens.json layout first")
+    c3_dead_focus(L)
     c3_list_ends()
+
+
+def c3_dead_focus(layout):
+    """A node's `focus` look only shows while a pane inside it has focus (Herdr AGENTS.md), so on
+    a node with no `{ "tab": ... }` block inside it never shows (L23: the preview column)."""
+    has_pane = lambda n: bool((n.get("content") or {}).get("tab")) or any(has_pane(c) for c in n.get("children", []))
+    def walk(n):
+        if "focus" in n and not has_pane(n):
+            fail("C3", "L23", f"layout node '{n.get('id')}' has a focus look but no pane inside, so it never shows",
+                 "draw the focus border in the mod (awsome-viewer's slotFrame), or remove the field")
+        for c in n.get("children", []):
+            walk(c)
+    walk(layout)
 
 
 # Scrolling regions in the two panels that are not lists (a file shown inside Files' panel).
