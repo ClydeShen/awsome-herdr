@@ -1,6 +1,6 @@
 # awsome-herdr
 
-Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza/herdr-mods 和 cybertron288/herdr-mods）、`config/` 下的布局和键位、`install.sh` / `sync.sh`。用户用中文交流。
+Clyde 的 Herdr 配置仓库：`mods/` 下 9 个 mod（`awsome-*`，改自 munza/herdr-mods 和 cybertron288/herdr-mods）、`config/` 下的布局和键位、`install.sh` / `sync.sh`。用户用中文交流。
 
 ## 常用命令
 

@@ -2,7 +2,7 @@
 
 My [Herdr](https://herdr.dev/) setup in one repo: a set of mods, a layout that uses them, and one script that puts it all on a new machine.
 
-一键安装我的 Herdr 配置：7 个 mod（5 个界面 mod、1 个设置对话框、1 个图标包）、一个布局和一个设置。
+一键安装我的 Herdr 配置：9 个 mod（7 个界面 mod、1 个设置对话框、1 个图标包）、一个布局和一个设置。
 
 ## Install
 
@@ -18,7 +18,7 @@ It does five things:
 
 1. Copies the mods in `mods/` into `~/.config/herdr-app/mods/`. The old names (`better-*`, `filetree`, `file-icons`) are moved to the backup folder first.
 2. Copies `config/layouts/awsome.json` into `layouts/`.
-3. Adds the keys in `config/keys.merge.json` to your `keys.json`, if it lists any. A key you already use is left alone and reported.
+3. Adds the keys in `config/keys.merge.json` to your `keys.json` (on macOS, the spellings in `config/keys.merge.macos.json` replace the ones bound to the same action, `cmd` where others use `ctrl`). A key you already use is left alone and reported.
 4. Adds the setting in `config/settings.merge.json` (`telemetry: false`) to your `settings.json` if you have not set it.
 5. Runs `herdr-app check` on every mod and switches to the `awsome` layout. If Herdr is not running, switch with `ctrl-shift-l`.
 
@@ -30,11 +30,13 @@ It was tested against a throwaway Herdr folder (backups, merging, `herdr-app che
 | --- | --- | --- |
 | `awsome-sidebar` | Spaces list with each space's Git branch. Pull request status is **off** (`pull_request_status: false`), so it never calls GitHub. | `better-sidebar` (munza/herdr-mods) |
 | `awsome-tabs` | Tab bar with draggable, wrapping tabs, and the Files/Changes toolbar. | `better-tabs` (munza/herdr-mods) |
+| `awsome-menu` | Not a panel: the shared pop-up menu, opened by the others: right-click a space, the tab bar's **+**, the status bar's choices. | new |
 | `awsome-changes` | Git changes panel and diff tabs. Diffs open **side by side** by default. The list shows at most **200 files** (`limits.files`); see Known rough edges. | `better-changes` (munza/herdr-mods) |
-| `awsome-viewer` | Read-only file viewer tabs (preview, Keep tab, Open in editor). Its own tree is not shown. | `better-files` (munza/herdr-mods) |
+| `awsome-viewer` | File tabs and the preview column, now an editor: edit and save (**Ctrl+S**), unsaved edits kept as drafts when a tab or Herdr closes, Go to line (**Ctrl+G**), comment, move and duplicate lines. Its own tree is not shown. | `better-files` (munza/herdr-mods) |
+| `awsome-statusline` | The bottom bar. Keeps Herdr's own items (machine, branch, agents, command hint) and adds the ones other mods register: the editor's line and column, indentation, encoding, line endings, word wrap, read-only. | new, from Herdr's `workspace-status` |
 | `awsome-filetree` | The Files panel: Git colours, line counts, filter, Recent. **Patched** so a click opens an Awsome Viewer tab. | `filetree` ([cybertron288/herdr-mods](https://github.com/cybertron288/herdr-mods)) |
 | `awsome-config` | Not a panel: one dialog (**Alt+Shift+,**) that shows every mod's settings, checks them, saves them into each mod's own `mod.json`, and can bind a setting to a key. | `better-config` (munza/herdr-mods) |
-| `awsome-icons` | Not a panel: holds the Material icon set that the other five read by path (a mod cannot import from another's folder). | `better-icons` (munza/herdr-mods) |
+| `awsome-icons` | Not a panel: holds the Material icon set that the other mods read by path (a mod cannot import from another's folder). | `better-icons` (munza/herdr-mods) |
 
 `better-search` and `file-icons` are no longer used.
 
