@@ -74,7 +74,7 @@ export function tidy(entries) {
 export function keyFor(action, mac) {
   const hit = (boundKeys() ?? []).find((k) => k.action === action);
   if (!hit) return null;
-  const words = { ctrl: "Ctrl", alt: mac ? "⌥" : "Alt", shift: mac ? "⇧" : "Shift", cmd: "⌘", super: "Super", enter: "Enter", backspace: "Backspace", delete: "Delete", escape: "Esc", tab: "Tab", space: "Space" };
+  const words = { ctrl: mac ? "⌃" : "Ctrl", alt: mac ? "⌥" : "Alt", shift: mac ? "⇧" : "Shift", cmd: "⌘", super: "Super", enter: "Enter", backspace: "Backspace", delete: "Delete", escape: "Esc", tab: "Tab", space: "Space" };
   const parts = hit.keys.split("-").map((p) => words[p] ?? (p.length === 1 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1)));
   return mac ? parts.join("") : parts.join("+");
 }
