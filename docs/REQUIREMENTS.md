@@ -609,7 +609,7 @@
 
 > 画板 06（Changes）、07（提交框）、08（Discard）。
 
-- **布局**：标题栏分段控件 `Changes N | History`，右边刷新、列表 / 树切换、更多。**提交框在最上面**（框内右下角两个小图标：`Generate commit message`、`Commit instruction`），下面通栏主按钮 `Commit`（下拉：`Commit (amend)`）。两组 `Staged changes` / `Changes`，可折叠，组头悬停才出现整组操作（`Stage all` / `Unstage all` / `Discard all…`）。
+- **布局**：~~标题栏分段控件 `Changes N | History`，右边刷新、列表 / 树切换、更多~~（2026-11-26 改：标题栏只放 `Changes | History` 文字标签，工具移到分支行，见 §4.6a）。**提交框在最上面**（框内右下角两个小图标：`Generate commit message`、`Commit instruction`），下面通栏主按钮 `Commit`（下拉：`Commit (amend)`）。两组 `Staged changes` / `Changes`，可折叠，组头悬停才出现整组操作（`Stage all` / `Unstage all` / `Discard all…`）。
 - **树视图（默认）**：按文件夹缩进（§2.2），文件夹在文件前面；**只有一个子目录的链合并成一行**（如 `mods/awsome-filetree`，VS Code 的 compact folders）；文件夹名取最严重状态的颜色，不显示数字；悬停出现整个文件夹的 `Stage changes` / `Discard changes…`。标题栏可切换成**列表视图**（不缩进，名字后面淡色目录）。
 - **文件行**：名字用 §2.4 的状态色；右侧 `+N −N` 固定宽度右对齐；**悬停时右侧换成三个图标**（`Open file`、`Discard changes…`（仅 `Changes` 组）、`Stage changes` / `Unstage changes`），不推挤布局。
 - **数量上限**：每组最多画 200 个文件（文件夹行另算，实现时要量渲染预算），超出写 `Showing the first 200 of N changed files.`。
@@ -659,6 +659,86 @@
 - 评论数据**采用 GitHub PR review 评论的标准字段**（`path`、`side`、`line`、`start_line`、`body`）。
 - 最后统一发给 agent 整改：复用 `Send to agent`，默认发给当前 space 的主 agent，发之前可改。
 - 做之前先把数据结构给你看一眼。
+
+### 4.6a P4b 的完整规格：awsome-changes 面板的框架和 History 的图视图（2026-11-26，规格已确认；预览看过第三版的结构和第五版的分组式分屏）
+
+> **需求**：§4.5、§4.6、画板 06（Changes）、09（History）、12（Repositories 列表，多 repo 的主要设计）。**标准是规格和公开来源，任何现有代码（awsome-changes、Files）都只是初始状态**（用户 2026-11-26；`docs/UI-LESSONS.md` L13、L15）。前两版预览被否定的原因见 L15：标题栏 42 高、文字标签和图标按钮混在同一层、计数进了标题栏、上游的 `Menu`、Lucide 图标、内容竖线不齐；第二版又照抄了 Files 的代码，把 Files 的摘要和进度条重复进来，而且没考虑多 repo。
+>
+> **布局（用户 2026-11-26 选定）**：标题栏只放 `Changes | History` 两个文字标签；图标工具放在**当前 repo 的分支行**右端（画板 09 也把范围控件放在分支行）。
+>
+> 数值来源：Herdr 自带 mod（`pane`、`tabs`、`changes`）；`design/tokens.json` 的 `sidebar`（shadcn Sidebar，用户已确认）、`paneHeader`；§2.2、§2.3；图的几何取 VS Code 的 Source Control Graph（`src/vs/workbench/contrib/scm/browser/scmHistory.ts`，2026-11-26 取自 main：线宽 1、`CIRCLE_RADIUS 4`、`CIRCLE_STROKE_WIDTH 2`）。
+
+**从上到下**（Changes 和 History 共用前三块，只有内容不同）
+
+| 块 | 有没有 | 内容 |
+|---|---|---|
+| 1 标题栏 | 总是 | `Changes`、`History` 两个文字标签，别的什么都不放 |
+| 2 Repositories 列表 | 只有 ≥ 2 个 repo 时 | §4.6 + 画板 12：标题行、最多 5 行、可折叠 |
+| 3 提交块的标题行（原"分支行"） | 总是 | 当前 repo 的分支；右端是这个视图的操作按钮；可折叠，见"分组式分屏" |
+| 4 内容 | | Changes：提交框 + 分组（§4.5，P4 做）；History：提交列表或图 |
+
+**竖线和横线**
+- 竖线 x = 16：`sidebar.inset 8` + 行的 `sidebar.px 8`，是图标列的左边缘：标题栏标签的图标、每个分组标题行的折叠箭头、Repositories 的文件夹图标、文件图标、第 0 条泳道都从这里开始。竖线 x = 40（图标列 16 + gap 8）：分组标题（`Repositories`、分支名、短哈希）、repo 路径、文件名。悬停和选中的底色从 8 开始（和侧边栏相同）。
+- 图标列：16 宽（`sidebar.icon 16`，组头的箭头槽也是 16），在 x = 16～32，中心 24。各分组标题行的折叠箭头、文件夹和文件图标、**第 0 条泳道**都落在这一列。
+- 右边：行内最右的文字（徽标、哈希）右边缘 = 宽 − 16；按钮的点击区右边缘 = 宽 − 8（和悬停底色同一条线）。
+- 横线：标题栏下边 = 旁边 pane 的头部下边（`paneHeader.height` 30，Herdr `pane`）。
+- 1px `border` 线：标题栏下；每个分组标题行的上边（第一块除外）。
+
+**1 标题栏**（Herdr `pane` 头部：高 30、`background` 底、下边 1px `border`、字号 12）
+- 两个标签用 Herdr 标签栏的面板按钮（`tabs/main.js` 的 `panelButton`：px 8、gap 5、圆角 6、字号 12；选中 `selected` 底 + `foreground`，没选中 `muted`，悬停 `hover`），高从 26 改成 22，让上下各留 4，落在 4px 栅格上。图标 14：`Changes` 用 Herdr 自带的 `mods/changes/changes.svg`（和右上角的 `Changes` 按钮同一个图标），`History` 用 Phosphor `git-commit`。
+- 标签名用需求里的 `History`（§4.5、§4.6、画板 09、12），不用代码里的 `Commits`。
+- 两个标签间距 2（`paneHeader.groupGap`），第一个标签的底色从 x = 8 开始，所以标签的图标从 16 开始。
+- **不放计数，不放任何按钮**。计数的位置：Repositories 每行的徽标、Changes 各组的组头（`Changes 1,000`）。tooltip：`Changes · 1,015 changed files`、`History · 2 not pushed`。
+
+**2 Repositories 列表**（§4.6 和画板 12 已定的行为，这里只补尺寸）
+- 标题行：`sidebar.labelHeight` 32、字号 11、medium、`muted`；箭头在图标列；右边三个图标按钮 `Rescan`、`Add repository…`、`Follow terminal`（`sidebar.action` 20、图标 16）。
+- 行：`sidebar.row` 28，px 8，gap 8，圆角 8，字号 13；图标列放 16px Phosphor `folder-simple`（`muted`），所以 repo 路径和标题行的 `Repositories`、分支行的分支名落在同一条竖线（x = 40）；repo 路径用 JetBrains Mono，颜色是最严重的 Git 状态（§2.4），干净的 `muted`；分支名、`↑2 ↓1` 字号 11、`muted`；右端改动数徽标（`sidebar.badgeHeight` 20、px 4、字号 11、等宽数字，千分位 `1,000`，自己格式化，因为运行时的 `toLocaleString` 不加分隔符；0 用 `dim`）。
+- 当前 repo：`selected` 底 + 左侧指示条（§2.3：4×24、`accent`）。
+- 最多 5 行，更多在列表里滚动；折叠后只剩当前一行和 `4 more · 1 has changes`。
+
+**3 提交块的标题行（原"分支行"）**：画法见下面"分组式分屏"（分组标题行，高 32，操作按钮 20 / 16）。
+- 操作按钮是**开关**时，打开时 `selected` 底 + `foreground`（和 Files 的开关同一个意思）；tooltip 写点了以后的结果：`Show graph` / `Show list`、`Show all branches` / `Show current branch`。
+- Changes 视图的同一行：`Show as tree`（`tree-structure`）、`Side-by-side diff`（`columns`）、`Refresh`。原来的 `Options` 菜单去掉，这两组选项变成两个开关。
+
+**4 History 的内容**
+- **List**：按本地 / 远程 / 默认分支分组（§4.6"原样保留"的是这个内容和分组）；行和组头按上面的竖线和 `sidebar` 尺寸重排（行 28、文字从 16 开始）。
+- **Graph**，每行（`sidebar.row` 28，px 8，gap 8，圆角 8，悬停 `hover`）：**泳道列 → 标题 → 引用标签 → 时间 → 短哈希**。
+  - 标题：13、`foreground`、省略号。**标签放在标题右边**（VS Code 的 Source Control Graph 也这样），所有行的标题从同一条竖线开始。
+  - 时间：`now`、`5m`、`3h`、`2d`、`3w`、`4mo`、`1y`；字号 11、JetBrains Mono、`muted`、右对齐、固定宽 28。哈希：7 位、字号 11、JetBrains Mono、`muted`。
+  - 窄了：先省略标题（§4.6 已定），标题最少留 64；再省略标签，每个标签最少留 32；时间、哈希永远完整。（第三版预览一度改成先省略标签，标签被压成只剩 `…`，而且改了已定的规则，已改回。）
+  - 标题只显示 message 的第一行（`%s`），放不下就省略。悬停提示两行：完整的标题，下面 `Clyde Shen · 2026-11-26 14:03`（VS Code 的图悬停时也显示完整 message）。
+  - **整行是点击区**（泳道、圆点、标签都算），单击选中这条提交（`selected` 底，§2.3）并在下方分屏显示详情；圆点、线、标签没有各自的动作（§4.6：只读）。
+
+**分组式分屏**（用户 2026-11-26："像 VS Code 分屏也等于分组，可以收起来"；代替上一版的"分支行 + 下方详情"）
+- 惯例：VS Code 侧边栏的各个视图（Source Control 的 Repositories、Changes、Graph）每块都是一个分组：标题行带折叠箭头，收起后只剩标题行；展开的几块之间是可拖动的分隔线。JetBrains 的工具窗口分屏也一样。我们自己的侧边栏（`Spaces`、`Agents`）和 Repositories 列表已经用同一种分组标题行，所以**三块都用这一种标题行，不新造**。
+- History 视图从上到下三块：**Repositories**（只有 ≥ 2 个 repo 时）、**提交**、**详情**（只在选中了一条提交时）。
+- **分组标题行**（`sidebar` 令牌，和 Repositories 的标题行同一个部件）：高 `labelHeight` 32；折叠箭头 12px 放在图标列（x = 16～32）；标题在 x = 40；右端操作按钮 `action` 20、图标 16，按钮之间 2，点击区右边缘 = 宽 − 8；每块的标题行上边一条 1px `border`（第一块除外）。单击标题行（按钮以外的地方）折叠或展开；状态记进 `localStorage`。收起的块不显示操作按钮（看不到内容，就没有可操作的；详情块的 × 例外，它让详情块整个消失）。
+  - **提交块**：标题是分支名（JetBrains Mono 11、`foreground`），有多个 repo 时后面跟 repo 名（11、`muted`）；`↑2 ↓1`（11、`muted`）。操作：`Show graph`（`git-merge`，开关）、`All branches`（`git-fork`，开关，只在图视图出现）、`Refresh`（`arrows-clockwise`）。**原来的分支行就是这一行**，不再单独占一行；操作按钮也统一成分组标题行的 20 / 16，和 Repositories 的按钮同一种。
+  - **详情块**：标题是短哈希（JetBrains Mono 11、`foreground`）。操作：`Copy hash`（`copy`）、`Open on GitHub`（`arrow-square-out`，只有远端已有这条提交时出现，沿用 `commitUrl` 的判断）、`Close (Esc)`（`x`）。
+  - Repositories：§4.6 已定"折叠后只剩当前一行和 `4 more · 1 has changes`"，照旧（这是已定的，不改成只剩标题行）。
+- **分隔线和高度**：展开的块放进 gpui-component 的 `v_resizable`（拖动、分隔线、按 id 记住高度都是现成的，规则 1 A）；收起的块只画标题行，放在分组外面，按原来的顺序排。分组 id 按"哪几块展开"取名（例如 `history:commits+detail`），每种组合各自记住拖过的高度。只有一块展开时它占满剩下的高度。Repositories 展开时高度由内容决定（最多 5 行，不参与拖动）。
+- **详情块的出现和收起**：没有选中提交时没有这一块。单击一条提交 → 选中（`selected` 底，§2.3），详情块出现（第一次占提交块和详情块合计高度的 40%，最小 120，提交块至少留 3 行）；单击另一条 → 换内容；**再单击已选中的那条、Esc、或 ×** → 取消选中，详情块消失。点箭头只是收起（只剩标题行，选中保留，换选中时标题跟着换）。
+- **详情块的内容**（整块竖向滚动）：完整标题（13、medium、`foreground`、换行）；`Clyde Shen · 2026-11-26 14:03`（11、`muted`）；正文 `%b`（13、`muted`、换行，没有就不画）：左右 px 16，上下 8，行间 4。然后一行 `3 files  +162 −17`（11、medium、`muted`，高 28，文字在 x = 16），下面每个文件一行（`sidebar.row` 28：文件图标 16 在图标列、名字 13 用 §2.4 状态色在 x = 40、目录 11 `muted`、右端 `+N −N`），单击打开这条提交对这个文件的 diff，在中间的 diff tab 里（现有的 `pick`，scope `commit`；diff 的 `Full file` 开关可以看整个文件在这次提交时的样子）。悬停时右端换成 `Open file` 图标（§4.5 文件行的同一个动作），用 viewer 在预览列打开**当前版本**（和 Files 的单击一样）。viewer 不加读历史版本（用户 2026-11-26 选 A：照现在的做法；Changes 的打开方式要不要和 P2 统一，P4 再说）。
+- 现有代码的详情页（整页替换、`chevron-left` 返回、px 14、`dim`）是初始状态，整块换掉。
+- 要先验证：`v_resizable` 里换一组面板（分组 id 变了）时，新组合用初始大小、旧组合拖过的大小下次还在。不行就改成详情块固定在提交块下方、只记一个高度。
+
+**数据**
+- `git log --date-order --decorate=full --format=%H%x00%h%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s%x00%b%x1e`（和 List 一样用 `` 分记录，所以正文里的换行不会断开记录）；当前分支 = `HEAD` + `@{upstream}`，所有分支 = `--branches --remotes --tags HEAD`。
+- 泳道布局先验证 npm 的 `graph-lab`（纯布局，算法来自 SourceGit）：打包成单个文件、`herdr-app check` 通过、和自己写的 `layoutLanes` 结果一致才用；否则用自己的约 40 行，原因写在这里。
+- 设置：`default.history`（`list` / `graph`，默认 `list`），和 `default.view`、`default.diff` 同一组。
+
+**往返路径**（代码写完时登记 `design/flows.json`）
+- `Changes` ↔ `History`：点标签去，点另一个标签回。
+- 开关：点一次去，再点一次回。
+- 详情块：单击一行出现；再单击同一行、Esc、或 × 消失。
+- 每一块：单击标题行收起，再单击展开。
+- 切换 repo：单击 Repositories 的一行去；单击原来那一行回（`Follow terminal` 回到跟随）。
+
+**和现有代码的差距**（代码只是初始状态，这些都要改）：标题栏 42 高、px 14、`Changes 3 | Commits 2` 带框标签和计数、26px 按钮、`Options` 菜单（上游 `Menu`）、Lucide 图标、列表 px 6 + 行 px 8（文字在 14）、`Load more` 行、没有 Repositories 列表（P4）。
+
+**已确认**（用户 2026-11-26）：泳道 6 种颜色（终端色 `ansi4 / 2 / 5 / 6 / 3 / 1`）、标签放在标题右边、`Options` 菜单换成两个开关、标签名用 `History`、280 宽时标签只剩几个字也可以。
+
+**不做**（§4.6）：右键 git 操作、checkout、stash 和 WIP 行、冲突视图、文件历史、头像、列宽拖拽、Rust 辅助程序。
 
 ### 4.7 awsome-filetree：内容搜索 ⬜
 
