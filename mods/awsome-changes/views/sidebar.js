@@ -422,6 +422,7 @@ export const sidebarMethods = {
       name: this.repoName(),
       views,
       tools: this.tab === "commit" ? this.historyTools() : this.changesTools(),
+      onName: () => run("layout.select", { stack: "panel-body", child: "files" }),
     });
   },
 

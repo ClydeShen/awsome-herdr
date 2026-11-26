@@ -204,6 +204,8 @@
     1. **文字缩成字母**：`23 M  11 A  1,632 D`（字母 `muted`，跟在彩色数字后面，gap 3 不变）。字母和 Herdr 自带 `changes` 的行、Files 的可选状态字母（`row.statusLetter`）同一套：`M` 修改、`A` 新增（含未跟踪）、`D` 删除。
     2. **还放不下，藏起右边的 `+N −N`**：Files 讲的是文件，行数次要（每个文件行还写着自己的行数）。
     - 按 5.6 估算，280 宽时第 1 步就能放下全部（`23 M 11 A 1,632 D +1,819 −129,165` 约 200 px），计数到上万、行数到十万也还放得下；第 2 步只在更窄时出现。不截断、不换行。
+    - **摘要可以点**（2026-11-27，用户要求）：点整个摘要（计数、行数、比例条）= 切到 Git 面板的 Changes 视图（和顶栏 `Git` 按钮同一个切换，`layout.select`，再给 `awsome-changes` 发 `changes` 命令，所以落在提交框和 Staged 那一页，不是 History）。悬停：整块叠 `hover`，指针手形；tooltip 最后加一项 `Open Changes`（缩写或藏了东西时写在全文后面，用 ` · ` 隔开）。
+    - **回来**：Changes 和 History 两个视图头部左边的名字（repo 名）可以点 = 切回 Files（`layout.select`）。悬停：文字从 `muted` 变 `foreground`（和头部图标按钮的悬停同一个写法），指针手形，不叠底色（名字的位置不动，x = 10 的对齐线不变）；tooltip `Show files`。Files 自己头部的名字不是按钮。鼠标对鼠标；键盘没有快捷键，和顶栏 `Files` / `Git` 按钮一样。
     - 缩写或藏了东西时才给这一行加 tooltip，写全：`11 new · 23 modified · 1,632 deleted · +1,819 −129,165`（§2.5 / L20：颜色和字母表达的状态写成字、被藏起的内容）；放得下时没有 tooltip。比例条不变。
 - **Changes**：分支写进提交框的占位文字 `Message (Ctrl+Enter to commit on main)`（macOS `Cmd+Enter`；VS Code 的写法），提交时就在眼前；`↑2 ↓1` 写进 `History (2)` 按钮的提示：`History (2) · 2 not pushed · 1 not pulled`。
 - **History**：没有分支行；当前分支在图里是实心标签，List 视图的组头写着分支名。

@@ -636,6 +636,39 @@
         "mouse": "click elsewhere",
         "keys": "Esc"
       }
+    },
+    {
+      "id": "files-to-changes",
+      "mod": "awsome-filetree",
+      "to": "the Changes view of the Git panel",
+      "forward": {
+        "mouse": "click the summary (counts, totals, bar) at the top of Files",
+        "keys": "",
+        "code": [
+          "layout.select",
+          "awsome-changes.changes"
+        ]
+      },
+      "back": {
+        "mouse": "click the repo name in the header of Changes or History (changes-to-files)",
+        "keys": ""
+      }
+    },
+    {
+      "id": "changes-to-files",
+      "mod": "awsome-changes",
+      "to": "the Files panel",
+      "forward": {
+        "mouse": "click the repo name in the header of Changes or History",
+        "keys": "",
+        "code": [
+          "Show files"
+        ]
+      },
+      "back": {
+        "mouse": "click the summary at the top of Files (files-to-changes)",
+        "keys": ""
+      }
     }
   ]
 }

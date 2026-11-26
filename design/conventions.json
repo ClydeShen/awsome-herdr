@@ -1067,6 +1067,30 @@
           "summaryFit("
         ]
       }
+    },
+    {
+      "id": "summary-opens-changes",
+      "what": "A change summary that takes you to the full list of changes, and a header label that takes you back",
+      "references": [
+        {
+          "app": "VS Code (status bar and Activity Bar)",
+          "behavior": "The changed-files count on the Source Control icon, and the branch item in the status bar, open the Source Control view on click; the Explorer icon next to it brings you back."
+        },
+        {
+          "app": "JetBrains IDEs (status bar widget and tool windows)",
+          "behavior": "The Git branch widget and the changes count open the Commit tool window; the project name / Project tool window button returns to the file tree."
+        }
+      ],
+      "ours": "Files' summary opens the Changes view of the Git panel; the repo name in the header of Changes and History shows Files again. Mouse both ways, no keys (the top bar's Files / Git buttons are the same switch).",
+      "herdr": "awsome-tabs' Files / Git buttons (a layout.select on the panel stack); this is the same switch from inside the panels.",
+      "code": {
+        "awsome-filetree": [
+          "awsome-changes.changes"
+        ],
+        "awsome-changes": [
+          "Show files"
+        ]
+      }
     }
   ]
 }

@@ -514,7 +514,8 @@ export function PaneButton({ id, icon, label, onClick, active = false, spinning 
 }
 
 // Files' header (§4.3, §2.9): the name, the view buttons, a separator, that view's tools.
-export function FrameHeader({ name, views, tools }) {
+// onName (optional): clicking the name goes back to Files (§2.9 "回来").
+export function FrameHeader({ name, views, tools, onName }) {
   const t = theme();
   const group = (items) => h_flex().flex_none().gap(P.groupGap).items_center().children(items);
   return h_flex()
@@ -527,7 +528,9 @@ export function FrameHeader({ name, views, tools }) {
     .border_b(1)
     .border_color(t.border)
     .text_size(P.text)
-    .child(div().flex_1().min_w(0).truncate().font_family(codeFont()).text_color(t.muted).child(name))
+    .child(div().flex_1().min_w(0).truncate().font_family(codeFont()).text_color(t.muted).child(name)
+      .when(Boolean(onName), (el) => el.id("frame-name").cursor_pointer().hover((s) => s.text_color(t.foreground)).tooltip("Show files")
+        .on_click((_e, cx) => { cx.stop_propagation(); onName(cx); })))
     .child(group(views))
     .child(div().w(1).h(P.separator).flex_none().bg(t.border))
     .child(group(tools));

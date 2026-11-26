@@ -998,9 +998,12 @@ export default class FileTree extends View {
     const full = [countsText, totalTexts.join(" ")].filter(Boolean).join(" · ");
     const room = Math.max(40, this.width - 2 * P.px - 2 * (parts.length - 1));
     // §2.9: no branch here (the sidebar row and the status bar show it); the counts, the totals, the bar.
-    return v_flex().flex_none().pb(6).border_b(1).border_color(t.border)
+    // Clicking the summary opens Git's Changes view (§2.9 "摘要可以点"): the same switch as the Git button.
+    return v_flex().id("ft-summary").flex_none().pb(6).border_b(1).border_color(t.border).cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .tooltip([short ? full : "", "Open Changes"].filter(Boolean).join(" · "))
+      .on_click((_e, cx) => { run("layout.select", { stack: "panel-body", child: "changes" }); run("awsome-changes.changes"); })
       .child(h_flex().h(P.list).px(P.px).gap(10).items_center().text_size(P.secondary).text_color(t.muted)
-        .when(short, (el) => el.tooltip(full))
         .when(!total, (el) => el.child(div().child("clean")))
         .children(parts.map(([n, color, word, letter]) => h_flex().flex_none().gap(3).items_center().child(div().text_color(color).child(grouped(n))).child(fit.letters ? letter : word)))
         .child(div().flex_1())
