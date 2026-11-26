@@ -30,9 +30,9 @@ export async function readDraft(file) {
 }
 
 // `raw` is null when the file was deleted; the draft then says so, and saving makes it again.
-export async function writeDraft(file, { raw, text, eol, bom }) {
+export async function writeDraft(file, { raw, text, eol }) {
   await mkdir(folder(), { recursive: true });
-  await writeFile(draftPath(file), JSON.stringify({ path: file.path, on: file.on ?? null, raw, text, eol, bom, at: Date.now() }));
+  await writeFile(draftPath(file), JSON.stringify({ path: file.path, on: file.on ?? null, raw, text, eol, at: Date.now() }));
 }
 
 export async function deleteDraft(file) {

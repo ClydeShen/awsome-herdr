@@ -1183,7 +1183,7 @@
 | 行尾 | `LF` / `CRLF` | 菜单：`LF`、`CRLF` | VS Code `CRLF`、点开 Select End of Line Sequence |
 | 换行 | 图标，开着时高亮 | 切换当前文件的自动换行 | VS Code 没有状态项；`Alt+Z` 的鼠标版，同一个动作 |
 | 只读 | 图标 `pencil-simple-slash` | — | 和头部的只读标记同一个图标，同一个意思 |
-- 改缩进 = 只改 Tab 键插入什么（`set_tab_size`），不重排文件（VS Code 的 `Indent Using Spaces` 才会重排，不做）。改行尾 / BOM = 改下次保存时写回的样子，并把文件标成有改动（`*`）。
+- 改缩进 = 只改 Tab 键插入什么（`set_tab_size`），不重排文件（VS Code 的 `Indent Using Spaces` 才会重排，不做）。改行尾 = 改下次保存时写回的样子，并把文件标成有改动（`*`）。
 
 **去 / 回**（登记进 `design/flows.json`）：状态项的菜单（去：点那一项；回：Esc、点别处，和所有菜单一样）；光标项打开操作条（回：Esc、×）。
 

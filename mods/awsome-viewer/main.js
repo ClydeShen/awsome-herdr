@@ -217,8 +217,8 @@ class AwsomeViewer extends View {
     }
     // Unsaved edits become a draft first: what comes after may not get the time.
     if (this.mode === "viewer" && this.dirty()) {
-      const { raw, eol, bom } = this;
-      await this.draftWork(() => writeDraft(this.file, { raw: this.deleted ? null : raw, text: this.code.value(), eol, bom }));
+      const { raw, eol } = this;
+      await this.draftWork(() => writeDraft(this.file, { raw: this.deleted ? null : raw, text: this.code.value(), eol }));
     }
     // Its items leave the status bar with it.
     if (this.mode === "viewer" && this.isActive()) this.writeStatus([]);

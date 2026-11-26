@@ -177,7 +177,7 @@ export const viewerMethods = {
       this.code = null;
       // The operation bar closes silently: it belonged to the file before this one.
       if (this.lineInput) this.lineInput.release();
-      Object.assign(this, { raw: undefined, base: undefined, eol: "\n", bom: false, baseEol: "\n", baseBom: false, truncated: false, deleted: false, editorFocused: false, draftText: undefined, draftAt: undefined, lineInput: null, lineBad: false, lineFocused: false });
+      Object.assign(this, { raw: undefined, base: undefined, eol: "\n", bom: false, baseEol: "\n", truncated: false, deleted: false, editorFocused: false, draftText: undefined, draftAt: undefined, lineInput: null, lineBad: false, lineFocused: false });
       this.hunks = [];
       this.openHunks = new Set();
       this.readFile(cx);
@@ -277,7 +277,7 @@ export const viewerMethods = {
           this.code.release();
           this.code = null;
         }
-        Object.assign(this, { raw, base: text, eol, bom, baseEol: eol, baseBom: bom, truncated, text });
+        Object.assign(this, { raw, base: text, eol, bom, baseEol: eol, truncated, text });
         if (this.code) {
           const { start, end } = this.code.selected_range();
           this.code.set_value(text);
@@ -302,9 +302,9 @@ export const viewerMethods = {
     return null;
   },
 
-  // Line endings and the byte order mark count too: changing them changes what a save writes.
+  // Line endings count too: changing them changes what a save writes.
   dirty() {
-    return Boolean(this.code) && this.editable() && (this.code.value() !== this.base || this.eol !== this.baseEol || this.bom !== this.baseBom);
+    return Boolean(this.code) && this.editable() && (this.code.value() !== this.base || this.eol !== this.baseEol);
   },
 
   // The editor is what's on screen: not an image, a problem, the preview or changed lines.
@@ -439,7 +439,7 @@ export const viewerMethods = {
         return;
       }
       if (this.file !== file) return;
-      Object.assign(this, { raw: out, base: value, baseEol: eol, baseBom: bom, deleted: false });
+      Object.assign(this, { raw: out, base: value, baseEol: eol, deleted: false });
       this.dropDraft();
       after?.(cx);
       cx.notify();
@@ -473,7 +473,6 @@ export const viewerMethods = {
         this.code.set_value(this.base);
         this.text = this.base;
         this.eol = this.baseEol;
-        this.bom = this.baseBom;
         done(cx);
       } else cancel?.(cx);
       cx.notify();
@@ -497,8 +496,8 @@ export const viewerMethods = {
       if (text === this.draftText || Date.now() - (this.draftAt ?? 0) < DRAFT_MS) return;
       this.draftText = text;
       this.draftAt = Date.now();
-      const { raw, eol, bom } = this;
-      this.draftWork(() => writeDraft(file, { raw: this.deleted ? null : raw, text, eol, bom }));
+      const { raw, eol } = this;
+      this.draftWork(() => writeDraft(file, { raw: this.deleted ? null : raw, text, eol }));
     } else this.dropDraft();
   },
 
@@ -513,7 +512,7 @@ export const viewerMethods = {
   // file changed since, saving finds it and asks before overwriting.
   restoreDraft(file, draft, disk) {
     const saved = splitText(draft.raw ?? "");
-    Object.assign(this, { raw: draft.raw, base: saved.text, baseEol: saved.eol, baseBom: saved.bom, eol: draft.eol, bom: draft.bom, truncated: false, deleted: disk === null, text: draft.text, problem: null });
+    Object.assign(this, { raw: draft.raw, base: saved.text, baseEol: saved.eol, eol: draft.eol, bom: saved.bom, truncated: false, deleted: disk === null, text: draft.text, problem: null });
     this.code = this.newCode(file, draft.text);
     this.draftText = draft.text;
     this.draftAt = Date.now();
@@ -526,14 +525,13 @@ export const viewerMethods = {
   // file as it is on disk, so it never asks about edits it no longer holds.
   async handOverEdits() {
     const file = this.file;
-    const { raw, eol, bom } = this;
+    const { raw, eol } = this;
     const text = this.code.value();
-    await this.draftWork(() => writeDraft(file, { raw: this.deleted ? null : raw, text, eol, bom }));
+    await this.draftWork(() => writeDraft(file, { raw: this.deleted ? null : raw, text, eol }));
     this.draftText = undefined;
     this.code.set_value(this.base);
     this.text = this.base;
     this.eol = this.baseEol;
-    this.bom = this.baseBom;
   },
 
   // Whether this viewer has the keyboard: its editor, its line bar, or the column itself.
