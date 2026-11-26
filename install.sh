@@ -5,7 +5,8 @@ set -eu
 
 SRC=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
-MODS="better-icons better-sidebar better-files better-changes better-tabs better-search file-icons filetree"
+MODS="awsome-icons awsome-config awsome-sidebar awsome-viewer awsome-changes awsome-tabs awsome-filetree awsome-menu awsome-statusline"
+LEGACY="better-changes better-icons better-sidebar better-files better-tabs better-search file-icons filetree" # names this repo used before the awsome-* rename
 LAYOUT=awsome
 
 say() { printf '%s\n' "$*"; }
@@ -25,6 +26,7 @@ backup() { # backup <path> : move an existing path into the backup folder, keepi
 }
 
 say "Mods -> $HOME_DIR/mods"
+for m in $LEGACY; do backup "$HOME_DIR/mods/$m"; done # the old names, now replaced by the awsome-* mods
 for m in $MODS; do
   backup "$HOME_DIR/mods/$m"
   cp -R "$SRC/mods/$m" "$HOME_DIR/mods/$m"
@@ -37,6 +39,15 @@ sleep 2
 say "Layout -> layouts/$LAYOUT.json"
 backup "$HOME_DIR/layouts/$LAYOUT.json"
 cp "$SRC/config/layouts/$LAYOUT.json" "$HOME_DIR/layouts/$LAYOUT.json"
+
+say "Themes -> themes/"
+mkdir -p "$HOME_DIR/themes"
+for f in "$SRC"/config/themes/*.json; do
+  [ -e "$f" ] || continue
+  backup "$HOME_DIR/themes/$(basename "$f")"
+  cp "$f" "$HOME_DIR/themes/$(basename "$f")"
+  say "  installed $(basename "$f")"
+done
 
 say "Keys and settings (only adds what is missing; nothing of yours is replaced)"
 python3 -I - "$HOME_DIR" "$SRC/config" <<'PY'
@@ -53,6 +64,13 @@ def save(p, d):
 keys_path = os.path.join(home, "keys.json")
 keys = load(keys_path, {})
 add = load(os.path.join(cfg, "keys.merge.json"), {})
+# macOS spellings of the same actions (cmd where others use ctrl) replace the ones in keys.merge.json.
+if sys.platform == "darwin":
+    for section, binds in load(os.path.join(cfg, "keys.merge.macos.json"), {}).items():
+        actions = set(binds.values())
+        kept = {k: a for k, a in add.get(section, {}).items() if a not in actions}
+        kept.update(binds)
+        add[section] = kept
 changed = False
 for section, binds in add.items():
     have = keys.setdefault(section, {})

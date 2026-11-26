@@ -1,0 +1,1146 @@
+{
+  "$comment": "How well-known software does each interaction we build, and what we do (docs/UI-LESSONS.md L8). Before designing or adopting any interaction, including one inherited from an upstream mod, add it here with at least two references. 'ours' must follow them; 'deviation' says why when it does not. 'code' names strings that must exist in the mod once it is built; 'planned': true skips that until then. scripts/ui-check.py C12 checks this file.",
+  "conventions": [
+    {
+      "id": "key-recording",
+      "what": "Setting a keyboard shortcut",
+      "references": [
+        {
+          "app": "VS Code (Keyboard Shortcuts editor)",
+          "behavior": "Double-click a row: 'Press desired key combination and then press ENTER'; the keys show as keycaps while pressed; Esc cancels; a note says how many commands already use that key."
+        },
+        {
+          "app": "Windows Settings / macOS System Settings",
+          "behavior": "Click the shortcut field, press the keys once, they are recorded and shown as keycaps; no typing of key names."
+        }
+      ],
+      "ours": "Click the keycaps or Change; the box shows 'Press a shortcut' and keycaps (shadcn Kbd) appear as keys are held; Enter saves, Esc or a click outside cancels; a key used elsewhere shows 'Already used by ...'. Keys Herdr already binds are caught through a mod:awsome-config section of keys.json, since a focused view never receives them.",
+      "code": {
+        "awsome-config": [
+          "on_modifiers_changed",
+          "Press a shortcut",
+          "Already used by"
+        ]
+      }
+    },
+    {
+      "id": "submenu",
+      "what": "A menu item that leads to more items",
+      "references": [
+        {
+          "app": "Windows Explorer / VS Code context menus",
+          "behavior": "The item shows a chevron; hovering or pressing Right opens the submenu beside it; Left or hovering another item closes it; the parent menu stays."
+        },
+        {
+          "app": "macOS menus",
+          "behavior": "Same: submenus open to the side and keep the parent menu in place."
+        }
+      ],
+      "ours": "menu.js `submenu`: › on the right; hover, Right or Enter opens it beside the item; Left, Esc or hovering another item closes it.",
+      "code": {
+        "awsome-menu": [
+          "submenu:",
+          "menuNav("
+        ],
+        "awsome-filetree": [
+          "submenu"
+        ]
+      }
+    },
+    {
+      "id": "context-menu",
+      "what": "Right-click menu",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Right-click opens at the pointer; items grouped by separators; keys shown on the right; arrows move; Enter runs; Esc closes; Shift+F10 opens it from the keyboard."
+        },
+        {
+          "app": "Windows Explorer / macOS Finder",
+          "behavior": "Right-click (or the Menu key / Shift+F10) opens it; destructive items last; unavailable items greyed."
+        }
+      ],
+      "ours": "menu.js: groups in a fixed order with separators, keys on the right, arrows/Enter/Esc, danger last in red, unavailable items greyed with the reason as a tooltip. Shift+F10 opens the file tree's menu for the selected row; the space menu has a bindable command with no key by default.",
+      "code": {
+        "awsome-filetree": [
+          "\"menu\"",
+          "menuKey(",
+          "menuView("
+        ],
+        "awsome-menu": [
+          "menuView(",
+          "menuNav("
+        ],
+        "awsome-changes": [
+          "openRowMenu(",
+          "menuView("
+        ]
+      }
+    },
+    {
+      "id": "close-tab-middle-click",
+      "what": "Closing a tab with the middle mouse button",
+      "references": [
+        {
+          "app": "Chrome / Firefox / Edge",
+          "behavior": "Middle-click on a tab closes it, on release."
+        },
+        {
+          "app": "VS Code",
+          "behavior": "Middle-click on an editor tab closes it."
+        }
+      ],
+      "ours": "Middle-click (on release) runs the same close as the tab's x button; the x tooltip says 'Close tab (middle-click)'.",
+      "code": {
+        "awsome-tabs": [
+          "on_mouse_up(\"middle\"",
+          "Close tab (middle-click)"
+        ]
+      }
+    },
+    {
+      "id": "folder-navigation",
+      "what": "Going up and into folders in a tree",
+      "references": [
+        {
+          "app": "Windows Explorer",
+          "behavior": "Alt+Up goes up; Enter opens a folder; Backspace goes back; the folder you came from stays selected after going up."
+        },
+        {
+          "app": "macOS Finder",
+          "behavior": "Cmd+Up goes up; Cmd+Down opens the selected folder."
+        }
+      ],
+      "ours": "Ctrl+Alt+Backspace up, Ctrl+Alt+Enter into the selected folder (Alt+Up is Herdr's agent.prev; plain Enter already expands), Ctrl+Alt+Home back to following the focused pane; going up selects the folder you left.",
+      "deviation": "Ctrl+Alt instead of Alt / Cmd, because Herdr owns Alt+Up/Down and plain Enter expands a folder in the tree; chosen by the user.",
+      "code": {
+        "awsome-filetree": [
+          "goUp()",
+          "enterFolder(",
+          "followPane()"
+        ]
+      }
+    },
+    {
+      "id": "confirm-dialog",
+      "what": "Confirming a destructive action",
+      "references": [
+        {
+          "app": "Herdr's own confirm",
+          "behavior": "Enter confirms, Esc cancels."
+        },
+        {
+          "app": "Windows Explorer delete / macOS Finder",
+          "behavior": "A question with the count, the action named on the button, Enter on the default button, Esc cancels."
+        }
+      ],
+      "ours": "confirm.js: a question with the count as the title, names listed (8 then +N more), Cancel and a red button that names the action, Enter confirms, Esc cancels.",
+      "code": {
+        "awsome-filetree": [
+          "confirmView(",
+          "confirmKey("
+        ]
+      }
+    },
+    {
+      "id": "settings-page",
+      "what": "A settings page",
+      "references": [
+        {
+          "app": "VS Code Settings editor",
+          "behavior": "A table of contents on the left; settings grouped under headings; each shows its title and a one-line description with the control; a modified setting is marked and its own menu resets just that one; the setting's id is not shown on the row."
+        },
+        {
+          "app": "macOS System Settings / Windows 11 Settings",
+          "behavior": "A sidebar of pages; each page groups related settings in one rounded box with thin separators, a heading above each group; title and a short description on the left, the control on the right."
+        }
+      ],
+      "ours": "Nav list on the left (sidebar rows, current page with the indicator bar). Each page: title and one short line; groups under 11px headings; each group one bordered card (radius 10) with rows separated by 1px lines; row = title 13 medium and one-line description 12 muted on the left, control and a fixed 24px slot for its reset icon on the right; a changed setting shows a 6px accent dot after its title and the reset icon. Icon buttons (24px, 16px icons, tooltips) instead of text buttons. The setting's key path only in the title's tooltip.",
+      "code": {
+        "awsome-config": [
+          "arrow-counter-clockwise",
+          "Reset to "
+        ]
+      }
+    },
+    {
+      "id": "agent-menu",
+      "what": "Right-click menu on a running agent (a terminal in a list)",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (terminal tab context menu)",
+          "behavior": "Right-click a terminal tab: Split, Move into Editor Area, Change Icon, Change Color, Rename, then Kill Terminal last. Rename is also F2. A terminal that was not focused is selected by the click."
+        },
+        {
+          "app": "Chrome / Edge (tab context menu)",
+          "behavior": "Right-click a tab: Reload, Duplicate, Pin, Mute, then Close last. Pin keeps the tab at the start of the strip."
+        }
+      ],
+      "ours": "Right-click an agent row: Focus, Open in its own tab | Rename pane (F2) | Pin, Send back | Copy working directory | Close agent (red, last). Only Herdr's own commands, so every agent works the same; commands that belong to one agent's CLI (fork, rename session) are left out.",
+      "code": {
+        "awsome-menu": [
+          "scope === \"agent\""
+        ]
+      }
+    },
+    {
+      "id": "agent-close-confirm",
+      "what": "Closing an agent that is working",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Kill Terminal)",
+          "behavior": "Kills the terminal at once, with no dialog by default; the terminal.integrated.confirmOnKill setting asks only when a process is still running in it."
+        },
+        {
+          "app": "Chrome (closing a tab)",
+          "behavior": "Closes at once; it asks 'Leave site?' only when the page would lose something (unsaved input)."
+        }
+      ],
+      "ours": "Closing an idle or done agent happens at once; a working or blocked agent asks first with Herdr's confirm, naming the agent and saying its run stops. No Don't ask again (not recoverable).",
+      "code": {
+        "awsome-menu": [
+          "terminal.kill"
+        ]
+      }
+    },
+    {
+      "id": "inline-rename",
+      "what": "Renaming a row in a list",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer, terminal tabs)",
+          "behavior": "F2 or the menu's Rename turns the label into an input with the name selected; Enter saves, Esc cancels, clicking away saves; an empty name keeps the old one."
+        },
+        {
+          "app": "Windows Explorer / macOS Finder",
+          "behavior": "F2 (Enter in Finder) edits the name in place; Enter saves, Esc cancels."
+        }
+      ],
+      "ours": "Rename pane on an agent row edits the name in the row, same as spaces and groups: Enter saves, Esc cancels, clicking away saves, empty keeps the old name.",
+      "code": {
+        "awsome-sidebar": [
+          "rename"
+        ]
+      }
+    },
+    {
+      "id": "list-selection",
+      "what": "Selecting several rows in a list",
+      "references": [
+        {
+          "app": "Windows Explorer / VS Code Explorer",
+          "behavior": "Click selects one; Ctrl+click adds or removes one; Shift+click selects the range from the anchor; Esc or a click on empty space clears; right-click on a selected row acts on the whole selection."
+        },
+        {
+          "app": "macOS Finder",
+          "behavior": "The same with Cmd for Ctrl."
+        }
+      ],
+      "ours": "Spaces: click switches to it and selects only it; Ctrl/Cmd+click adds or removes without switching; Shift+click selects the range in the visible order within one machine; Esc or a click on empty sidebar space clears; right-click on a selected row opens the multi-selection menu. Selected rows use the selected overlay; the current space also has the indicator bar. Files uses the same rules plus Shift+Up/Down and Ctrl+Space (toggle the cursor row), the keyboard cursor as a 1px accent ring while the list has focus, and a selection bar (N selected, Send to agent, Copy path, clear) above the tree while 2 or more rows are selected.",
+      "code": {
+        "awsome-sidebar": [
+          "isSelected(",
+          "listFocus"
+        ],
+        "awsome-filetree": [
+          "extendSelection(",
+          "selectionBar("
+        ]
+      }
+    },
+    {
+      "id": "appearance-picker",
+      "what": "Picking a color and an icon for an item",
+      "references": [
+        {
+          "app": "Chrome / Edge tab groups",
+          "behavior": "Right-click a group: a small popover with a row of color circles; the chosen one has a ring; a pick applies at once and the popover stays until you click away or press Esc."
+        },
+        {
+          "app": "VS Code terminal tabs (Change Color / Change Icon)",
+          "behavior": "Each is a short list to pick from, applied at once; a reset goes back to the default."
+        }
+      ],
+      "ours": "One compact popover from the menu family: a 7-column grid of 28px cells (no gaps), colors in the first row (none + 6), a menu separator, 28 icons in four rows; a group shows only the color row and a space inside a group only the icons; the current choice and hover use the menu's selected/hover overlays, and the current color also gets a ring inside its cell; picking applies at once and the popover stays; picking none or the current icon again returns to the default, so there is no reset button; Esc or a click outside closes it.",
+      "code": {
+        "awsome-menu": [
+          "pickerView(",
+          "openLooks("
+        ]
+      },
+      "deviation": "Chrome shows colors in a free row; ours sit in the menu's 28px cells so the picker reads as one family with the menus (L12). The ring for the current color is Chrome's."
+    },
+    {
+      "id": "tab-groups",
+      "what": "Grouping items in a list",
+      "references": [
+        {
+          "app": "Chrome / Edge tab groups",
+          "behavior": "A group is shown in its color around its tabs; the label collapses and expands it; tabs are dragged in and out; right-click the label to rename, recolor, ungroup; a tab in a group takes the group's color."
+        },
+        {
+          "app": "Arc sidebar folders",
+          "behavior": "A group is one soft block in the sidebar; items keep their icons and line up with ungrouped items; clicking the header collapses it."
+        }
+      ],
+      "ours": "One soft block per group in its color, as wide as a row; a header row (chevron, name, optional red dot) collapses and expands it; members are not indented and line up with ungrouped spaces; a member shows its icon, the group gives its color; 8 between groups; drag in and out or use the menu's Group submenu.",
+      "code": {
+        "awsome-sidebar": [
+          "ungroup(",
+          "groupHead("
+        ]
+      },
+      "decided": "2026-11-26: the user compared sections, tinted blocks and an indented tree, and chose tinted blocks."
+    },
+    {
+      "id": "drag-reorder",
+      "what": "Reordering rows by dragging",
+      "references": [
+        {
+          "app": "Chrome tab strip",
+          "behavior": "A drag starts after a small movement; a gap opens where the tab will land; dropping onto a group adds it; Esc cancels."
+        },
+        {
+          "app": "VS Code Explorer / Windows Explorer",
+          "behavior": "Dragging shows an insertion line or highlights the target folder; invalid targets show the no-drop cursor."
+        }
+      ],
+      "ours": "Starts after 6px of movement; a 2px accent insertion line, inside a block to join that group or in the gap between blocks to leave it; a 1px accent outline around a whole block it would join; no highlight where it cannot land; Esc, dropping in place or outside cancels; dragging a selected row moves the whole selection.",
+      "code": {
+        "awsome-sidebar": [
+          "lineOn(",
+          "dragOver("
+        ]
+      }
+    },
+    {
+      "id": "preview-slot",
+      "what": "Opening a file from the tree: preview in a fixed slot, keep in a tab",
+      "references": [
+        {
+          "app": "Windows Explorer (preview pane)",
+          "behavior": "A fixed pane beside the list that follows the selected item and can be toggled on and off; double-click opens the item itself."
+        },
+        {
+          "app": "VS Code (preview editor)",
+          "behavior": "Single-click previews and the next single-click replaces it; double-click keeps it. Single-click acts at once, with no delay (source: list openMode, onPointer / onMouseDblClick)."
+        },
+        {
+          "app": "macOS Finder (Quick Look)",
+          "behavior": "Space previews the selected item without opening it; Space or Esc closes it."
+        }
+      ],
+      "ours": "Single-click or Space shows the file in the preview column of the layout (one, global, closed with its close button or Esc); double-click, Enter, the menu's Open in tab or the preview's Open in tab opens it in its own tab, and the tab takes the file over: a preview column showing that file closes, so the file is never on screen twice (VS Code's preview editor turns into a kept one in place; user 2026-11-26). Enter stays VS Code's (pinned), Space previews (user 2026-11-26); the file's menu shows both keys. When the preview is hidden a single-click waits 250ms for a possible double-click, so the layout changes only once; when it is shown the content is replaced at once.",
+      "code": {
+        "awsome-filetree": [
+          "openViewer(",
+          "press("
+        ],
+        "awsome-viewer": [
+          "slot",
+          "promoteToTab("
+        ]
+      },
+      "herdr": "Reuses Herdr's layout (a hidden layout block shown with layout.show / hide, sized by weights, size kept by Herdr) and its pane frame (background, 1px border, radius 10, accent border when focused, drawn by the viewer itself because a layout block's focus look only follows panes, section 4.4b). Herdr's own files mod previews inside its panel; that is the fallback in layouts without the block."
+    },
+    {
+      "id": "viewer-header-actions",
+      "what": "The actions in a file view's header",
+      "references": [
+        {
+          "app": "Herdr (pane header, mods/pane)",
+          "behavior": "Icon-only buttons, 14px in p3 with radius 4, dim until hovered, shown only while the pointer is on the header; close is an x."
+        },
+        {
+          "app": "VS Code (editor title actions)",
+          "behavior": "Icon buttons on the right of the editor tab row; Markdown's Open Preview is its own icon, separate from the editor's split and close actions."
+        }
+      ],
+      "ours": "The Markdown view (rendered or source) is its own pair of icon buttons, always shown; the preview column's Open in tab and close are a second group, shown while the pointer is on the header, as Herdr's pane header does.",
+      "code": {
+        "awsome-viewer": [
+          "PaneButton("
+        ]
+      },
+      "herdr": "Copies the look and pattern of Herdr's pane header (mods/pane): 30 high, 14px icon buttons in p3, radius 4, dim until hovered, shown while the pointer is on the header. The code can't be reused: the column is a layout block, not a pane."
+    },
+    {
+      "id": "panel-groups",
+      "what": "Several lists in one panel: folding groups in a resizable split",
+      "references": [
+        {
+          "app": "VS Code (side bar views)",
+          "behavior": "Each view (Source Control Repositories, Changes, Graph) has a title row with a chevron; clicking it folds the view to its title; open views share the height through draggable dividers."
+        },
+        {
+          "app": "JetBrains IDEs (tool window split)",
+          "behavior": "The Git log's commit details sit under the list behind a draggable divider and can be hidden."
+        }
+      ],
+      "ours": "History has a commits group and, once a commit is chosen, a details group under it; their title rows are the sidebar's group title (chevron in the icon column, title at the name column, 20px actions); open groups share the height in a v_resizable split that remembers its sizes.",
+      "code": {
+        "awsome-changes": [
+          "GroupTitle(",
+          "v_resizable(",
+          "resizable_panel("
+        ]
+      },
+      "herdr": "Look and pattern of the awsome sidebar's Spaces / Agents section titles (shadcn Sidebar tokens, user-confirmed) and Herdr's own layout splits (stacked blocks with dividers); the split itself is gpui-component's v_resizable, so its divider is the toolkit's. Herdr has no folding group inside a mod to reuse as code."
+    },
+    {
+      "id": "history-graph",
+      "what": "A commit graph beside a commit list",
+      "references": [
+        {
+          "app": "VS Code (Source Control Graph)",
+          "behavior": "Lanes on the left, one color per lane, lines bend only at forks and merges; HEAD is a ring; ref labels follow the subject; the full message shows on hover; more commits load as you scroll."
+        },
+        {
+          "app": "Git Graph for VS Code / Fork",
+          "behavior": "Same lane layout; branch, remote and tag labels; clicking a commit shows its details and changed files below or beside the list."
+        }
+      ],
+      "ours": "Lanes 16 wide on the icon column (lane 0 under the group chevron), dots and rings from VS Code's geometry, six theme hues, labels after the subject, the next page read 10 rows before the end, a click opens the details group.",
+      "code": {
+        "awsome-changes": [
+          "LaneCell(",
+          "RefLabel(",
+          "layoutLanes(",
+          "v_virtual_list("
+        ]
+      },
+      "herdr": "none: Herdr has no commit graph. Its parts reuse Herdr's looks: rows are the sidebar list rows, labels are Herdr changes' count chip, the switches are Files' header switches."
+    },
+    {
+      "id": "panel-views",
+      "what": "Switching what a side panel shows",
+      "references": [
+        {
+          "app": "Herdr (pane header, mods/pane)",
+          "behavior": "Icon buttons in the header row, 14px in p3, radius 4, dim until hovered; the active one has a background."
+        },
+        {
+          "app": "VS Code (explorer and Source Control view titles)",
+          "behavior": "A view title row with the view's name and icon actions; switching views keeps the title row in place."
+        }
+      ],
+      "ours": "Files and Changes share one header (§2.9): the name, the view buttons (Tree (1) / Recent (2); Changes (1) / History (2)), a 1x12 separator, then that view's tools, all the same 20px icon button; 1 and 2 switch views while the panel has the keyboard; no counts in the header.",
+      "code": {
+        "awsome-changes": [
+          "FrameHeader(",
+          "PaneButton(",
+          "History (2)"
+        ],
+        "awsome-filetree": [
+          "ft-tab-"
+        ]
+      },
+      "herdr": "Look and pattern of Herdr's pane header buttons (mods/pane), as P2b's preview-column header already uses (PaneButton); the Changes view button uses Herdr's own mods/changes/changes.svg. Changes follows Files' header (user 2026-11-26)."
+    },
+    {
+      "id": "commit-details",
+      "what": "A commit's details under the commit list",
+      "references": [
+        {
+          "app": "GitHub Desktop (History)",
+          "behavior": "Summary in bold, the description in normal text below it, then author, time and short SHA (copy from the menu), then the changed files with +/-."
+        },
+        {
+          "app": "GitHub (commit page)",
+          "behavior": "Title, description with its line breaks, author and time, the SHA with a copy button right beside it, then the files."
+        },
+        {
+          "app": "JetBrains IDEs (Git log details)",
+          "behavior": "Message, then hash, author and date, the branches it is in, and the changed files."
+        }
+      ],
+      "ours": "Details (title row: fold and Close only) shows the message (subject bold, body normal, one selectable text; wrapped lines joined, lists and trailers on their own lines), then author / time / hash (+ Copy full hash, Open on GitHub beside it) / refs as rows with a 16px icon at x 10 and text at x 30, a rule, the files (flat rows, Preview on hover), and panel.end at the end. Loading files shows only after 300ms; an error stays in place with Retry; picking another commit opens a folded block.",
+      "code": {
+        "awsome-changes": [
+          "renderCommitBody(",
+          "messageMarkdown(",
+          "Copy full hash",
+          "loadCommitFiles(",
+          "commitFilesSlow"
+        ]
+      },
+      "herdr": "Look of the awsome panel frame (§2.9: group title, PaneButton = Herdr's pane header button, tree row) and Herdr's own TextView for selectable text; Herdr has no commit view of its own."
+    },
+    {
+      "id": "scm-file-actions",
+      "what": "Acting on a changed file: groups, inline actions, right-click menu, discard",
+      "references": [
+        {
+          "app": "VS Code (Source Control)",
+          "behavior": "Groups Staged Changes / Changes; on hover a row shows Open File, Discard Changes, Stage Changes (Unstage for staged); the context menu adds Open Changes, Reveal, Copy Path, Add to .gitignore; Discard asks first."
+        },
+        {
+          "app": "GitHub Desktop (Changes)",
+          "behavior": "Right-click a file: Discard changes (asks, files go to the Recycle Bin / Trash), Ignore file, Copy file path, Reveal in Explorer."
+        }
+      ],
+      "ours": "Groups Conflicts / Staged / Unstaged. Hover: Preview, Discard changes… (Unstaged), Stage / Unstage; group titles: Discard all changes…, Stage all changes / Unstage all changes; folders too. Menu: Open diff, Preview | Stage or Unstage | Reveal in File Explorer, Copy relative / absolute path, Add to .gitignore (new files) | Discard changes… (red, last). Only the system's Reveal: VS Code's Reveal in Explorer View read the same as it (user 2026-11-26). Discard asks (confirm.js), keeps a git snapshot ref first, sends new files to the Recycle Bin / Trash, and shows a toast.",
+      "code": {
+        "awsome-changes": [
+          "rowMenuEntries(",
+          "askDiscard(",
+          "openDiscardDialog(",
+          "discardFiles(",
+          "Add to .gitignore"
+        ]
+      },
+      "herdr": "Herdr's own confirm look through the shared confirm.js, the shared menu.js (Herdr's menu sizes), the pane header button for the inline actions, and Herdr's notify toast."
+    },
+    {
+      "id": "diff-view-toggles",
+      "what": "How a diff is shown: whole file, side by side",
+      "references": [
+        {
+          "app": "VS Code (diff editor toolbar)",
+          "behavior": "Icon buttons on the diff's own title bar: Toggle Inline View, Show Unchanged Regions; they sit with the editor they change."
+        },
+        {
+          "app": "GitHub (pull request Files changed)",
+          "behavior": "Unified / Split chosen on the diff view itself, remembered for every file."
+        }
+      ],
+      "ours": "Two always-visible PaneButtons on the diff's header (Show full file / Show changes only, Show side by side / Show inline), parted by a 1x12 line from the pane's own buttons, which show on hover; they act on every diff tab. The Changes panel no longer has its own side-by-side switch.",
+      "code": {
+        "awsome-changes": [
+          "diffViewButtons(",
+          "Show side by side",
+          "Show full file"
+        ]
+      },
+      "herdr": "Herdr's pane header: its 14px icon buttons and hover-only pane actions; the separator is the one the preview column's header uses."
+    },
+    {
+      "id": "editor-save",
+      "what": "Saving an edited file",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+S / Cmd+S writes the file; the dirty dot goes away; no message."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+S / Cmd+S saves; the tab's dot turns back into the close button; nothing else is shown."
+        }
+      ],
+      "ours": "Ctrl+S (Cmd+S) through the mod:awsome-viewer key section writes with writeTextFile(path, text, base); success only removes the '*' marker. Line endings, final newline and BOM are written back as they were read.",
+      "herdr": "Herdr's own key mechanism: AGENTS.md shows \"mod:editor\": { \"ctrl-s\": \"editor.save\" }; the files mod's editor is read-only, so there is no save of its own to copy.",
+      "code": {
+        "awsome-viewer": [
+          "writeTextFile(file.path, out, expected)",
+          "command === \"save\""
+        ]
+      }
+    },
+    {
+      "id": "dirty-marker",
+      "what": "Showing that a file has unsaved changes",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "A filled dot on the editor tab in place of the close button, and '● ' before the name in the window title (${dirty})."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "A filled dot on the tab in place of the close button."
+        },
+        {
+          "app": "Windows Notepad",
+          "behavior": "'*' before the file name in the title while there are unsaved changes."
+        }
+      ],
+      "ours": "'*' before the file name in the viewer header and in the title it publishes to pane-heads, in foreground; no tooltip.",
+      "herdr": "Herdr's pane header (title row) and the awsome-viewer header that already follows it; Herdr has no unsaved state of its own.",
+      "deviation": "Not VS Code's '●': the sidebar already uses '●' for a space whose agent needs you or is done, and one symbol has one meaning.",
+      "code": {
+        "awsome-viewer": [
+          "this.dirty() ? \"*\" : \"\""
+        ]
+      }
+    },
+    {
+      "id": "save-conflict",
+      "what": "Saving when the file changed on disk since it was opened",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "'Failed to save: the content of the file is newer' with Compare and Overwrite."
+        },
+        {
+          "app": "JetBrains IDEs",
+          "behavior": "'File cache conflict' dialog: Load file system changes or Keep memory changes."
+        }
+      ],
+      "ours": "The shared confirm dialog (§2.6): 'Overwrite 1 file changed on disk?', the name in the list box, 'It changed after you opened it.', Cancel + red Overwrite. Compare comes with P6c.",
+      "herdr": "Herdr's confirm mod (look and Enter / Esc), through the shared confirm.js that copies it.",
+      "deviation": "No Compare yet: there is no diff of an unsaved buffer until P6c.",
+      "code": {
+        "awsome-viewer": [
+          "Overwrite 1 file changed on disk?",
+          "It changed after you opened it."
+        ]
+      }
+    },
+    {
+      "id": "external-reload",
+      "what": "The file changes on disk while it is open",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Unchanged editors reload silently and keep the cursor; a dirty editor keeps its text and the conflict shows at save."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Reloads a clean file silently; asks only when the buffer has unsaved changes."
+        }
+      ],
+      "ours": "Clean: replace the text, keep selection offsets (clamped) and scroll. Dirty: keep the text, no prompt; the conflict shows at save. Deleted: keep the text, header says Deleted, save recreates.",
+      "herdr": "none: Herdr's files mod is read-only and simply rereads; we keep its rereading and add the dirty case.",
+      "code": {
+        "awsome-viewer": [
+          "raw !== this.raw && !this.dirty()",
+          "\"Deleted\""
+        ]
+      }
+    },
+    {
+      "id": "unsaved-prompt",
+      "what": "Leaving a file with unsaved changes",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "'Do you want to save the changes you made to x? Your changes will be lost if you don't save them.' Save / Don't Save / Cancel."
+        },
+        {
+          "app": "Windows Notepad",
+          "behavior": "'Do you want to save changes to x?' Save / Don't save / Cancel."
+        },
+        {
+          "app": "macOS (Save sheet)",
+          "behavior": "Don't Save on the left, apart from Cancel and Save on the right."
+        }
+      ],
+      "ours": "Before the preview column shows another file or closes: 'Save changes to 1 file?', the name in the list box, 'Unsaved changes will be lost.' Red Don't save on the left; Cancel and Save (rightmost, Enter) on the right; Esc = Cancel. Open in tab and Rendered/Source keep the changes without asking.",
+      "herdr": "Herdr's confirm mod look, through the shared confirm.js, which gains an optional third button.",
+      "code": {
+        "awsome-viewer": [
+          "Save changes to 1 file?",
+          "Don’t save"
+        ]
+      }
+    },
+    {
+      "id": "hot-exit",
+      "what": "Unsaved changes when the editor is closed in a way it can't stop",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Hot exit: unsaved changes are kept when the window closes and restored next time."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "hot_exit: unsaved buffers come back after a restart."
+        }
+      ],
+      "ours": "When Herdr closes the tab or pane, quits, or reloads the mod: the changes are kept as a draft in data/awsome-viewer/drafts and restored, marked dirty, the next time the file opens, with a toast 'Restored unsaved changes to name'.",
+      "herdr": "Herdr's notify toast; View.close(cx) for the final write.",
+      "code": {
+        "awsome-viewer": [
+          "Restored unsaved changes to",
+          "data/awsome-viewer/drafts",
+          "pruneDrafts"
+        ]
+      }
+    },
+    {
+      "id": "go-to-line",
+      "what": "Jumping to a line by number",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+G (Ctrl+G on macOS too) opens a one-line input at the top of the editor area, not a dialog: type a line or line:column, Enter goes and the input goes away, Esc cancels."
+        },
+        {
+          "app": "JetBrains IDEs (find / replace bar)",
+          "behavior": "Quick inputs for the open file appear as a bar between the editor tab and the text, pushing the text down; Esc hides the bar and focus returns to the text."
+        },
+        {
+          "app": "Windows Notepad",
+          "behavior": "Ctrl+G opens a 'Go To Line' dialog with a line number box and Go To / Cancel."
+        }
+      ],
+      "ours": "Ctrl+G shows an operation bar under the file's header row (only while in use): label 'Line', an input with placeholder 'line or line:column, 1–N', Go, and a close button (Esc). Enter goes, hides the bar and focuses the editor; Esc or the close button hides it; input that isn't a line turns the input's border red; out of range clamps.",
+      "herdr": "Herdr's changes mod commit bar (a one-line input row inside a panel: p 10, gap 8, 32px input with radius 8 and an accent border while focused, 32px button); label as Herdr's prompt mod's input label (11.5, dim).",
+      "code": {
+        "awsome-viewer": [
+          "\"Line\"",
+          "line or line:column, 1",
+          "\"Close (Esc)\"",
+          "lineBar("
+        ]
+      },
+      "deviation": "Not Notepad's dialog: the user wants quick inputs inside the editor they act on, never a popup (docs/UI-LESSONS.md L21)."
+    },
+    {
+      "id": "toggle-comment",
+      "what": "Commenting lines out and back",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+/ adds the line comment at the lines' smallest indent and skips blank lines, or removes it when all lines are commented; block-comment-only languages wrap the selection."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+/ toggles line comments; languages without one get a block comment."
+        }
+      ],
+      "ours": "Ctrl+/ (Cmd+/) as VS Code: smallest indent, blank lines skipped (a single blank line still gets one), all commented means remove; HTML, XML, Markdown, CSS wrap in a block comment. Tokens per language from VS Code's built-in language-configuration.json, entered by hand. One undo step.",
+      "herdr": "none: Herdr's editor has no comment action.",
+      "code": {
+        "awsome-viewer": [
+          "toggleComment(",
+          "commentTokens("
+        ]
+      }
+    },
+    {
+      "id": "move-line",
+      "what": "Moving the current line up or down",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Alt+Up / Alt+Down moves the lines the selection touches."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+Shift+Up / Down (Cmd+Ctrl+Up / Down on macOS) swaps the lines with the one above or below."
+        }
+      ],
+      "ours": "Ctrl+Shift+Up / Down (Cmd+Ctrl+Up / Down) moves every line the selection touches; the selection moves with them; one undo step.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "deviation": "Sublime's keys, not VS Code's: Alt+Up / Down is Herdr's agent switch.",
+      "code": {
+        "awsome-viewer": [
+          "moveLines(text, sel, -1)",
+          "moveLines(text, sel, 1)"
+        ]
+      }
+    },
+    {
+      "id": "duplicate-line",
+      "what": "Duplicating the current line",
+      "references": [
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+Shift+D (Cmd+Shift+D) duplicates the line or selection below."
+        },
+        {
+          "app": "VS Code",
+          "behavior": "Shift+Alt+Down copies the lines below."
+        }
+      ],
+      "ours": "Ctrl+Shift+D (Cmd+Shift+D) copies the lines the selection touches below them; the selection moves to the copy; one undo step.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "deviation": "Sublime's key: Shift+Alt may switch the input method on Windows.",
+      "code": {
+        "awsome-viewer": [
+          "duplicateLines("
+        ]
+      }
+    },
+    {
+      "id": "markdown-source-first",
+      "what": "What a Markdown file opens as",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Opens .md as text; Open Preview (Ctrl+Shift+V) or Open Preview to the Side shows it rendered."
+        },
+        {
+          "app": "JetBrains IDEs",
+          "behavior": "Open the text; a rendered pane is shown beside it on request."
+        }
+      ],
+      "ours": "The setting markdown defaults to code; the header's eye (Rendered view) / code (Source) buttons switch, and the rendered view shows the text being edited.",
+      "herdr": "Herdr's files mod shows Markdown source in its editor; our eye / code PaneButtons stay as they are.",
+      "code": {
+        "awsome-viewer": [
+          "markdown: \"code\""
+        ]
+      }
+    },
+    {
+      "id": "detect-indentation",
+      "what": "Which indent Tab inserts",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "editor.detectIndentation (on by default) reads the file's tabs or spaces and their size."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "detect_indentation (on by default) does the same on load."
+        }
+      ],
+      "ours": "On open, detect-indent (npm, bundled into the mod) picks tabs or spaces and the size, set with set_tab_size; otherwise Herdr's 2 spaces.",
+      "herdr": "Herdr's EditorState.set_tab_size, which its docs say to call once a file's style is known.",
+      "code": {
+        "awsome-viewer": [
+          "detectIndent(value)"
+        ]
+      }
+    },
+    {
+      "id": "read-only-marker",
+      "what": "Showing that a file can't be edited",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "A lock icon on the tab of a read-only editor; typing shows 'Cannot edit in read-only editor'."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "The status bar says the view is read-only."
+        }
+      ],
+      "ours": "Remote files and files too large to read whole: a 14px pencil-simple-slash in dim after the file name, tooltip 'Read-only on another machine' or 'Too large to edit'.",
+      "herdr": "Herdr's pane header (title row) and the awsome-viewer header that already follows it; icons as its 14px pane icons.",
+      "deviation": "Not VS Code's lock: lock-simple is already a space icon in Appearance, and one icon has one meaning.",
+      "code": {
+        "awsome-viewer": [
+          "pencil-simple-slash",
+          "Read-only on another machine",
+          "Too large to edit"
+        ]
+      }
+    },
+    {
+      "id": "delete-line",
+      "what": "Deleting the current line",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+Shift+K (Shift+Cmd+K) deletes the lines the selection touches; the cursor stays in its column on the next line."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+Shift+K deletes the line."
+        }
+      ],
+      "ours": "Delete line removes the lines the selection touches, cursor on the next line at the same column. No default key: Ctrl+Shift+K is Herdr's global Go to… picker; it can be bound in awsome-config.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "deviation": "Unbound by default, so Herdr's own Ctrl+Shift+K keeps working while an editor has focus.",
+      "code": {
+        "awsome-viewer": [
+          "deleteLines("
+        ]
+      }
+    },
+    {
+      "id": "insert-line",
+      "what": "Starting a new line above or below without splitting the current one",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+Enter inserts a line below, Ctrl+Shift+Enter above, keeping the indentation, wherever the cursor is in the line."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+Enter / Ctrl+Shift+Enter insert a line after / before."
+        }
+      ],
+      "ours": "Ctrl+Enter / Ctrl+Shift+Enter (Cmd+Enter / Cmd+Shift+Enter) open a line below / above with the current line's indentation and put the cursor there.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "code": {
+        "awsome-viewer": [
+          "insertLine("
+        ]
+      }
+    },
+    {
+      "id": "select-line",
+      "what": "Selecting whole lines from the keyboard",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+L selects the current line; pressing again extends to the next."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+L expands the selection to the line, again to the next."
+        }
+      ],
+      "ours": "Ctrl+L (Cmd+L) selects the line with its newline; again extends by a line.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "code": {
+        "awsome-viewer": [
+          "selectLine("
+        ]
+      }
+    },
+    {
+      "id": "indent-lines",
+      "what": "Indenting or outdenting lines from the keyboard",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+] / Ctrl+[ indent / outdent the lines the selection touches by one level."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+] / Ctrl+[ indent / unindent."
+        }
+      ],
+      "ours": "Ctrl+] / Ctrl+[ (Cmd+] / Cmd+[) add or remove one level (the file's detected indent) on every touched line; blank lines are not indented.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "code": {
+        "awsome-viewer": [
+          "indentLines("
+        ]
+      }
+    },
+    {
+      "id": "block-comment",
+      "what": "Wrapping a selection in a block comment",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Shift+Alt+A (Shift+Option+A) wraps the selection in the language's block comment, or unwraps it."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+Shift+/ toggles a block comment around the selection."
+        }
+      ],
+      "ours": "Alt+Shift+A (Ctrl+Shift+A on macOS) wraps or unwraps the selection; an empty selection gets an empty pair with the cursor inside; languages without a block comment do nothing.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "deviation": "macOS uses Ctrl+Shift+A: Option+Shift+letter types a character there.",
+      "code": {
+        "awsome-viewer": [
+          "toggleBlockComment("
+        ]
+      }
+    },
+    {
+      "id": "match-bracket",
+      "what": "Jumping to the matching bracket",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Ctrl+Shift+\\ moves to the bracket matching the one at the cursor, or to the closing bracket of the enclosing pair."
+        },
+        {
+          "app": "JetBrains IDEs",
+          "behavior": "Ctrl+Shift+M moves the caret to the matching brace."
+        }
+      ],
+      "ours": "Ctrl+Shift+M jumps to the matching ( [ { or, away from a bracket, to the enclosing pair's closing bracket; brackets inside strings and comments are counted too.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "deviation": "JetBrains' key, not VS Code's Ctrl+Shift+\\: Herdr names a Shift+punctuation key by the character it types on Windows, which depends on the keyboard layout.",
+      "code": {
+        "awsome-viewer": [
+          "matchBracket("
+        ]
+      }
+    },
+    {
+      "id": "join-lines",
+      "what": "Joining lines",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "Join Lines (Ctrl+J on macOS, unbound on Windows) joins the selected lines, or the line with the next, with one space."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "Ctrl+J joins the line below to the end of this one."
+        }
+      ],
+      "ours": "Ctrl+J joins the touched lines (or this line and the next) with one space in place of the newline and leading whitespace.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "code": {
+        "awsome-viewer": [
+          "joinLines("
+        ]
+      }
+    },
+    {
+      "id": "word-wrap",
+      "what": "Wrapping long lines to the editor's width",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "editor.wordWrap is off, but its default settings turn it on for [markdown]; Alt+Z (View: Toggle Word Wrap) toggles it for the current editor."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "word_wrap 'auto' wraps text and Markdown but not source code; View > Word Wrap toggles."
+        },
+        {
+          "app": "JetBrains IDEs",
+          "behavior": "Soft-wrap these files: *.md; *.txt by default; View > Active Editor > Soft-Wrap toggles."
+        }
+      ],
+      "ours": "Setting 'Wrap lines': Markdown only (default), All files, Never. Alt+Z (Ctrl+Alt+Z on macOS) toggles the file in this viewer without changing the setting.",
+      "herdr": "Herdr's EditorState soft_wrap option and set_soft_wrap().",
+      "deviation": "macOS uses Ctrl+Alt+Z: Option+Z types a character there.",
+      "code": {
+        "awsome-viewer": [
+          "set_soft_wrap(",
+          "Markdown only"
+        ]
+      }
+    },
+    {
+      "id": "save-cleanup",
+      "what": "Tidying whitespace when a file is saved",
+      "references": [
+        {
+          "app": "VS Code",
+          "behavior": "files.trimTrailingWhitespace and files.insertFinalNewline, both off by default."
+        },
+        {
+          "app": "Sublime Text",
+          "behavior": "trim_trailing_white_space_on_save and ensure_newline_at_eof_on_save, both off by default."
+        }
+      ],
+      "ours": "Two settings, off by default: trim trailing whitespace (not in Markdown, where two trailing spaces are a line break) and insert a final newline. The change goes into the editor as one undo step before the file is written.",
+      "herdr": "none: Herdr's editor has no line actions.",
+      "code": {
+        "awsome-viewer": [
+          "trimTrailingWhitespace",
+          "insertFinalNewline"
+        ]
+      }
+    },
+    {
+      "id": "statusline-items",
+      "what": "Showing a file's state (position, indentation, line endings) and letting you change it",
+      "references": [
+        {
+          "app": "VS Code (status bar)",
+          "behavior": "Right side of the bottom bar, only while an editor is open: Ln 12, Col 5 / Spaces: 2 / UTF-8 / CRLF / language. Each item is also the way to change it: click it and a picker opens at the top. Extensions contribute items with a side and a priority."
+        },
+        {
+          "app": "Sublime Text (status bar)",
+          "behavior": "Right side: Line 12, Column 5; Spaces: 2; the syntax name. Clicking the indentation, line-ending and syntax items opens a menu that changes them."
+        },
+        {
+          "app": "JetBrains IDEs (status bar widgets)",
+          "behavior": "Right side widgets for caret position, line separator, encoding and indent; each opens a popup to change it; widgets can be hidden one by one."
+        }
+      ],
+      "ours": "awsome-statusline owns the bottom bar. Herdr's own items stay on the left; mods register items (side, priority, icon, short text, tip, choices) in shared state. awsome-viewer registers cursor, indentation, encoding (BOM), line ending, wrap, read-only for its last focused editor. Compact: icon plus a short value; low-priority items shrink to the icon, then hide. Clicking opens the shared menu above the item, or the Go to line bar.",
+      "herdr": "Herdr's workspace-status (bar height, padding, text size, icon size 13, colours) and the Esc chip of the picker and help mods (the clickable text: px 6, py 2, radius 5, hover).",
+      "deviation": "VS Code opens a picker at the top of the window; we open the shared menu above the item (§2.6): the menu is our own pattern for choosing from a short list. No language switching and no encodings other than the byte order mark: writeTextFile only writes UTF-8.",
+      "planned": true,
+      "code": {
+        "awsome-statusline": [
+          "awsome-statusline.items"
+        ]
+      }
+    },
+    {
+      "id": "summary-narrow",
+      "what": "A one-line summary (counts and totals) that no longer fits its panel's width",
+      "references": [
+        {
+          "app": "Herdr changes (file row)",
+          "behavior": "Each changed file carries a one-letter git status in a 14px column: A (added or untracked), M, D, U, coloured like the status."
+        },
+        {
+          "app": "VS Code / JetBrains status bars (our statusline-items)",
+          "behavior": "When the bar runs out of room, items first shrink to a compact form, then lower-priority ones hide; the full form stays in the tooltip (docs/REQUIREMENTS.md §4.9 Shrinking)."
+        }
+      ],
+      "ours": "Files' summary (§2.9) stays on one line. When the estimated width (5.6 px a character, measured) does not fit, the words shorten to git letters (23 M  11 A  1,632 D, Herdr changes' letters); if it still does not fit, the +N −N totals hide. Only then does the row get a tooltip with the full words and totals. No ellipsis, no wrapping.",
+      "herdr": "Herdr's changes mod: the A / M / D letters; the shrink order follows our statusline (compact first, then hide).",
+      "code": {
+        "awsome-filetree": [
+          "summaryFit("
+        ]
+      }
+    },
+    {
+      "id": "summary-opens-changes",
+      "what": "A change summary that takes you to the full list of changes, and a header label that takes you back",
+      "references": [
+        {
+          "app": "VS Code (status bar and Activity Bar)",
+          "behavior": "The changed-files count on the Source Control icon, and the branch item in the status bar, open the Source Control view on click; the Explorer icon next to it brings you back."
+        },
+        {
+          "app": "JetBrains IDEs (status bar widget and tool windows)",
+          "behavior": "The Git branch widget and the changes count open the Commit tool window; the project name / Project tool window button returns to the file tree."
+        }
+      ],
+      "ours": "Files' summary opens the Changes view of the Git panel; the repo name in the header of Changes and History shows Files again. Mouse both ways, no keys (the top bar's Files / Git buttons are the same switch).",
+      "herdr": "awsome-tabs' Files / Git buttons (a layout.select on the panel stack); this is the same switch from inside the panels.",
+      "code": {
+        "awsome-filetree": [
+          "awsome-changes.changes"
+        ],
+        "awsome-changes": [
+          "Show files"
+        ]
+      }
+    },
+    {
+      "id": "preview-focus-ring",
+      "what": "Showing which pane has the keyboard",
+      "references": [
+        {
+          "app": "Herdr (pane frame)",
+          "behavior": "The focused pane's 1px border turns accent (the layout's pane focus look); the others keep the plain border."
+        },
+        {
+          "app": "VS Code (focusBorder)",
+          "behavior": "The focused part of the workbench gets a 1px focusBorder outline; it goes when focus leaves."
+        }
+      ],
+      "ours": "The preview column's 1px border turns accent while its editor, its line bar or the column itself has the keyboard, and goes back to border when focus leaves. Files and Changes keep no focus border (user 2026-11-27).",
+      "herdr": "Herdr's own pane frame: the same 1px accent on the same radius 10; drawn by awsome-viewer because the layout's focus field never shows on a mod block.",
+      "code": {
+        "awsome-viewer": [
+          "slotFrame(",
+          "hasKeyboard()"
+        ]
+      }
+    },
+    {
+      "id": "preview-zoom",
+      "what": "Zooming a pane to fill the work area and back",
+      "references": [
+        {
+          "app": "Herdr (pane.zoom)",
+          "behavior": "Ctrl+Shift+Z or the header's zoom button shows only that pane in its area; the same key or button puts the others back; going to another tab shows it as it was."
+        },
+        {
+          "app": "VS Code (Toggle Maximized Editor Group)",
+          "behavior": "Maximizes the editor group; the same command restores it, and opening another part restores it too."
+        },
+        {
+          "app": "Windows Terminal (Toggle pane zoom)",
+          "behavior": "One key zooms the focused pane and the same key restores; focusing another pane unzooms."
+        }
+      ],
+      "ours": "The preview column's Zoom button (arrows-out-simple, shown with the header's other buttons on hover) hides the terminals and the side panel; Exit zoom puts back what was shown. Closing the preview, another tab or pane getting focus, or a restart ends the zoom. No key: the user's key bindings stay as they are (user 2026-11-27).",
+      "herdr": "Herdr's pane zoom: the same place in the hover buttons (just left of close) and the same icon shape (zoom.svg / unzoom.svg).",
+      "code": {
+        "awsome-viewer": [
+          "toggleZoom(",
+          "zoomIn(",
+          "zoomOut("
+        ]
+      },
+      "deviation": "Herdr, VS Code and Windows Terminal also zoom by a key; we add none, because the user's tuned key bindings must not change (user 2026-11-27)."
+    }
+  ]
+}

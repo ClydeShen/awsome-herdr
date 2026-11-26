@@ -1,0 +1,9 @@
+{
+  "$schema": "./mod.schema.json",
+  "version": "3.10.0",
+  "place": "none",
+  "title": "Awsome Sidebar",
+  "settings": {
+    "pull_request_status": false
+  }
+}

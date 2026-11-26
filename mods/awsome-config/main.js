@@ -1,0 +1,1110 @@
+// Awsome Config: every installed mod's settings in one dialog, drawn like
+// Herdr's own Settings. Values stay in each mod's mod.json `settings` block,
+// where the mod (and any helper beside it) already reads them, and Herdr
+// reloads a mod when that file is saved. A copy of what the person changed is
+// kept in ~/.config/herdr-mods/awsome-config/, outside every mod, so values an
+// update wiped can be put back.
+import { View, div, svg } from "gpui-kit";
+import { v_flex, h_flex, Scrollbar, InputState, Input, Select, Popup, Checkbox } from "gpui-base";
+import { appHome, home, exec, readTextFile, writeTextFile, theme, props, closeOverlay, run, window, layout, keys as boundKeys, commands, nextCommand, shared } from "herdr";
+import {
+  fieldsOf,
+  getPath,
+  problemWith,
+  parseInput,
+  showValue,
+  isChanged,
+  changedValues,
+  lostValues,
+  editManifest,
+  equal,
+  modTitle,
+  modUse,
+  shippedMods,
+  installedRows,
+  filterInstalled,
+  rebind,
+} from "./model.js";
+import { pickListMods, pickMkdir } from "./shell.js";
+
+// ── Shortcut recorder (docs/REQUIREMENTS.md 3, design/conventions.json key-recording) ──
+// Press the keys once; they show as keycaps (shadcn Kbd). Keys Herdr already binds never reach a
+// focused view, so CAPTURE, a keys.json section that only applies while this dialog has focus,
+// hands every bound key to this mod as "cap:<key>"; when not recording, the key's own action runs.
+const CAPTURE = "mod:awsome-config";
+const RESERVED = "ctrl-alt-shift-escape"; // Herdr's emergency reset
+const MODIFIERS = ["ctrl", "alt", "shift", "cmd", "fn", "control", "platform", "function"];
+const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const keyParts = (stroke) => (!stroke ? [] : stroke.endsWith("--") ? [...stroke.slice(0, -2).split("-"), "-"] : stroke.split("-"));
+const bareKey = (stroke) => !keyParts(stroke).some((p) => p === "ctrl" || p === "alt" || p === "cmd");
+const WORDS = { ctrl: "Ctrl", alt: "Alt", shift: "Shift", cmd: "Win", fn: "Fn", enter: "Enter", escape: "Esc", backspace: "Backspace", delete: "Delete",
+  tab: "Tab", space: "Space", up: "\u2191", down: "\u2193", left: "\u2190", right: "\u2192", home: "Home", end: "End", pageup: "PgUp", pagedown: "PgDn" };
+const MAC_WORDS = { ctrl: "\u2303", alt: "\u2325", shift: "\u21e7", cmd: "\u2318" };
+function keyCaps(stroke, mac) {
+  return keyParts(stroke).map((p) => (mac && MAC_WORDS[p]) || WORDS[p] || (p.length === 1 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1)));
+}
+const actionName = (a) => (isPlainObject(a) ? a.command : String(a ?? ""));
+
+// The dialog's look (design/tokens.json settings; docs/REQUIREMENTS.md 3): grouped bordered cards
+// after shadcn Item/Field and macOS / Windows 11 Settings, icon buttons, one reset column.
+const S = { navWidth: 200, navInset: 8, navRow: 28, navGap: 4, navLabel: 32, pagePadX: 28, pagePadY: 8, headerRow: 32, headingIndent: 16,
+  sectionGap: 24, sectionTitle: 11, sectionTitleGap: 8, cardRadius: 10, rowPadY: 12, rowPadX: 16, rowGap: 16, titleText: 13, descText: 12,
+  descLine: 18, titleDescGap: 6, iconButton: 24, icon: 16, iconRadius: 6, changedDot: 6, resetSlot: 24 };
+const UI = (name) => `mods/awsome-icons/ui/${name}.svg`;
+
+const I = (name) => `mods/awsome-config/icons/${name}.svg`;
+const POLL_MS = 3000;
+// The Installed page's place in the list; no mod folder can have this name.
+const INSTALLED = "*installed";
+const USE = { layout: "In this layout", key: "Opens by key" };
+const INSTALLED_TABS = { yours: "Yours", herdr: "Herdr's" };
+
+export default class AwsomeConfig extends View {
+  init(_props, cx) {
+    this.mods = [];
+    this.installed = []; // every mod folder, for the Installed page
+    this.keys = null; // keys.json, to tell which mods open by a key
+    this.installedTab = "yours";
+    // Made here, since Herdr allows making a text box only outside render.
+    this.installedSearch = InputState.new({ placeholder: "Search mods" });
+    this.installedSearch.on("change", (_e, cx) => cx.notify());
+    this.loaded = false;
+    this.section = null;
+    this.inputs = {}; // "mod:key" → { state, focused }
+    this.unticked = new Set();
+    this.notes = {}; // "mod:key" → why the typed value wasn't saved
+    this.handle = cx.focus_handle();
+    this.handle.focus();
+    this.menuFocus = cx.focus_handle();
+    this.triggerFocus = cx.focus_handle();
+    this.openMenu = null; // the dropdown that's open
+    this.menuIndex = 0;
+    this.rec = null; // the shortcut being recorded: { id, mod, field, held, captured }
+    cx.spawn(async (cx) => {
+      for (;;) {
+        const c = String(await nextCommand()).replace(/^awsome-config[.]/, "");
+        const m = /^cap:(.+)$/.exec(c);
+        if (!m) continue;
+        if (this.rec) { this.rec.captured = m[1]; this.rec.held = []; }
+        else this.passOn(m[1]);
+        cx.notify();
+      }
+    });
+    cx.spawn(async (cx) => {
+      await this.load();
+      cx.notify();
+    });
+    // Picks up edits made by hand, or by an update, while the dialog is open.
+    cx.timer.every(POLL_MS, (cx) =>
+      cx.spawn(async (cx) => {
+        if (await this.load()) cx.notify();
+      }),
+    );
+  }
+
+  keptFolder() {
+    return `${home()}/.config/herdr-mods/awsome-config`;
+  }
+
+  // Every installed mod with settings: described by its mod.schema.json, or set in its mod.json. Returns whether anything changed.
+  async load() {
+    const { program, args } = pickListMods(`${appHome()}/mods`, window()?.platform);
+    const listing = await exec(program, args);
+    const names = listing.stdout.split("\n").map((n) => n.replace(/\/$/, "")).filter(Boolean);
+    const mods = [];
+    const entries = [];
+    for (const name of names) {
+      const path = `${appHome()}/mods/${name}/mod.json`;
+      const raw = await readTextFile(path);
+      if (raw === null) {
+        entries.push({ name, manifest: null, missing: true });
+        continue;
+      }
+      let manifest = null;
+      let error = null;
+      try {
+        manifest = JSON.parse(raw);
+      } catch (e) {
+        error = `mod.json isn't valid JSON, so nothing here can be changed until it's fixed: ${e.message}`;
+      }
+      entries.push({ name, manifest });
+      let schema = null;
+      try {
+        schema = JSON.parse((await readTextFile(`${appHome()}/mods/${name}/mod.schema.json`)) ?? "null");
+      } catch {}
+      const fields = fieldsOf(schema, manifest?.settings, window()?.platform);
+      if (manifest && !fields.length) continue;
+      if (!manifest && !schema?.properties?.settings && !/"settings"/.test(raw)) continue;
+      const keptPath = `${this.keptFolder()}/${name}.json`;
+      const keptRaw = await readTextFile(keptPath);
+      let kept = null;
+      try {
+        kept = keptRaw ? JSON.parse(keptRaw) : null;
+      } catch {}
+      const mod = { name, path, raw, manifest, schema, fields, error, keptPath, keptRaw, kept, lost: {} };
+      if (manifest) {
+        mod.lost = lostValues(kept, fields, manifest);
+        // Nothing lost: the copy follows the file, including edits made by hand.
+        if (!Object.keys(mod.lost).length) await this.keep(mod);
+      }
+      mods.push(mod);
+    }
+    mods.sort((a, b) => this.titleOf(a).localeCompare(this.titleOf(b)));
+    const installed = installedRows(entries, shippedMods(await this.readJson(`${appHome()}/installed.json`)));
+    const keys = await this.readJson(`${appHome()}/keys.json`);
+    const shown = layout();
+    const shape = (list, rows, k, l) => JSON.stringify([list.map((m) => [m.name, m.raw, m.keptRaw]), rows, k, l]);
+    const before = shape(this.mods, this.installed, this.keys, this.layout);
+    this.mods = mods;
+    this.installed = installed;
+    this.keys = keys;
+    this.layout = shown;
+    this.loaded = true;
+    if (this.section !== INSTALLED && !mods.some((m) => m.name === this.section)) this.section = mods[0]?.name ?? INSTALLED;
+    this.makeInputs();
+    await this.ensureCapture().catch(() => {});
+    return before !== shape(mods, installed, keys, shown);
+  }
+
+  // CAPTURE lists every key bound in another section, so recording receives it.
+  async ensureCapture() {
+    const path = `${appHome()}/keys.json`;
+    const raw = await readTextFile(path);
+    if (raw === null) return;
+    let k;
+    try { k = JSON.parse(raw); } catch { return; }
+    if (!isPlainObject(k)) return;
+    const want = {};
+    for (const [section, binds] of Object.entries(k)) {
+      if (section === CAPTURE || !isPlainObject(binds)) continue;
+      for (const key of Object.keys(binds)) if (key !== RESERVED) want[key] = `awsome-config.cap:${key}`;
+    }
+    const sorted = Object.fromEntries(Object.keys(want).sort().map((key) => [key, want[key]]));
+    if (JSON.stringify(k[CAPTURE] ?? {}) === JSON.stringify(sorted)) return;
+    k[CAPTURE] = sorted;
+    await writeTextFile(path, `${JSON.stringify(k, null, 2)}\n`, raw);
+  }
+
+  // Not recording: a caught key does what it does elsewhere (layout section first, then global).
+  passOn(key) {
+    const all = (boundKeys() ?? []).filter((b) => b.keys === key && b.section !== CAPTURE);
+    const hit = all.find((b) => b.section === `layout:${shared("layout")}`) ?? all.find((b) => b.section === "global");
+    if (hit) this.runAction(hit.action);
+  }
+
+  runAction(action) {
+    try {
+      if (isPlainObject(action)) return run(action.command, action.args ?? {});
+      const s = String(action ?? "");
+      if (!s || s === "terminal" || s.startsWith("send:")) return;
+      const at = s.indexOf(":");
+      if (at < 0) return run(s, {});
+      const name = s.slice(0, at), value = s.slice(at + 1);
+      const arg = ((commands() ?? []).find((c) => c.name === name)?.args ?? [])[0]?.name;
+      run(name, arg ? { [arg]: /^[0-9]+$/.test(value) ? Number(value) : value } : {});
+    } catch {}
+  }
+
+  startRecording(mod, field, cx) {
+    this.rec = { id: `${mod.name}:${field.key}`, mod: mod.name, field, held: [], captured: null };
+    this.handle.focus();
+    cx.notify();
+  }
+
+  stopRecording(cx) {
+    this.rec = null;
+    cx.notify();
+  }
+
+  saveRecording(cx) {
+    const r = this.rec;
+    if (!r?.captured) return this.stopRecording(cx);
+    if (this.keyProblem(r)?.block) return cx.notify();
+    this.rec = null;
+    this.change(r.mod, [[r.field.key, r.captured]], cx);
+    cx.notify();
+  }
+
+  // What is wrong with the recorded key, if anything. block: it can't be saved.
+  keyProblem(r) {
+    const k = r?.captured;
+    if (!k) return null;
+    if (k === RESERVED) return { block: true, text: "Herdr keeps this key for its emergency reset. Pick another." };
+    const section = r.field.section ?? "global";
+    if (section === "global" && bareKey(k)) return { block: true, text: "Needs Ctrl, Alt or Cmd." };
+    const hit = (boundKeys() ?? []).find((b) => b.keys === k && b.section !== CAPTURE && actionName(b.action) !== r.field.action);
+    if (!hit) return null;
+    const what = actionName(hit.action);
+    return { block: false, text: hit.section === section ? `Already used by ${what}. Saving moves it here.` : `Already used by ${what} in ${hit.section}.` };
+  }
+
+  // An icon button: 24px, a 16px muted icon, a tooltip always; disabled ones fade and do nothing.
+  iconButton(t, id, icon, tip, onClick, disabled = false) {
+    return div()
+      .id(id)
+      .size(S.iconButton)
+      .flex_none()
+      .rounded(S.iconRadius)
+      .flex()
+      .items_center()
+      .justify_center()
+      .tooltip(tip)
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .when(disabled, (el) => el.opacity(0.5))
+      .when(!disabled, (el) => el.cursor_pointer().hover((s) => s.bg(t.hover)).on_click((_e, cx) => onClick(cx)))
+      .child(svg(UI(icon)).size(S.icon).text_color(t.muted));
+  }
+
+  kbd(t, label) {
+    // shadcn Kbd: h-5 min-w-5 px-1 rounded-sm bg-muted text-xs font-medium text-muted-foreground
+    return div().h(20).min_w(20).px(4).rounded(6).bg(t.raised).flex().items_center().justify_center()
+      .text_size(11).font_medium().text_color(t.muted).child(label);
+  }
+
+  keyField(t, mod, field, value) {
+    const id = `${mod.name}:${field.key}`;
+    const rec = this.rec?.id === id ? this.rec : null;
+    const current = value === undefined ? field.default : value;
+    const shown = rec ? (rec.captured ?? (rec.held.length ? rec.held.join("-") : null)) : current;
+    const caps = keyCaps(shown, window()?.platform === "macos");
+    const box = h_flex()
+      .id(`bc-key-${id}`)
+      .h(28)
+      .min_w(160)
+      .px(6)
+      .gap(4)
+      .items_center()
+      .rounded(7)
+      .border_1()
+      .border_color(rec ? t.accent : t.border)
+      .bg(t.background)
+      .cursor_pointer()
+      .tooltip(rec ? "Enter to save, Esc to cancel" : "Click and press the new shortcut")
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => (rec ? null : this.startRecording(mod, field, cx)))
+      .children(caps.map((c) => this.kbd(t, c)))
+      .when(!caps.length, (el) => el.child(div().px(2).text_size(12.5).text_color(t.muted).child(rec ? "Press a shortcut" : "None")));
+    const button = rec
+      ? this.iconButton(t, `bc-keybtn-${id}`, "x", "Cancel (Esc)", (cx) => this.stopRecording(cx))
+      : this.iconButton(t, `bc-keybtn-${id}`, "pencil-simple", "Change shortcut", (cx) => this.startRecording(mod, field, cx));
+    return h_flex().gap(8).items_center().child(box).child(button);
+  }
+
+  // A JSON file, or null when it's missing or unreadable.
+  async readJson(path) {
+    try {
+      return JSON.parse((await readTextFile(path)) ?? "null");
+    } catch {
+      return null;
+    }
+  }
+
+  titleOf(mod) {
+    return modTitle(mod.name, mod.manifest);
+  }
+
+  // Writes the copy of this mod's changed values, when it differs.
+  async keep(mod) {
+    const next = { version: mod.manifest.version ?? null, values: changedValues(mod.fields, mod.manifest.settings) };
+    if (mod.kept && equal(mod.kept, next)) return;
+    const text = `${JSON.stringify(next, null, 2)}\n`;
+    try {
+      if (mod.keptRaw === null) {
+        const { program, args } = pickMkdir(this.keptFolder(), window()?.platform);
+        await exec(program, args);
+      }
+      await writeTextFile(mod.keptPath, text, mod.keptRaw);
+      mod.kept = next;
+      mod.keptRaw = text;
+    } catch {}
+  }
+
+  // Changes one setting in a mod's mod.json, the way Herdr's Settings changes its own file:
+  // only if nobody changed it meanwhile, else read again and redo.
+  change(name, edits, cx) {
+    cx.spawn(async (cx) => {
+      let failed = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const mod = this.mods.find((m) => m.name === name);
+        if (!mod || mod.error) break;
+        try {
+          let text = mod.raw;
+          for (const [key, value] of edits) text = editManifest(text, mod.fields.find((f) => f.key === key) ?? { key }, value);
+          await writeTextFile(mod.path, text, mod.raw);
+          // The copy follows at once, so a reset never reads as a loss.
+          mod.raw = text;
+          mod.manifest = JSON.parse(text);
+          mod.fields = fieldsOf(mod.schema, mod.manifest.settings, window()?.platform);
+          await this.keep(mod);
+          for (const [key, value] of edits) {
+            const field = mod.fields.find((f) => f.key === key);
+            if (field?.type === "key") await this.bindKey(name, field, value ?? field.default);
+          }
+          failed = null;
+          break;
+        } catch (e) {
+          failed = e?.message ?? String(e);
+          await this.load();
+        }
+      }
+      if (failed) this.notes[`${name}:*`] = `Couldn't save: ${failed}`;
+      else delete this.notes[`${name}:*`];
+      await this.load();
+      cx.notify();
+    });
+  }
+
+  // A key setting changes keys.json too: its action moves to the new key. What the key did
+  // before is kept in displaced-keys.json beside the copies, and comes back when the action moves off it.
+  async bindKey(name, field, key) {
+    const path = `${appHome()}/keys.json`;
+    const keptPath = `${this.keptFolder()}/displaced-keys.json`;
+    const note = `${name}:${field.key}`;
+    try {
+      const [raw, keptRaw] = await Promise.all([readTextFile(path), readTextFile(keptPath)]);
+      const next = rebind(JSON.parse(raw ?? "{}"), JSON.parse(keptRaw ?? "{}"), field.action, key, field.section);
+      await writeTextFile(path, `${JSON.stringify(next.keys, null, 2)}\n`, raw);
+      const kept = `${JSON.stringify(next.displaced, null, 2)}\n`;
+      if (kept !== (keptRaw ?? "{}\n")) {
+        if (keptRaw === null) {
+          const { program, args } = pickMkdir(this.keptFolder(), window()?.platform);
+          await exec(program, args);
+        }
+        await writeTextFile(keptPath, kept, keptRaw);
+      }
+      delete this.notes[note];
+    } catch (e) {
+      this.notes[note] = `Saved, but keys.json wasn't changed: ${e?.message ?? e}`;
+    }
+  }
+
+  // Back to what the mod ships with: its described default, or nothing.
+  reset(mod, field, cx) {
+    delete this.notes[`${mod.name}:${field.key}`];
+    this.change(mod.name, [[field.key, field.default]], cx);
+  }
+
+  // Puts back the lost values still ticked; the rest stay as they are now, and the copy
+  // forgets them once the write updates it.
+  restore(mod, cx) {
+    const picked = Object.entries(mod.lost).filter(([key]) => !this.unticked.has(`${mod.name}:${key}`));
+    for (const key of Object.keys(mod.lost)) this.unticked.delete(`${mod.name}:${key}`);
+    if (picked.length) this.change(mod.name, picked, cx);
+    else this.forget(mod, cx);
+  }
+
+  // The values aren't wanted back: the copy starts again from the file.
+  forget(mod, cx) {
+    cx.spawn(async (cx) => {
+      mod.kept = null;
+      mod.lost = {};
+      await this.keep(mod);
+      await this.load();
+      cx.notify();
+    });
+  }
+
+  close() {
+    const overlay = props()?.overlay;
+    if (overlay) closeOverlay(overlay);
+  }
+
+  // Pieces, as Herdr's Settings draws them -------------------------------
+
+  heading(t, text) {
+    return div().pt(18).pb(2).text_size(12).font_semibold().text_color(t.dim).child(text.toUpperCase());
+  }
+
+  button(t, id, label, onClick) {
+    return div()
+      .id(id)
+      .flex_none()
+      .px(12)
+      .py(5)
+      .rounded(7)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.raised)
+      .cursor_pointer()
+      .text_size(13)
+      .text_color(t.foreground)
+      .hover((s) => s.bg(t.hover))
+      .on_click((_e, cx) => onClick(cx))
+      .child(label);
+  }
+
+  toggle(t, id, on, onClick) {
+    return div()
+      .id(id)
+      .w(36)
+      .h(20)
+      .rounded(10)
+      .p(2)
+      .cursor_pointer()
+      .bg(on ? t.accent : t.hover)
+      .flex()
+      .when(on, (el) => el.justify_end())
+      .on_click((_e, cx) => onClick(cx))
+      .child(div().w(16).h(16).rounded(8).bg(on ? t.accent_foreground : t.muted));
+  }
+
+  // 28px tall like every other control, so rows line up (docs/REQUIREMENTS.md 3).
+  segments(t, id, choices, now, onPick) {
+    return h_flex()
+      .h(28)
+      .p(2)
+      .gap(2)
+      .items_center()
+      .rounded(7)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.background)
+      .children(
+        Object.entries(choices).map(([value, label]) =>
+          div()
+            .id(`${id}-${value}`)
+            .h_full()
+            .px(10)
+            .flex()
+            .items_center()
+            .rounded(5)
+            .text_size(13)
+            .cursor_pointer()
+            .when(now === value, (el) => el.bg(t.raised).text_color(t.foreground).border_1().border_color(t.border))
+            .when(now !== value, (el) => el.text_color(t.muted).hover((s) => s.text_color(t.foreground)))
+            .on_click((_e, cx) => onPick(value, cx))
+            .child(label),
+        ),
+      );
+  }
+
+  // A dropdown for a choice with too many options for buttons. Arrows, Enter and Esc work in it.
+  dropdown(t, id, label, choices, now, onPick) {
+    const entries = Object.entries(choices);
+    const open = this.openMenu === id;
+    const setOpen = (value, cx) => {
+      this.openMenu = value ? id : null;
+      this.menuIndex = Math.max(0, entries.findIndex(([v]) => v === now));
+      // Opened by a click, the keyboard would stay on the trigger.
+      if (value) this.menuFocus.focus();
+      else this.handle.focus();
+      cx.notify();
+    };
+    const pick = (value, cx) => {
+      setOpen(false, cx);
+      if (value !== now) onPick(value, cx);
+    };
+    const trigger = h_flex()
+      .id(`${id}-trigger`)
+      .h(28)
+      .min_w(140)
+      .px(10)
+      .gap(6)
+      .items_center()
+      .rounded(7)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.raised)
+      .text_size(13)
+      .text_color(t.foreground)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_click((_e, cx) => setOpen(!open, cx))
+      .child(div().flex_1().truncate().child(choices[now] ?? String(now ?? "")))
+      .child(svg(I("chevron-down")).size(12).text_color(t.dim));
+    const menu = v_flex()
+      .id(`${id}-menu`)
+      .w(200)
+      .max_h(300)
+      .p(5)
+      .gap(1)
+      .rounded(7)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.popover)
+      .track_focus(this.menuFocus)
+      .on_key_down((e, cx) => {
+        const k = e.key;
+        if (k === "escape") setOpen(false, cx);
+        else if (k === "up" || k === "down") {
+          this.menuIndex = (this.menuIndex + (k === "down" ? 1 : entries.length - 1)) % entries.length;
+          cx.notify();
+        } else if (k === "enter" || k === "space") pick(entries[this.menuIndex][0], cx);
+        else return;
+        cx.stop_propagation();
+      })
+      .children(
+        entries.map(([value, label], i) =>
+          h_flex()
+            .id(`${id}-option-${value}`)
+            .h(30)
+            .px(8)
+            .gap(8)
+            .items_center()
+            .rounded(6)
+            .text_size(13)
+            .text_color(t.foreground)
+            .cursor_pointer()
+            .role("list_box_option")
+            .aria_selected(value === now)
+            .when(i === this.menuIndex, (el) => el.aria_active_descendant().bg(t.selected))
+            .hover((s) => s.bg(t.hover))
+            .on_click((_e, cx) => pick(value, cx))
+            .child(div().flex_1().truncate().child(label))
+            .when(value === now, (el) => el.child(svg(I("check")).size(12).text_color(t.accent))),
+        ),
+      );
+    // Base owns the open state and moving the keyboard onto the list; the list moves its highlight.
+    return Select.new(id)
+      .accessibility_label(label)
+      .open(open)
+      .when(open, (el) => el.track_focus(this.triggerFocus))
+      .content_focus_handle(this.menuFocus)
+      .on_open_change((value, cx) => setOpen(value, cx))
+      .child(Popup.new(`${id}-popup`, trigger).anchor("top_right").when(open, (el) => el.content(menu)));
+  }
+
+  // − value +
+  stepper(t, id, value, step, onStep) {
+    const b = (k, label, by) =>
+      div()
+        .id(`${id}-${k}`)
+        .w(28)
+        .h(28)
+        .flex()
+        .items_center()
+        .justify_center()
+        .cursor_pointer()
+        .text_size(15)
+        .text_color(t.muted)
+        .hover((s) => s.bg(t.hover).text_color(t.foreground))
+        .on_click((_e, cx) => onStep(by, cx))
+        .child(label);
+    return h_flex()
+      .items_center()
+      .rounded(7)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.raised)
+      .overflow_hidden()
+      .child(b("minus", "−", -step))
+      .child(div().min_w(54).px(6).text_size(13).text_color(t.foreground).flex().justify_center().child(String(value)))
+      .child(b("plus", "+", step));
+  }
+
+  // Text boxes for the settings typed in. Herdr allows making them only outside render,
+  // so they're made here, after each load.
+  makeInputs() {
+    for (const mod of this.mods) {
+      if (!mod.manifest) continue;
+      for (const field of mod.fields)
+        if (this.usesBox(field, getPath(mod.manifest.settings, field.key))) this.makeInput(mod.name, field);
+    }
+  }
+
+  usesBox(field, value) {
+    const shown = value === undefined ? field.default : value;
+    if (field.type === "boolean") return false;
+    if (field.type === "key") return false; // recorded, never typed
+    if (field.type === "choice" && field.choices) return false;
+    return !(field.type === "number" && typeof shown === "number");
+  }
+
+  makeInput(name, field) {
+    const id = `${name}:${field.key}`;
+    if (this.inputs[id]) return;
+    const value = getPath(this.mods.find((m) => m.name === name)?.manifest?.settings, field.key);
+    const state = InputState.new({ placeholder: field.placeholder ?? (field.default === undefined ? "" : showValue(field.default)) });
+    state.set_value(showValue(value));
+    const box = (this.inputs[id] = { state, focused: false, shown: showValue(value) });
+    // Saves on Enter or when the box loses focus.
+    const commit = (cx) => {
+      const now = this.mods.find((m) => m.name === name);
+      const f = now?.manifest && now.fields.find((x) => x.key === field.key);
+      if (!f) return;
+      const typed = state.value();
+      if (typed === showValue(getPath(now.manifest.settings, f.key))) return;
+      const parsed = parseInput(f, typed);
+      if (parsed.error) this.notes[id] = parsed.error;
+      else {
+        delete this.notes[id];
+        this.change(name, [[f.key, parsed.value]], cx);
+      }
+      cx.notify();
+    };
+    state.on("focus", (_e, cx) => {
+      box.focused = true;
+      cx.notify();
+    });
+    state.on("blur", (_e, cx) => {
+      box.focused = false;
+      commit(cx);
+    });
+    state.on("submit", (_e, cx) => commit(cx));
+  }
+
+  textBox(t, mod, field, value) {
+    const id = `${mod.name}:${field.key}`;
+    const box = this.inputs[id];
+    if (!box) return div().text_size(13).text_color(t.dim).child(showValue(value));
+    // Follow the file while the person isn't typing in it.
+    if (!box.focused && box.shown !== showValue(value)) {
+      box.state.set_value(showValue(value));
+      box.shown = showValue(value);
+      delete this.notes[id];
+    }
+    return div()
+      .w(field.type === "text" || field.type === "list" ? 240 : 120)
+      .h(28)
+      .px(8)
+      .flex()
+      .items_center()
+      .rounded(7)
+      .border_1()
+      .border_color(this.notes[id] ? t.ansi1 : box.focused ? t.accent : t.border)
+      .bg(t.background)
+      .text_size(13)
+      .child(Input.new(box.state).h(26).w_full().text_color(t.foreground));
+  }
+
+  control(t, mod, field, value) {
+    const id = `bc-${mod.name}-${field.key}`;
+    const set = (v, cx) => this.change(mod.name, [[field.key, v]], cx);
+    const shown = value === undefined ? field.default : value;
+    if (field.type === "boolean") return this.toggle(t, id, shown === true, (cx) => set(!(shown === true), cx));
+    if (field.type === "key") return this.keyField(t, mod, field, value);
+    if (field.type === "choice" && field.choices)
+      return Object.keys(field.choices).length <= 4
+        ? this.segments(t, id, field.choices, shown, (v, cx) => set(v, cx))
+        : this.dropdown(t, id, field.title, field.choices, shown, (v, cx) => set(v, cx));
+    if (field.type === "number" && typeof shown === "number") {
+      const clamp = (v) => Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, v));
+      return h_flex()
+        .gap(6)
+        .items_center()
+        .child(this.stepper(t, id, shown, field.step, (by, cx) => set(clamp(shown + by), cx)))
+        .when(Boolean(field.unit), (el) => el.child(div().text_size(12.5).text_color(t.dim).child(field.unit)));
+    }
+    return this.textBox(t, mod, field, value);
+  }
+
+  // One setting: title (and only if needed one line) on the left; the control, then a fixed reset
+  // slot, on the right, so every control and every reset icon share one right edge.
+  row(t, mod, field, last) {
+    const id = `${mod.name}:${field.key}`;
+    const value = getPath(mod.manifest.settings, field.key);
+    const problem = this.notes[id] ?? problemWith(field, value);
+    const changed = isChanged(field, value);
+    const recording = this.rec?.id === id ? this.keyProblem(this.rec) ?? { text: "Enter to save \u00b7 Esc to cancel", hint: true } : null;
+    return h_flex()
+      .w_full()
+      .min_h(S.rowPadY * 2 + 28) // every row as tall as one with a 28px control, whatever its control
+      .px(S.rowPadX)
+      .py(S.rowPadY)
+      .gap(S.rowGap)
+      .items_center()
+      .when(!last, (el) => el.border_b(1).border_color(t.border))
+      .child(
+        v_flex()
+          .flex_1()
+          .min_w(0)
+          .gap(S.titleDescGap)
+          .child(
+            h_flex()
+              .gap(8)
+              .items_center()
+              .child(div().id(`bc-title-${id}`).text_size(S.titleText).font_medium().text_color(t.foreground).tooltip(field.key).child(field.title))
+              .when(changed, (el) => el.child(div().size(S.changedDot).rounded_full().bg(t.accent))),
+          )
+          .when(Boolean(field.description), (el) =>
+            el.child(div().text_size(S.descText).line_height(`${S.descLine}px`).text_color(t.muted).child(field.description)),
+          )
+          .when(Boolean(problem), (el) => el.child(div().text_size(S.descText).text_color(t.blocked).child(problem)))
+          .when(Boolean(recording), (el) =>
+            el.child(div().text_size(S.descText).text_color(recording.hint ? t.muted : recording.block ? t.blocked : t.working).child(recording.text)),
+          ),
+      )
+      .child(
+        h_flex()
+          .flex_none()
+          .gap(8)
+          .items_center()
+          .child(this.control(t, mod, field, value))
+          .child(
+            div()
+              .w(S.resetSlot)
+              .flex_none()
+              .when(changed, (el) =>
+                el.child(this.iconButton(t, `bc-reset-${id}`, "arrow-counter-clockwise", `Reset to ${showValue(field.default) || "the default"}`, (cx) => this.reset(mod, field, cx))),
+              ),
+          ),
+      );
+  }
+
+  // When an update put the shipped values back over the person's own.
+  // What an update (or anything else) put back over the person's values: each one, yours then now.
+  lostBanner(t, mod) {
+    const keys = Object.keys(mod.lost);
+    const updated = mod.kept?.version && mod.manifest?.version && mod.kept.version !== mod.manifest.version;
+    const ticked = keys.filter((key) => !this.unticked.has(`${mod.name}:${key}`)).length;
+    const restoreLabel =
+      ticked === keys.length ? "Restore mine" : ticked === 0 ? "Keep the new values" : `Restore ${ticked}, keep ${keys.length - ticked}`;
+    const which = keys.length === 1 ? "one of your settings" : `${keys.length} of your settings`;
+    const shown = (value, field) =>
+      value === undefined || showValue(value) === "" ? "empty" : (field?.choices?.[value] ?? showValue(value));
+    return v_flex()
+      .mt(14)
+      .p(12)
+      .gap(10)
+      .rounded(8)
+      .border_1()
+      .border_color(t.border)
+      .bg(t.raised)
+      .child(
+        div()
+          .text_size(13)
+          .text_color(t.foreground)
+          .child(
+            updated
+              ? `Updating ${this.titleOf(mod)} from ${mod.kept.version} to ${mod.manifest.version} reset ${which}:`
+              : `Something outside Awsome Config put back ${which}:`,
+          ),
+      )
+      .child(
+        v_flex()
+          .gap(4)
+          .children(
+            keys.map((key) => {
+              const field = mod.fields.find((f) => f.key === key);
+              const now = getPath(mod.manifest?.settings, key) ?? field?.default;
+              const id = `${mod.name}:${key}`;
+              const on = !this.unticked.has(id);
+              return Checkbox.new(`bc-pick-${id}`)
+                .checked(on)
+                .on_change((checked, cx) => {
+                  if (checked) this.unticked.delete(id);
+                  else this.unticked.add(id);
+                  cx.notify();
+                })
+                .accessibility_label(`Restore ${field?.title ?? key}`)
+                .flex()
+                .gap(8)
+                .items_center()
+                .cursor_pointer()
+                .text_size(12.5)
+                .child(
+                  div()
+                    .size(15)
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(4)
+                    .border_1()
+                    .border_color(on ? t.accent : t.border)
+                    .bg(on ? t.accent : t.background)
+                    .when(on, (el) => el.child(svg(I("check")).size(11).text_color(t.accent_foreground))),
+                )
+                .child(div().w(150).flex_none().truncate().text_color(t.muted).child(field?.title ?? key))
+                .child(div().font_family("JetBrains Mono").text_color(t.foreground).child(shown(mod.lost[key], field)))
+                .child(div().text_color(t.dim).child("→"))
+                .child(div().font_family("JetBrains Mono").text_color(t.dim).child(`${shown(now, field)}${getPath(mod.manifest?.settings, key) === undefined ? " (default)" : ""}`));
+            }),
+          ),
+      )
+      .child(
+        h_flex().child(this.button(t, `bc-restore-${mod.name}`, restoreLabel, (cx) => this.restore(mod, cx))),
+      );
+  }
+
+  // Every mod folder: the person's own, then Herdr's, with its version, where it's used, and
+  // a way to its settings.
+  installedPage(t) {
+    const shown = layout();
+    const group = (rows) =>
+      v_flex()
+        .pt(6)
+        .children(
+          rows.map((row) => {
+            const use = modUse(row.name, shown, this.keys);
+            const settings = this.mods.some((m) => m.name === row.name);
+            return h_flex()
+              .id(`bc-installed-${row.name}`)
+              .w_full()
+              .gap(16)
+              .py(10)
+              .items_center()
+              .border_b(1)
+              .border_color(t.border)
+              .child(
+                v_flex()
+                  .flex_1()
+                  .min_w(0)
+                  .gap(2)
+                  .child(div().text_size(14).text_color(t.foreground).truncate().child(row.title))
+                  .child(
+                    div()
+                      .text_size(11.5)
+                      .text_color(t.dim)
+                      .font_family("JetBrains Mono")
+                      .child(row.missing ? `${row.name} · no mod.json` : row.name),
+                  ),
+              )
+              .child(div().flex_none().w(60).text_size(12.5).text_color(t.dim).child(row.version ?? ""))
+              .child(
+                div()
+                  .flex_none()
+                  .w(110)
+                  .text_size(12.5)
+                  .text_color(use ? t.muted : t.dim)
+                  .child(USE[use] ?? "Not used here"),
+              )
+              .child(
+                div()
+                  .flex_none()
+                  .w(80)
+                  .flex()
+                  .justify_end()
+                  .when(settings, (el) =>
+                    el.child(
+                      this.button(t, `bc-installed-settings-${row.name}`, "Settings", (cx) => {
+                        this.section = row.name;
+                        this.handle.focus();
+                        cx.notify();
+                      }),
+                    ),
+                  ),
+              );
+          }),
+        );
+    const rows = filterInstalled(this.installed, this.installedTab, this.installedSearch.value());
+    const count = (tab) => this.installed.filter((r) => r.herdr === (tab === "herdr")).length;
+    const tabs = Object.fromEntries(Object.entries(INSTALLED_TABS).map(([id, label]) => [id, `${label} ${count(id)}`]));
+    return v_flex()
+      .child(
+        h_flex()
+          .h(30)
+          .gap(10)
+          .items_center()
+          .child(div().text_size(18).font_semibold().text_color(t.foreground).child("Installed mods"))
+          .child(div().text_size(12.5).text_color(t.dim).child(String(this.installed.length))),
+      )
+      .child(
+        div()
+          .pt(4)
+          .text_size(12.5)
+          .text_color(t.dim)
+          .child(
+            this.installedTab === "herdr"
+              ? "Herdr's own mods, which it replaces on every start. Where each is used is for the layout on screen now."
+              : "Every mod you added to mods/. Where each is used is for the layout on screen now.",
+          ),
+      )
+      .child(
+        h_flex()
+          .pt(14)
+          .pb(4)
+          .gap(12)
+          .items_center()
+          .child(
+            this.segments(t, "bc-installed-tab", tabs, this.installedTab, (tab, cx) => {
+              this.installedTab = tab;
+              cx.notify();
+            }),
+          )
+          .child(div().flex_1())
+          .child(
+            div()
+              .w(220)
+              .h(28)
+              .px(8)
+              .flex()
+              .items_center()
+              .rounded(7)
+              .border_1()
+              .border_color(t.border)
+              .bg(t.background)
+              .text_size(13)
+              .child(Input.new(this.installedSearch).h(26).w_full().text_color(t.foreground)),
+          ),
+      )
+      .when(rows.length > 0, (el) => el.child(group(rows)))
+      .when(!rows.length, (el) =>
+        el.child(
+          div()
+            .py(14)
+            .text_size(13)
+            .text_color(t.dim)
+            .child(this.installedSearch.value().trim() ? "No mods match your search." : "No mods here."),
+        ),
+      );
+  }
+
+  page(t, mod) {
+    if (this.section === INSTALLED) return this.installedPage(t);
+    const fields = mod.manifest ? mod.fields : [];
+    const changed = fields.filter((f) => isChanged(f, getPath(mod.manifest.settings, f.key)));
+    // Grouped by the first part of the key. Ungrouped settings and one-setting groups share the
+    // first card, with no heading (docs/REQUIREMENTS.md 3: no heading for a group of one).
+    const named = new Map();
+    for (const field of fields) {
+      const name = field.key.includes(".") ? field.key.split(".")[0] : "";
+      if (!named.has(name)) named.set(name, []);
+      named.get(name).push(field);
+    }
+    const general = [];
+    const groups = [];
+    for (const [name, list] of named) {
+      if (!name || list.length < 2) general.push(...list);
+      else groups.push({ name, title: mod.schema?.properties?.settings?.properties?.[name]?.title ?? name.replaceAll("_", " "), fields: list });
+    }
+    if (general.length) groups.unshift({ name: "", title: "", fields: general });
+    const saveNote = this.notes[`${mod.name}:*`];
+    const where = `mods/${mod.name}/mod.json${mod.manifest?.version ? ` \u00b7 ${mod.manifest.version}` : ""}`;
+    return v_flex()
+      .gap(S.sectionGap)
+      .child(
+        h_flex()
+          .h(S.headerRow)
+          .px(S.headingIndent)
+          .items_center()
+          .child(div().id("bc-page-title").flex_1().min_w(0).truncate().text_size(15).font_semibold().text_color(t.foreground).tooltip(where).child(this.titleOf(mod)))
+          .child(
+            this.iconButton(t, `bc-reset-all-${mod.name}`, "arrow-counter-clockwise", changed.length ? "Reset all settings to their defaults" : "Nothing to reset",
+              (cx) => this.change(mod.name, changed.map((f) => [f.key, f.default]), cx), changed.length === 0),
+          ),
+      )
+      .when(Boolean(mod.error), (el) => el.child(div().px(S.headingIndent).text_size(13).text_color(t.blocked).child(mod.error)))
+      .when(Boolean(saveNote), (el) => el.child(div().px(S.headingIndent).text_size(13).text_color(t.blocked).child(saveNote)))
+      .when(Object.keys(mod.lost).length > 0, (el) => el.child(this.lostBanner(t, mod)))
+      .children(
+        groups.map((g) =>
+          v_flex()
+            .gap(S.sectionTitleGap)
+            .when(Boolean(g.title), (el) => el.child(div().px(S.headingIndent).text_size(S.sectionTitle).font_medium().text_color(t.muted).child(g.title)))
+            .child(
+              v_flex()
+                .rounded(S.cardRadius)
+                .border_1()
+                .border_color(t.border)
+                .bg(t.popover)
+                .children(g.fields.map((f, i) => this.row(t, mod, f, i === g.fields.length - 1))),
+            ),
+        ),
+      );
+  }
+
+  // The pages on the left, as sidebar rows; the current one has the indicator bar (docs/REQUIREMENTS.md 2.3).
+  nav(t) {
+    return v_flex()
+      .flex_none()
+      .w(S.navWidth)
+      .h_full()
+      .p(S.navInset)
+      .gap(S.navGap)
+      .bg(t.chrome)
+      .border_r(1)
+      .border_color(t.border)
+      .child(h_flex().h(S.navLabel).flex_none().px(8).items_center().text_size(S.sectionTitle).font_medium().text_color(t.muted).child("Mods"))
+      .child(
+        div()
+          .id("bc-nav")
+          .flex_1()
+          .min_h(0)
+          .overflow_y_scroll()
+          .child(
+            v_flex()
+              .gap(S.navGap)
+              .children(this.mods.map((mod) => this.navItem(t, mod.name, this.titleOf(mod), mod.error || Object.keys(mod.lost).length > 0))),
+          ),
+      )
+      .child(this.navItem(t, INSTALLED, "Installed mods", false, "package"))
+      .child(this.navItem(t, "herdr", "Herdr settings", false, "gear-six", () => { this.close(); run("app.settings"); }));
+  }
+
+  // One row on the left: a mod's page, the Installed page, or (with act) an action.
+  navItem(t, section, label, attention, icon = null, act = null) {
+    const on = !act && section === this.section;
+    return h_flex()
+      .id(section === INSTALLED ? "bc-s-installed" : `bc-s-${section}`)
+      .relative()
+      .flex_none()
+      .h(S.navRow)
+      .px(8)
+      .gap(8)
+      .items_center()
+      .rounded(8)
+      .cursor_pointer()
+      .when(on, (el) => el.bg(t.selected))
+      .when(!on, (el) => el.hover((s) => s.bg(t.hover)))
+      .on_click((_e, cx) => {
+        if (act) return act();
+        this.section = section;
+        this.handle.focus();
+        cx.notify();
+      })
+      .when(Boolean(icon), (el) => el.child(svg(UI(icon)).size(S.icon).flex_none().text_color(t.muted)))
+      .child(div().flex_1().min_w(0).truncate().text_size(13).text_color(on ? t.foreground : t.muted).child(label))
+      .when(Boolean(attention), (el) => el.child(div().size(S.changedDot).rounded_full().bg(t.blocked)))
+      .when(on, (el) => el.child(div().absolute().left(0).top((S.navRow - 24) / 2).w(4).h(24).rounded(6).bg(t.accent)));
+  }
+
+  render(cx) {
+    const t = theme();
+    const mod = this.mods.find((m) => m.name === this.section);
+    return h_flex()
+      .id("awsome-config")
+      .track_focus(this.handle)
+      .size_full()
+      .min_h(0)
+      .items_start()
+      .bg(t.popover)
+      .on_key_down((e, cx) => {
+        if (this.rec) {
+          cx.stop_propagation();
+          const bare = !keyParts(e.keystroke).some((p) => MODIFIERS.includes(p));
+          if (bare && e.key === "escape") return this.stopRecording(cx);
+          if (bare && e.key === "enter") return this.saveRecording(cx);
+          if (MODIFIERS.includes(e.key)) return cx.notify();
+          this.rec.captured = e.keystroke;
+          this.rec.held = [];
+          return cx.notify();
+        }
+        if (e.key !== "escape") return;
+        cx.stop_propagation();
+        this.close();
+      })
+      .on_modifiers_changed((e, cx) => {
+        if (!this.rec || this.rec.captured) return;
+        const m = e.modifiers ?? {};
+        this.rec.held = [m.control && "ctrl", m.alt && "alt", m.shift && "shift", m.platform && "cmd"].filter(Boolean);
+        cx.notify();
+      })
+      // A click anywhere else cancels recording, the way back with the mouse.
+      .on_mouse_down("left", (_e, cx) => {
+        if (this.rec) this.stopRecording(cx);
+      })
+      .child(this.nav(t))
+      .child(
+        div()
+          .relative()
+          .flex_1()
+          .min_w(0)
+          .h_full()
+          .child(
+            div()
+              .id("bc-body")
+              .size_full()
+              .overflow_y_scroll()
+              .child(
+                div()
+                  .px(S.pagePadX)
+                  .pt(S.pagePadY)
+                  .pb(24)
+                  .child(this.loaded ? this.page(t, mod) : div().text_size(13).text_color(t.dim).child("Loading…")),
+              ),
+          )
+          .child(Scrollbar.vertical("bc-body").mode("always").absolute().inset_0()),
+      );
+  }
+}

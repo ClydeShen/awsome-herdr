@@ -1,0 +1,710 @@
+{
+  "$comment": "Every way in has a way out (docs/UI-LESSONS.md L6). Each flow takes the user somewhere (a folder, a view, a detail page, a submenu, a mode); 'back' must be reachable by every means 'forward' is (mouse and/or keys). 'code' names functions or strings that must exist in the mod, so a flow cannot be listed without being built. scripts/ui-check.py C11 checks this file. Add a flow here before building any new place to go.",
+  "flows": [
+    {
+      "id": "tree-up",
+      "mod": "awsome-filetree",
+      "to": "the parent folder as the tree's root",
+      "forward": {
+        "mouse": "Up a folder button",
+        "keys": "Ctrl+Alt+Backspace",
+        "code": [
+          "goUp()",
+          "\"up\""
+        ]
+      },
+      "back": {
+        "mouse": "right-click the folder left, Open as root; or the house button",
+        "keys": "Ctrl+Alt+Enter on the folder left (it stays selected), or Ctrl+Alt+Home",
+        "code": [
+          "enterFolder(",
+          "followPane()"
+        ]
+      }
+    },
+    {
+      "id": "tree-into",
+      "mod": "awsome-filetree",
+      "to": "a folder as the tree's root",
+      "forward": {
+        "mouse": "right-click a folder, Open as root",
+        "keys": "Ctrl+Alt+Enter",
+        "code": [
+          "enterFolder(",
+          "\"into\""
+        ]
+      },
+      "back": {
+        "mouse": "Up a folder button, or the house button",
+        "keys": "Ctrl+Alt+Backspace, or Ctrl+Alt+Home",
+        "code": [
+          "goUp()",
+          "followPane()"
+        ]
+      }
+    },
+    {
+      "id": "tree-pin",
+      "mod": "awsome-filetree",
+      "to": "a pinned root that no longer follows the focused pane",
+      "forward": {
+        "mouse": "Up a folder / Open as root",
+        "keys": "Ctrl+Alt+Backspace / Ctrl+Alt+Enter",
+        "code": [
+          "this.follow = false"
+        ]
+      },
+      "back": {
+        "mouse": "the house button",
+        "keys": "Ctrl+Alt+Home",
+        "code": [
+          "followPane()",
+          "\"follow\""
+        ]
+      }
+    },
+    {
+      "id": "tree-preview",
+      "mod": "awsome-filetree",
+      "to": "a file previewed inside the panel",
+      "forward": {
+        "mouse": "click a file",
+        "keys": "Enter on a file",
+        "code": [
+          "this.file = rel"
+        ]
+      },
+      "back": {
+        "mouse": "Back to the tree button",
+        "keys": "Esc or Left",
+        "code": [
+          "closePreview()",
+          "Back to the tree (Esc)"
+        ]
+      }
+    },
+    {
+      "id": "tree-filter",
+      "mod": "awsome-filetree",
+      "to": "the tree narrowed to a filter",
+      "forward": {
+        "mouse": "type in Filter files",
+        "keys": "/ then type",
+        "code": [
+          "this.input.focus()"
+        ]
+      },
+      "back": {
+        "mouse": "the clear button in the filter",
+        "keys": "Esc",
+        "code": [
+          "clearSearch(cx)",
+          "ft-clear"
+        ]
+      }
+    },
+    {
+      "id": "commit-detail",
+      "mod": "awsome-changes",
+      "to": "a commit's details, in a group under the commits",
+      "forward": {
+        "mouse": "click a commit",
+        "keys": "",
+        "code": [
+          "openCommit("
+        ]
+      },
+      "back": {
+        "mouse": "click the same commit again, or the details' Close button",
+        "keys": "Esc",
+        "code": [
+          "closeCommit(",
+          "escape",
+          "Close (Esc)"
+        ]
+      }
+    },
+    {
+      "id": "menu-submenu",
+      "mod": "awsome-menu",
+      "to": "a submenu beside its item",
+      "forward": {
+        "mouse": "hover or click an item with ›",
+        "keys": "Right or Enter",
+        "code": [
+          "submenu:"
+        ]
+      },
+      "back": {
+        "mouse": "hover another item",
+        "keys": "Left or Esc",
+        "code": [
+          "menuNav("
+        ]
+      }
+    },
+    {
+      "id": "agent-focus",
+      "mod": "awsome-sidebar",
+      "to": "the pane an agent runs in (its space and tab)",
+      "forward": {
+        "mouse": "click the agent",
+        "keys": "Alt+Up / Alt+Down (Herdr's agent.prev / agent.next)",
+        "code": [
+          "pane.focus"
+        ]
+      },
+      "back": {
+        "mouse": "click the space or tab you came from",
+        "keys": "Alt+Up / Alt+Down again",
+        "code": [
+          "space.select"
+        ]
+      }
+    },
+    {
+      "id": "subagent-peek",
+      "mod": "awsome-sidebar",
+      "to": "a sub-agent without a pane, peeked over the tab",
+      "forward": {
+        "mouse": "click the sub-agent",
+        "keys": "",
+        "code": [
+          "terminal.peek"
+        ]
+      },
+      "back": {
+        "mouse": "the peek's own close button (Herdr)",
+        "keys": "",
+        "code": []
+      }
+    },
+    {
+      "id": "space-menu",
+      "mod": "awsome-menu",
+      "to": "the space menu",
+      "forward": {
+        "mouse": "right-click a space, or the tab bar's +",
+        "keys": "Open the space menu (no key by default; set one in Mod settings)",
+        "code": [
+          "onDismiss"
+        ]
+      },
+      "back": {
+        "mouse": "click outside the menu",
+        "keys": "Esc",
+        "code": [
+          "this.close()"
+        ]
+      }
+    },
+    {
+      "id": "key-recording",
+      "mod": "awsome-config",
+      "to": "recording a new shortcut for a setting",
+      "forward": {
+        "mouse": "click the keycaps or Change",
+        "keys": "",
+        "code": [
+          "startRecording("
+        ]
+      },
+      "back": {
+        "mouse": "Cancel, or click anywhere else in the dialog",
+        "keys": "Esc (Enter saves)",
+        "code": [
+          "stopRecording(cx)"
+        ]
+      }
+    },
+    {
+      "id": "agent-menu",
+      "mod": "awsome-menu",
+      "to": "the agent menu",
+      "forward": {
+        "mouse": "right-click an agent row",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "click outside the menu",
+        "keys": "Esc",
+        "code": []
+      }
+    },
+    {
+      "id": "agent-rename-pane",
+      "mod": "awsome-sidebar",
+      "to": "editing an agent's pane name in its row",
+      "forward": {
+        "mouse": "menu: Rename pane",
+        "keys": "F2",
+        "code": []
+      },
+      "back": {
+        "mouse": "click away (saves)",
+        "keys": "Enter saves, Esc cancels",
+        "code": []
+      }
+    },
+    {
+      "id": "tree-menu",
+      "mod": "awsome-filetree",
+      "to": "a row's context menu",
+      "forward": {
+        "mouse": "right-click a row",
+        "keys": "Shift+F10 on the selected row",
+        "code": [
+          "openMenu(",
+          "\"menu\""
+        ]
+      },
+      "back": {
+        "mouse": "click outside the menu",
+        "keys": "Esc",
+        "code": [
+          "menuKey("
+        ]
+      }
+    },
+    {
+      "id": "appearance-popover",
+      "mod": "awsome-menu",
+      "to": "the Appearance popover",
+      "forward": {
+        "mouse": "the menu's Appearance...",
+        "keys": "the space menu command, then Appearance...",
+        "code": [
+          "openLooks("
+        ]
+      },
+      "back": {
+        "mouse": "click outside",
+        "keys": "Esc",
+        "code": [
+          "onDismiss",
+          "escape"
+        ]
+      }
+    },
+    {
+      "id": "space-selection",
+      "mod": "awsome-sidebar",
+      "to": "several selected spaces",
+      "forward": {
+        "mouse": "Ctrl+click / Shift+click",
+        "keys": "",
+        "code": [
+          "this.click(w, e)"
+        ]
+      },
+      "back": {
+        "mouse": "click a space, or empty sidebar space",
+        "keys": "Esc",
+        "code": [
+          "this.rowUp",
+          "escape"
+        ]
+      }
+    },
+    {
+      "id": "group-collapse",
+      "mod": "awsome-sidebar",
+      "to": "a collapsed group",
+      "forward": {
+        "mouse": "click the group header",
+        "keys": "",
+        "code": [
+          "folded: !g.folded"
+        ]
+      },
+      "back": {
+        "mouse": "click the header again (or switch to one of its spaces)",
+        "keys": "",
+        "code": [
+          "unfoldShown(",
+          "folded: !g.folded"
+        ]
+      }
+    },
+    {
+      "id": "group-membership",
+      "mod": "awsome-sidebar",
+      "to": "a space inside a group",
+      "forward": {
+        "mouse": "drag it onto the group, or Group > a group",
+        "keys": "the space menu command, then Group",
+        "code": [
+          "setMembers(",
+          "landing("
+        ]
+      },
+      "back": {
+        "mouse": "drag it out, Remove from group, or Ungroup",
+        "keys": "the space menu command, then Group > Remove from group",
+        "code": [
+          "setMembers(",
+          "tidyGroups("
+        ]
+      }
+    },
+    {
+      "id": "group-rename",
+      "mod": "awsome-sidebar",
+      "to": "editing a group's name in place",
+      "forward": {
+        "mouse": "the header's Rename",
+        "keys": "",
+        "code": [
+          "startRename("
+        ]
+      },
+      "back": {
+        "mouse": "click away (saves)",
+        "keys": "Enter saves, Esc cancels",
+        "code": [
+          "finishRename("
+        ]
+      }
+    },
+    {
+      "id": "tree-selection",
+      "mod": "awsome-filetree",
+      "to": "several selected files",
+      "forward": {
+        "mouse": "Ctrl+click / Shift+click",
+        "keys": "Shift+Up/Down, Ctrl+Space",
+        "code": [
+          "extendSelection(",
+          "toggleSelect("
+        ]
+      },
+      "back": {
+        "mouse": "click a file, empty list space, or the x in the selection bar",
+        "keys": "Esc",
+        "code": [
+          "clearSelection("
+        ]
+      }
+    },
+    {
+      "id": "tree-keep",
+      "mod": "awsome-filetree",
+      "to": "a file kept in its own tab (single-click only previews it in the preview column)",
+      "forward": {
+        "mouse": "double-click the file, Open in tab in its menu, or Open in tab on the preview (the preview column showing it closes)",
+        "keys": "Enter on the file",
+        "code": [
+          "openViewer(rel, true, cx)"
+        ]
+      },
+      "back": {
+        "mouse": "close the tab (x or middle-click on its tab), or single-click a file to preview it again",
+        "keys": "Ctrl+W closes the tab",
+        "code": [
+          "previewSlot("
+        ]
+      }
+    },
+    {
+      "id": "tree-preview-slot",
+      "mod": "awsome-filetree",
+      "to": "the preview column of the layout showing a file",
+      "forward": {
+        "mouse": "single-click a file",
+        "keys": "Space on the file",
+        "code": [
+          "layout.show",
+          "awsome-viewer.slot"
+        ]
+      },
+      "back": {
+        "mouse": "the close button on the preview, or single-click another file to replace it",
+        "keys": "Esc",
+        "code": [
+          "layout.hide"
+        ]
+      }
+    },
+    {
+      "id": "changes-history-tab",
+      "mod": "awsome-changes",
+      "to": "the History view of the Changes panel",
+      "forward": {
+        "mouse": "click the History (2) button",
+        "keys": "2",
+        "code": [
+          "setTab(\"commit\"",
+          "event.key === \"1\" || event.key === \"2\""
+        ]
+      },
+      "back": {
+        "mouse": "click the Changes (1) button",
+        "keys": "1",
+        "code": [
+          "setTab(\"changes\"",
+          "event.key === \"1\" ? \"changes\" : \"commit\""
+        ]
+      }
+    },
+    {
+      "id": "history-graph",
+      "mod": "awsome-changes",
+      "to": "History drawn as a graph",
+      "forward": {
+        "mouse": "the Show graph switch",
+        "keys": "",
+        "code": [
+          "setHistoryView(graph ? \"list\" : \"graph\""
+        ]
+      },
+      "back": {
+        "mouse": "the same switch (Show list)",
+        "keys": "",
+        "code": [
+          "\"Show list\""
+        ]
+      }
+    },
+    {
+      "id": "history-all-branches",
+      "mod": "awsome-changes",
+      "to": "the graph with every branch, remote and tag",
+      "forward": {
+        "mouse": "the Show all branches switch",
+        "keys": "",
+        "code": [
+          "\"Show all branches\""
+        ]
+      },
+      "back": {
+        "mouse": "the same switch (Show current branch)",
+        "keys": "",
+        "code": [
+          "\"Show current branch\""
+        ]
+      }
+    },
+    {
+      "id": "history-group-fold",
+      "mod": "awsome-changes",
+      "to": "a History group folded to its title",
+      "forward": {
+        "mouse": "click the group's title row",
+        "keys": "",
+        "code": [
+          "toggleGroup(\"h-commits\"",
+          "toggleGroup(\"h-detail\""
+        ]
+      },
+      "back": {
+        "mouse": "click the title row again; picking another commit also opens a folded Details group",
+        "keys": "",
+        "code": [
+          "toggleGroup("
+        ]
+      }
+    },
+    {
+      "id": "changes-row-menu",
+      "mod": "awsome-changes",
+      "to": "a changed file's right-click menu",
+      "forward": {
+        "mouse": "right-click a file row",
+        "keys": "",
+        "code": [
+          "openRowMenu(",
+          "on_mouse_down(\"right\""
+        ]
+      },
+      "back": {
+        "mouse": "click outside the menu, or choose an item",
+        "keys": "Esc",
+        "code": [
+          "closeOverlay(props().overlay)",
+          "menuKey("
+        ]
+      }
+    },
+    {
+      "id": "changes-discard",
+      "mod": "awsome-changes",
+      "to": "discard's confirmation, then files back to how the index has them (new files in the Recycle Bin)",
+      "forward": {
+        "mouse": "Discard changes… on a row, folder or the Unstaged title, or in the right-click menu",
+        "keys": "",
+        "code": [
+          "askDiscard(",
+          "openDiscardDialog("
+        ]
+      },
+      "back": {
+        "mouse": "Cancel, or click outside; after a discard, the snapshot ref (git stash apply refs/awsome-changes/discard/<time>) or the Recycle Bin brings files back",
+        "keys": "Esc",
+        "code": [
+          "confirmKey(",
+          "refs/awsome-changes/discard"
+        ]
+      }
+    },
+    {
+      "id": "diff-view-toggles",
+      "mod": "awsome-changes",
+      "to": "every diff shown whole, or side by side",
+      "forward": {
+        "mouse": "the switch on a diff's header",
+        "keys": "",
+        "code": [
+          "diffViewButtons(",
+          "toggleFullFile("
+        ]
+      },
+      "back": {
+        "mouse": "the same switch again",
+        "keys": "",
+        "code": [
+          "setDiffLayout(split ? \"inline\" : \"split\""
+        ]
+      }
+    },
+    {
+      "id": "editor-go-to-line",
+      "mod": "awsome-viewer",
+      "to": "the Go to line bar under the header",
+      "forward": {
+        "mouse": "",
+        "keys": "Ctrl+G in the editor",
+        "code": [
+          "openLineBar("
+        ]
+      },
+      "back": {
+        "mouse": "the bar's close button",
+        "keys": "Esc",
+        "code": [
+          "closeLineBar("
+        ]
+      }
+    },
+    {
+      "id": "editor-save-conflict",
+      "mod": "awsome-viewer",
+      "to": "the 'changed on disk' confirmation",
+      "forward": {
+        "mouse": "",
+        "keys": "Ctrl+S when the file changed on disk",
+        "code": [
+          "this.ask(\"conflict\""
+        ]
+      },
+      "back": {
+        "mouse": "Cancel",
+        "keys": "Esc",
+        "code": [
+          "answer(\"cancel\")"
+        ]
+      }
+    },
+    {
+      "id": "editor-unsaved-prompt",
+      "mod": "awsome-viewer",
+      "to": "the 'Save changes?' question",
+      "forward": {
+        "mouse": "a click on another file, or the preview column's close button",
+        "keys": "Esc in the preview column",
+        "code": [
+          "askToLetGo("
+        ]
+      },
+      "back": {
+        "mouse": "Cancel",
+        "keys": "Esc",
+        "code": [
+          "answer(\"cancel\")"
+        ]
+      }
+    },
+    {
+      "id": "statusline-menu",
+      "mod": "awsome-statusline",
+      "to": "a status item's menu",
+      "forward": {
+        "mouse": "click the item",
+        "keys": ""
+      },
+      "back": {
+        "mouse": "click elsewhere",
+        "keys": "Esc"
+      }
+    },
+    {
+      "id": "files-to-changes",
+      "mod": "awsome-filetree",
+      "to": "the Changes view of the Git panel",
+      "forward": {
+        "mouse": "click the summary (counts, totals, bar) at the top of Files",
+        "keys": "",
+        "code": [
+          "layout.select",
+          "awsome-changes.changes"
+        ]
+      },
+      "back": {
+        "mouse": "click the repo name in the header of Changes or History (changes-to-files)",
+        "keys": ""
+      }
+    },
+    {
+      "id": "changes-to-files",
+      "mod": "awsome-changes",
+      "to": "the Files panel",
+      "forward": {
+        "mouse": "click the repo name in the header of Changes or History",
+        "keys": "",
+        "code": [
+          "Show files"
+        ]
+      },
+      "back": {
+        "mouse": "click the summary at the top of Files (files-to-changes)",
+        "keys": ""
+      }
+    },
+    {
+      "id": "preview-zoom",
+      "mod": "awsome-viewer",
+      "to": "the preview column filling the work area",
+      "forward": {
+        "mouse": "Zoom button in the preview header",
+        "keys": "",
+        "code": [
+          "zoomIn()"
+        ]
+      },
+      "back": {
+        "mouse": "Exit zoom button",
+        "keys": "",
+        "code": [
+          "zoomOut()"
+        ]
+      }
+    },
+    {
+      "id": "preview-keyboard",
+      "mod": "awsome-viewer",
+      "to": "the keyboard in the preview column",
+      "forward": {
+        "mouse": "click in the preview column",
+        "keys": "Alt+H/J/K/L toward it (pane.go)",
+        "code": [
+          "takeFocus(",
+          "\"focus\""
+        ]
+      },
+      "back": {
+        "mouse": "click another pane",
+        "keys": "Alt+H/J/K/L away from it (pane.go, Herdr's own)"
+      }
+    }
+  ]
+}

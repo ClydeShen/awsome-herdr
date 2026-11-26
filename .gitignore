@@ -23,6 +23,8 @@ jsconfig.json
 
 # Local agent state
 .claude/settings.local.json
+# A link the skills installer makes to .agents/skills on this machine (an absolute path); .agents/ and skills-lock.json are committed
+.claude/skills/
 .harness/
 
 # Dependencies and logs (the mods are plain JS, there is nothing to install)

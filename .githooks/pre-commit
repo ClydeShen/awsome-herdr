@@ -1,0 +1,9 @@
+#!/bin/sh
+# Refuse a commit that breaks the UI rules (scripts/ui-check.py, docs/UI-LESSONS.md).
+# Enabled per clone with: git config core.hooksPath .githooks
+root=$(git rev-parse --show-toplevel) || exit 1
+if command -v python >/dev/null 2>&1; then py=python; else py=python3; fi
+if ! "$py" "$root/scripts/ui-check.py"; then
+  echo "pre-commit: ui-check failed; commit refused. Fix the problems above (or see docs/UI-LESSONS.md)." >&2
+  exit 1
+fi

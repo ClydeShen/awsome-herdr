@@ -1,0 +1,133 @@
+// Awsome Tabs: a tab bar with draggable tabs that wrap onto more lines, and a
+// toolbar for panels with a ⋮ menu. A popup menu is another copy of this mod.
+// The class is built from separate files:
+//   views/panel-memory.js  which panel each space had open
+//   views/arrangement.js   which toolbar actions show, saved per layout
+//   views/drags.js         dragging tabs and toolbar actions
+//   views/tab-bar.js       the bar: tabs, +, toolbar, ⋮
+//   views/menu.js          the ⋮ menu and toolbar action buttons
+//   actions/names.js       tabs named after what runs in them
+// actions/ holds the logic with no drawing, views/ui.js the shared look.
+import { View } from "gpui-kit";
+import { shared, setShared, nextCommand, props, notify, openOverlay, spaces } from "herdr";
+import { loadSettings } from "./settings.js";
+import { buttons, execute } from "./actions/engine.js";
+import { panelMemoryMethods } from "./views/panel-memory.js";
+import { arrangementMethods } from "./views/arrangement.js";
+import { dragMethods, DRAG_KEY, DRAG_TIMEOUT_MS } from "./views/drags.js";
+import { tabBarMethods } from "./views/tab-bar.js";
+import { menuMethods } from "./views/menu.js";
+import { nameMethods } from "./actions/names.js";
+
+// Preferences a person may change in the installed mod.json under `settings`.
+const DEFAULT_SETTINGS = { tabs: { max_width: 170, drag_delay: "0ms", auto_name: true, middle_click_close: true }, menu: { width: 240 } };
+
+const DEFAULTS = {
+  rememberPanels: { container: "panel", stack: "panel-body" },
+  buttons: [
+    {
+      id: "files",
+      label: "Files",
+      icon: "file",
+      when: { node: "files" },
+      action: { type: "panel", container: "panel", stack: "panel-body", target: "files" },
+    },
+    {
+      id: "changes",
+      // The whole Git panel (Changes and History views): "Changes" and its icon name one of those
+      // views inside it (docs/REQUIREMENTS.md §4.5a).
+      label: "Git",
+      icon: "mods/awsome-icons/ui/git-branch.svg",
+      when: { node: "changes" },
+      action: { type: "panel", container: "panel", stack: "panel-body", target: "changes" },
+    },
+  ],
+};
+
+class Tabs extends View {
+  // ── Configuration, lifecycle, and command dispatch ────────────────────────
+
+  config() {
+    return { ...DEFAULTS, ...props() };
+  }
+
+  init(_props, cx) {
+    this.settings = DEFAULT_SETTINGS;
+    cx.spawn(async (cx) => {
+      const { settings, problems } = await loadSettings("awsome-tabs", DEFAULT_SETTINGS);
+      this.settings = settings;
+      this.settingsReady = true;
+      for (const problem of problems) console.warn(`awsome-tabs mod.json settings: ${problem}`);
+      cx.notify();
+    });
+    this.tabDrag = null;
+    this.swipe = { acc: 0, steps: 0, at: 0, last: 0 };
+    this.panels = {};
+    try {
+      const saved = JSON.parse(localStorage.getItem("panels") ?? "{}");
+      if (saved && typeof saved === "object" && !Array.isArray(saved)) this.panels = saved;
+    } catch {
+      /* Ignore malformed saved preferences. */
+    }
+    if (this.config().mode !== "overflow") {
+      // Synchronization can issue layout commands, so it must not run in render.
+      this.syncPanel();
+      cx.timer.every(300, () => {
+        this.syncPanel();
+        this.nameTabs();
+        const drag = shared(DRAG_KEY);
+        if (drag?.scope === this.toolbarScope() && Date.now() - drag.at > DRAG_TIMEOUT_MS)
+          setShared(DRAG_KEY, null);
+      });
+      cx.spawn(async (cx) => {
+        for (;;) this.command(await nextCommand());
+      });
+    }
+  }
+
+  entries() {
+    return buttons(this.config());
+  }
+
+  command(command) {
+    if (command === "overflow") return this.openActions(this.toolbar().overflow);
+    // The shown space's menu from the keyboard (unbound by default; set it in Mod settings).
+    // scripts/ui-open-check.py opens each awsome-menu popup this way, for the shown space (and,
+    // for the several-spaces popups, the first two on its machine), to check it is really laid out.
+    if (command.startsWith("check-open:")) {
+      const named = command.slice(11), shown = spaces().find((s) => s.active);
+      const ids = spaces().filter((s) => (s.machine ?? null) === (shown?.machine ?? null)).slice(0, 2).map((s) => s.id);
+      // "grouplooks" is the Appearance picker of the first group; "group" is that group's menu.
+      const group = (shared("awsome-sidebar.groups")?.list ?? [])[0]?.id;
+      const scope = named === "grouplooks" ? "looks" : named;
+      return openOverlay({ mod: "awsome-menu", kind: scope === "close" ? "dialog" : "popup", frame: "none", width: 600, height: 700, props: { scope, space: shown?.id, spaces: ids, group, groups: named === "grouplooks" && group ? [group] : undefined } });
+    }
+    if (command === "space-menu") {
+      const size = (shared("awsome-menu.size") ?? {}).space ?? { width: 300, height: 620 };
+      return openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: { scope: "space", space: spaces().find((s) => s.active)?.id } });
+    }
+    if (!command.startsWith("button:")) return;
+    const entry = this.entries().find((button) => button.id === command.slice(7));
+    if (entry) this.act(entry.action);
+  }
+
+  act(action) {
+    try {
+      execute(action);
+    } catch (error) {
+      notify({ title: "Awsome Tabs", body: String(error.message ?? error), level: "error" });
+    }
+  }
+}
+
+Object.assign(
+  Tabs.prototype,
+  panelMemoryMethods,
+  arrangementMethods,
+  dragMethods,
+  tabBarMethods,
+  menuMethods,
+  nameMethods,
+);
+
+export default Tabs;

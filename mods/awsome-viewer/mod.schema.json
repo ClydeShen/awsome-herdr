@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Awsome Viewer mod.json",
+  "description": "What Herdr reads from Awsome Viewer's mod.json, and the settings it takes.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "This file's schema, for editors."
+    },
+    "version": {
+      "type": "string",
+      "description": "The mod's version."
+    },
+    "title": {
+      "type": "string",
+      "description": "The mod's name, as Herdr shows it."
+    },
+    "place": {
+      "enum": [
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "none"
+      ],
+      "description": "Where Herdr first docks the mod. \"none\": only where a layout or another mod puts it."
+    },
+    "size": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Its first size, in pixels."
+    },
+    "focusable": {
+      "type": "boolean",
+      "description": "Lets pane.go give a shown copy the keyboard."
+    },
+    "overlay": {
+      "type": "object",
+      "description": "How mod.open shows it.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "dialog",
+            "popup",
+            "window"
+          ]
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "description": "Your changes. A setting left out uses its default.",
+      "additionalProperties": false,
+      "properties": {
+        "keys": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "save": {
+              "title": "Save",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.save",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-s",
+              "x-default-macos": "cmd-s"
+            },
+            "goto": {
+              "title": "Go to line",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.goto",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-g",
+              "x-default-macos": "ctrl-g"
+            },
+            "comment": {
+              "title": "Toggle line comment",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.comment",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-/",
+              "x-default-macos": "cmd-/"
+            },
+            "moveUp": {
+              "title": "Move line up",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.moveUp",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-shift-up",
+              "x-default-macos": "cmd-ctrl-up"
+            },
+            "moveDown": {
+              "title": "Move line down",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.moveDown",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-shift-down",
+              "x-default-macos": "cmd-ctrl-down"
+            },
+            "duplicate": {
+              "title": "Duplicate line",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.duplicate",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-shift-d",
+              "x-default-macos": "cmd-shift-d"
+            },
+            "deleteLine": {
+              "title": "Delete line",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.deleteLine",
+              "x-section": "mod:awsome-viewer",
+              "default": ""
+            },
+            "insertBelow": {
+              "title": "Insert line below",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.insertBelow",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-enter",
+              "x-default-macos": "cmd-enter"
+            },
+            "insertAbove": {
+              "title": "Insert line above",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.insertAbove",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-shift-enter",
+              "x-default-macos": "cmd-shift-enter"
+            },
+            "selectLine": {
+              "title": "Select line",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.selectLine",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-l",
+              "x-default-macos": "cmd-l"
+            },
+            "indent": {
+              "title": "Indent line",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.indent",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-]",
+              "x-default-macos": "cmd-]"
+            },
+            "outdent": {
+              "title": "Outdent line",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.outdent",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-[",
+              "x-default-macos": "cmd-["
+            },
+            "blockComment": {
+              "title": "Toggle block comment",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.blockComment",
+              "x-section": "mod:awsome-viewer",
+              "default": "alt-shift-a",
+              "x-default-macos": "ctrl-shift-a"
+            },
+            "matchBracket": {
+              "title": "Go to matching bracket",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.matchBracket",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-shift-m",
+              "x-default-macos": "ctrl-shift-m"
+            },
+            "joinLines": {
+              "title": "Join lines",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.joinLines",
+              "x-section": "mod:awsome-viewer",
+              "default": "ctrl-j",
+              "x-default-macos": "ctrl-j"
+            },
+            "wrap": {
+              "title": "Toggle word wrap",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-viewer.wrap",
+              "x-section": "mod:awsome-viewer",
+              "default": "alt-z",
+              "x-default-macos": "ctrl-alt-z"
+            }
+          },
+          "title": "Shortcuts"
+        },
+        "refresh": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tree": {
+              "title": "Tree refresh",
+              "type": [
+                "string",
+                "integer"
+              ],
+              "format": "duration",
+              "pattern": "^\\s*\\d+(\\.\\d+)?\\s*(ms|s|m|h)\\s*$",
+              "default": "10s"
+            },
+            "file": {
+              "title": "File refresh",
+              "type": [
+                "string",
+                "integer"
+              ],
+              "format": "duration",
+              "pattern": "^\\s*\\d+(\\.\\d+)?\\s*(ms|s|m|h)\\s*$",
+              "default": "2s"
+            }
+          },
+          "title": "Refresh"
+        },
+        "editors": {
+          "title": "More editors",
+          "description": "macOS app IDs, such as dev.zed.Zed.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "fileManager": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "default": "",
+              "x-placeholder": "File manager"
+            },
+            "command": {
+              "title": "Command",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [],
+              "x-placeholder": "open -a Finder"
+            }
+          },
+          "title": "File manager"
+        },
+        "gutter": {
+          "title": "Changed lines",
+          "description": "Off uses Herdr's editor, with selection and folding.",
+          "type": "boolean",
+          "default": false
+        },
+        "markdown": {
+          "title": "Markdown opens as",
+          "type": "string",
+          "enum": [
+            "preview",
+            "code"
+          ],
+          "default": "code"
+        },
+        "wrap": {
+          "title": "Wrap lines",
+          "type": "string",
+          "enum": [
+            "markdown",
+            "on",
+            "off"
+          ],
+          "x-labels": {
+            "markdown": "Markdown only",
+            "on": "All files",
+            "off": "Never"
+          },
+          "default": "markdown"
+        },
+        "trimTrailingWhitespace": {
+          "title": "Trim trailing whitespace on save",
+          "type": "boolean",
+          "default": false
+        },
+        "insertFinalNewline": {
+          "title": "Insert final newline on save",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  }
+}

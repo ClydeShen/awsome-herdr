@@ -1,0 +1,1316 @@
+// The spaces list: right-aligned branches, nested worktrees and a PR status line.
+// Repository facts follow each space's first terminal.
+import { div, svg } from "gpui-kit";
+import { v_flex, h_flex, ScrollHandle } from "gpui-base";
+import {
+  spaces,
+  machines,
+  panes,
+  run,
+  openOverlay,
+  hc,
+  theme,
+  shared,
+  setShared,
+  watchFolder,
+  window,
+  layout,
+  checking,
+} from "herdr";
+import { PRStatusObserver, prPlaceKey, prAppearance } from "../git/pr-status.js";
+import { spaceFolder, checkoutKey, readCheckout } from "../git/checkouts.js";
+import { loadSettings, duration } from "../settings.js";
+import { DEFAULT_SETTINGS } from "../defaults.js";
+import { findNode } from "./find-node.js";
+import { TEXT, Icon, IconButton, Badge, Rail, Menu, MenuLabel, MenuOption } from "./ui.js";
+import { groupMethods, RENAME } from "./groups.js";
+
+// How the spaces list is ordered, picked from the menu beside New space and kept in shared
+// state like the agents' sort. Manual is Herdr's own order, the one dragging changes.
+const SPACE_SORTS = [
+  { id: "manual", label: "Manual", icon: "grip-vertical" },
+  { id: "recent", label: "Recent", icon: "clock" },
+  { id: "name", label: "Name", icon: "arrow-down-a-z" },
+];
+const spaceSortOf = () => SPACE_SORTS.find((s) => s.id === shared("spaces.sort")) ?? SPACE_SORTS[0];
+
+const USUAL_BRANCHES = new Set(["main", "master"]);
+const rowHeight = () => 28; // SidebarMenuButton sm (docs/REQUIREMENTS.md 4.2.6)
+
+// Watches and terminal events handle most changes. Poll visible repositories
+// occasionally to catch edits and commits made outside Herdr.
+const GIT_FALLBACK_MS = 15000;
+// Places looked at together. All at once, a few hundred spaces run out of the
+// app's open files, or past a machine core's 16 running execs.
+const AT_ONCE = 6;
+// A shown-space change this soon after a press in the list came from that press, so the
+// row under the pointer stays where it is.
+const CLICK_MS = 1000;
+
+// What a stored color name looks like on an avatar (the same in every mod
+// that draws space avatars): one strong color per hue, light and dark alike.
+const AVATAR_COLORS = {
+  ansi6: "#22a99a",
+  ansi3: "#e3814f",
+  ansi4: "#5b8def",
+  ansi5: "#8b7cf6",
+  ansi2: "#3fae6a",
+  ansi1: "#d9649a",
+};
+
+// A space's look (Appearance, docs/REQUIREMENTS.md §4.2.2), kept by folder and machine in shared
+// state by awsome-menu's picker: { color: an AVATAR_COLORS name, icon: an awsome-icons/ui name }.
+const LOOKS = "awsome-sidebar.looks";
+const lookKey = (w) => `${w.machine ?? ""}|${w.folder ?? ""}`;
+const lookOf = (w) => (shared(LOOKS) ?? {})[lookKey(w)] ?? {};
+// A colored space's row: its color at label.tint in design/tokens.json (8% dark, 4% light).
+function tintOf(hex, t) {
+  const c = String(t.chrome).slice(1, 7);
+  const light = parseInt(c.slice(0, 2), 16) + parseInt(c.slice(2, 4), 16) + parseInt(c.slice(4, 6), 16) > 384;
+  return `${hex}${light ? "0a" : "14"}`;
+}
+
+// A space speaks up only when something in it needs you.
+function glyph(status) {
+  return status === "blocked" || status === "done" ? "●" : "·";
+}
+
+function tone(t, status) {
+  return t[status] ?? t.unknown;
+}
+
+export class Spaces {
+  // ── Lifecycle and refresh scheduling ──────────────────────────────────────
+
+  init(_props, cx) {
+    this.prObserver = new PRStatusObserver();
+    this.settings = DEFAULT_SETTINGS;
+    this.applySettings(cx);
+    // Repository caches are keyed by [machine, folder], so equal paths on
+    // different machines cannot share Git or PR state. null means not a repo.
+    this.git = Object.create(null);
+    this.checked = {}; // Checkout key -> last Git read time.
+    this.unsure = new Set(); // Transient failures, eligible for retry.
+    this.pending = new Set(); // Deduplicated queue for the single Git reader.
+
+    this.busy = {}; // pane -> an agent working or a program in front of its shell
+    this.ready = {}; // machine -> its layout was readable at the last look
+    this.at = {}; // Space ID -> checkout key at the previous refresh.
+    this.watching = new Map(); // local repos' pending folder watches
+    // Spaces made while this runs wait (at most a moment) for their git, so a
+    // worktree appears under its repo instead of jumping there.
+    this.shown = new Set(spaces().map((s) => s.id));
+    this.born = {};
+    this.pressed = null;
+    // A drag in progress (groups.js): what was pressed, and where a drop would land.
+    this.drag = null;
+    this.target = null;
+    this.renaming = null;
+    this.headOf = {};
+    this.famIds = {};
+    this.famGroup = {};
+    this.stripAfter = new Set();
+    this.prevOf = {};
+    // Selected spaces (docs/REQUIREMENTS.md §2.6, §4.2.3): Ctrl/Cmd+click adds or removes one,
+    // Shift+click takes the range from the anchor within one machine. Two or more show as
+    // selected and share the multi-selection menu; one is just the shown space.
+    this.selected = new Set();
+    this.anchor = null;
+    this.order = [];
+    this.rowUp = false;
+    this.listFocus = cx.focus_handle();
+    // Brings the shown space and its rows into view when the shown space changes, as from a key.
+    this.listScroll = ScrollHandle.new();
+    this.lastShown = undefined;
+    this.revealing = false;
+    this.clickedAt = -Infinity;
+    this.sortOpen = false;
+    this.sortFocus = cx.focus_handle();
+    // Each tab's last state and when it changed (ms), kept across restarts, for Recent.
+    try {
+      this.changed = JSON.parse(localStorage.getItem("spaces.changed") ?? "{}");
+    } catch {
+      this.changed = {};
+    }
+    if (!this.changed || typeof this.changed !== "object" || Array.isArray(this.changed)) this.changed = {};
+    this.frozen = null;
+    this.ordering = null; // the last batch of space moves, and when it was made
+    this.machines = [];
+    this.folded = new Set();
+    try {
+      const saved = JSON.parse(localStorage.getItem("machines.folded") ?? "[]");
+      this.folded = new Set(Array.isArray(saved) ? saved : []);
+    } catch {
+      /* Ignore invalid saved UI state. */
+    }
+    // Machines being reconnected, kept across restarts.
+    try {
+      this.reconnecting = JSON.parse(localStorage.getItem("machines.reconnecting") ?? "{}");
+      if (!this.reconnecting || typeof this.reconnecting !== "object" || Array.isArray(this.reconnecting))
+        this.reconnecting = {};
+      for (const state of Object.values(this.reconnecting)) state.busy = false;
+    } catch {
+      this.reconnecting = {};
+    }
+    // A check loads the mod once and nothing more: no helpers, no timers, no Git.
+    if (checking()) return;
+    // The colors the Appearance picker offers, from the one table that draws them.
+    if (JSON.stringify(shared("awsome-sidebar.hues")) !== JSON.stringify(AVATAR_COLORS)) setShared("awsome-sidebar.hues", AVATAR_COLORS);
+    this.refreshMachines(cx);
+    cx.timer.every(15000, (cx) => this.refreshMachines(cx));
+    // A Git read runs on another machine a process there: only when its answer
+    // could have changed (see `due`).
+    cx.timer.every(250, (cx) => this.checkNew(cx));
+  }
+
+  // Read the installed mod.json once; Herdr restarts the mod when it changes.
+  applySettings(cx) {
+    cx.spawn(async (cx) => {
+      const { settings, problems } = await loadSettings("awsome-sidebar", DEFAULT_SETTINGS);
+      this.settings = settings;
+      for (const problem of problems) console.warn(`awsome-sidebar mod.json settings: ${problem}`);
+      cx.notify();
+    });
+  }
+
+  checkNew(cx) {
+    const now = Date.now();
+    const sp = spaces();
+    this.updateColors(sp);
+    // Groups: a name to edit that the menu asked for, and a folded group that its space opens.
+    const wanted = shared(RENAME);
+    if (wanted) {
+      setShared(RENAME, null);
+      this.startRename(wanted, cx);
+    }
+    this.tickRename(cx);
+    this.unfoldShown();
+    for (const s of sp) if (!this.shown.has(s.id)) this.born[s.id] ??= now;
+    const ps = panes();
+    this.publishParents(sp, ps);
+    const places = sp.map((s) => {
+      const tabs = new Set((s.tabs ?? []).map((tab) => tab.id));
+      const folder = spaceFolder(s, ps);
+      return {
+        folder,
+        machine: s.machine,
+        branch:
+          ps.find((p) => tabs.has(p.tab) && p.cwd === folder)?.branch ??
+          this.git[prPlaceKey(s.machine, folder)]?.branch,
+      };
+    });
+    if (this.settings.pull_request_status) this.prObserver.refresh(places, cx);
+    const due = this.due(now, sp, ps);
+    if (due.size) this.refreshGit(due, cx);
+    if (sp.some((s) => !this.shown.has(s.id))) cx.notify();
+  }
+
+  // Places whose git could have changed: new ones (a new space, a cd), where a
+  // command or an agent's turn just ended (a checkout, a commit, edits), those on
+  // a machine that is back, and repos in view whose fallback is due.
+  due(now, spaceList, paneList) {
+    const places = Object.create(null);
+    for (const space of spaceList) places[space.id] = checkoutKey(space, paneList);
+    const used = new Set(Object.values(places).filter((key) => JSON.parse(key)[1]));
+    // Places that are gone: their Git answers go too, so a folder visited
+    // again is read fresh.
+    for (const key of Object.keys(this.git)) {
+      if (used.has(key)) continue;
+      delete this.git[key];
+      delete this.checked[key];
+      this.unsure.delete(key);
+    }
+    const due = new Set([...used].filter((key) => !(key in this.git)));
+
+    this.addChangedBranches(due, now, spaceList, paneList, places);
+    this.addRevisited(due, places, used);
+    this.addFinishedWork(due, spaceList, paneList, places, used);
+    this.addReconnected(due, used);
+    this.addFallbacks(due, now, used);
+    return due;
+  }
+
+  // Branch names arrive live from Herdr. Refresh richer Git metadata promptly
+  // after a checkout, without waiting for the slower fallback poll.
+  addChangedBranches(due, now, spaceList, paneList, places) {
+    for (const space of spaceList) {
+      const key = places[space.id];
+      const folder = spaceFolder(space, paneList);
+      const tabIDs = new Set((space.tabs ?? []).map((tab) => tab.id));
+      const branch = paneList.find((pane) => tabIDs.has(pane.tab) && pane.cwd === folder)?.branch;
+      const stale = branch && !this.unsure.has(key) && this.git[key]?.branch !== branch;
+      if (stale && now - (this.checked[key] ?? 0) > 1000) due.add(key);
+    }
+  }
+
+  // Returning to a previously visited folder still requires a fresh read.
+  addRevisited(due, places, used) {
+    for (const [id, key] of Object.entries(places)) {
+      if (this.at[id] && this.at[id] !== key && used.has(key)) due.add(key);
+    }
+    this.at = places;
+  }
+
+  // A completed command may have changed sibling worktrees' ahead/behind too.
+  addFinishedWork(due, spaceList, paneList, places, used) {
+    const spaceByTab = {};
+    for (const space of spaceList) {
+      for (const tab of space.tabs ?? []) spaceByTab[tab.id] = space;
+    }
+    const busy = {};
+    for (const pane of paneList) {
+      if (!pane.terminal || !spaceByTab[pane.tab]) continue;
+      busy[pane.pane] = pane.status === "working" || !(pane.program?.shell || pane.program?.agent);
+      if (this.busy[pane.pane] && !busy[pane.pane]) {
+        const key = places[spaceByTab[pane.tab].id];
+        this.sameRepo(key, used).forEach((k) => due.add(k));
+      }
+    }
+    this.busy = busy;
+  }
+
+  addReconnected(due, used) {
+    for (const machine of machines()) {
+      const ready = machine.layout === "ready";
+      if (ready && this.ready[machine.name] === false) {
+        for (const key of used) if (JSON.parse(key)[0] === machine.name) due.add(key);
+      }
+      this.ready[machine.name] = ready;
+    }
+  }
+
+  addFallbacks(due, now, used) {
+    if (!window().active) return;
+    const every = duration(this.settings.git.retry_after, GIT_FALLBACK_MS);
+    for (const key of used) {
+      const watched = this.git[key] || this.unsure.has(key);
+      const shown = !this.folded.has(JSON.parse(key)[0]);
+      if (watched && shown && now - (this.checked[key] ?? 0) > every) due.add(key);
+    }
+  }
+
+  // `key` and the other places in its repo (a commit there moves their ahead/behind).
+  sameRepo(key, keys) {
+    const repo = this.git[key]?.repo;
+    return [key, ...(repo ? [...keys].filter((k) => this.git[k]?.repo === repo) : [])];
+  }
+
+  refreshMachines(cx) {
+    cx.spawn(async (cx) => {
+      try {
+        const r = await hc(["machine", "ls", "--json"]);
+        if (r.code === 0)
+          this.machines = (JSON.parse(r.stdout).machines ?? []).filter((m) => !m.temporary);
+      } catch {
+        // Keep the last machine list if core is temporarily unavailable.
+      }
+      cx.notify();
+    });
+  }
+
+  // One look at a time, each place once however often it was asked for meanwhile.
+  refreshGit(keys, cx) {
+    for (const k of keys) this.pending.add(k);
+    if (this.refreshing) return;
+    this.refreshing = true;
+    cx.spawn(async (cx) => {
+      while (this.pending.size) {
+        const keys = [...this.pending];
+        this.pending.clear();
+        let next = 0;
+        await Promise.all(
+          Array.from({ length: Math.min(AT_ONCE, keys.length) }, async () => {
+            while (next < keys.length) await this.check(keys[next++], cx);
+          }),
+        );
+      }
+      this.dropUnused();
+      this.refreshing = false;
+      cx.notify();
+    });
+  }
+
+  // Repos that are gone: their watches go with them, so they don't take up
+  // room among the folders Herdr watches at once.
+  dropUnused() {
+    const used = new Set(
+      Object.values(this.git)
+        .filter(Boolean)
+        .map((g) => JSON.parse(g.repo))
+        .filter(([on]) => !on)
+        .map(([, repo]) => repo),
+    );
+    for (const [repo, pending] of this.watching) {
+      if (used.has(repo)) continue;
+      pending.cancel?.();
+      this.watching.delete(repo);
+    }
+  }
+
+  // ── Read-only Git metadata and local watches ──────────────────────────────
+
+  // One place's git. A failure to ask (the machine is away) keeps what it showed.
+  async check(key, cx) {
+    const [on, cwd] = JSON.parse(key);
+    this.checked[key] = Date.now();
+    this.unsure.delete(key);
+    try {
+      const info = await readCheckout(cwd, on);
+      this.git[key] = info;
+      if (info && !on) this.watch(JSON.parse(info.repo)[1], cx);
+    } catch {
+      this.git[key] ??= null;
+      this.unsure.add(key);
+    }
+  }
+
+  // The watch is kept, so it can be stopped when the repo goes away: Herdr
+  // watches at most 64 folders at once, and every caller takes a slot.
+  watch(repo, cx) {
+    if (this.watching.has(repo)) return;
+    const pending = watchFolder(repo);
+    this.watching.set(repo, pending);
+    cx.spawn(async (cx) => {
+      let current = pending;
+      try {
+        for (;;) {
+          await current;
+          if (this.watching.get(repo) !== current) return;
+          const mine = JSON.stringify([null, repo]);
+          const keys = Object.keys(this.git).filter((k) => this.git[k]?.repo === mine);
+          if (!keys.length) break;
+          this.refreshGit(keys, cx);
+          current = watchFolder(repo);
+          this.watching.set(repo, current);
+        }
+      } catch {
+        /* The folder can't be watched: the timer fallback carries on. */
+      }
+      if (this.watching.get(repo) === current) this.watching.delete(repo);
+    });
+  }
+
+  // ── Space navigation and worktree/machine grouping ────────────────────────
+
+  // Tells the agents block, a separate copy, which main space each space belongs
+  // to: the repository's open main checkout, else the repository's folder name.
+  publishParents(sp, ps) {
+    const known = sp.map((w) => ({ w, g: this.git[checkoutKey(w, ps)] })).filter((r) => r.g);
+    const parents = {};
+    for (const { w, g } of known) {
+      const main = known.find((r) => r.g.repo === g.repo && !r.g.linked);
+      const folder = JSON.parse(g.repo)[1]
+        .replace(/\/\.git\/?$/, "")
+        .split("/")
+        .pop();
+      parents[w.id] = { key: g.repo, label: main?.w.name || folder };
+    }
+    const text = JSON.stringify(parents);
+    if (text === this.parentsText) return;
+    this.parentsText = text;
+    setShared("awsome-sidebar.space-parents", parents);
+  }
+
+  menu(w) {
+    // Right-click on one of several selected spaces acts on all of them; anywhere else the
+    // selection goes and the menu is the space's own (as in Explorer and Finder).
+    const many = this.selected.size > 1 && this.selected.has(w.id);
+    if (!many) this.selected = new Set();
+    const scope = many ? "spaces" : "space";
+    // The shared menu (awsome-menu), at the size it measured last time.
+    const size = (shared("awsome-menu.size") ?? {})[scope] ?? (many ? { width: 220, height: 140 } : { width: 300, height: 620 });
+    const ids = this.order.filter((id) => this.selected.has(id));
+    openOverlay({ mod: "awsome-menu", kind: "popup", frame: "none", ...size, props: many ? { scope, spaces: ids } : { scope, space: w.id } });
+  }
+
+  isSelected(id) {
+    return this.selected.size > 1 && this.selected.has(id);
+  }
+
+  // A click on a row: plain shows the space; Ctrl (Cmd on macOS) adds or removes it without
+  // showing it; Shift takes the range from the anchor, in the list's order, on that machine.
+  // Esc or a click on empty list space clears (focus goes to the list only while selecting).
+  click(w, e) {
+    const m = e?.modifiers ?? {};
+    const add = window()?.platform === "macos" ? m.platform : m.control;
+    const machine = (x) => spaces().find((s) => s.id === x)?.machine ?? null;
+    const shown = spaces().find((s) => s.active)?.id ?? null;
+    if (m.shift) {
+      const anchor = this.anchor ?? shown;
+      const i = this.order.indexOf(anchor), j = this.order.indexOf(w.id);
+      if (i !== -1 && j !== -1 && machine(anchor) === (w.machine ?? null)) {
+        const [lo, hi] = i < j ? [i, j] : [j, i];
+        this.selected = new Set(this.order.slice(lo, hi + 1).filter((id) => machine(id) === (w.machine ?? null)));
+        this.listFocus.focus();
+        return;
+      }
+    }
+    if (add) {
+      if (!this.selected.size && shown && machine(shown) === (w.machine ?? null)) this.selected.add(shown);
+      if (this.selected.has(w.id)) this.selected.delete(w.id);
+      else this.selected.add(w.id);
+      this.anchor = w.id;
+      this.listFocus.focus();
+      return;
+    }
+    this.selected = new Set();
+    this.anchor = w.id;
+    run("space.select", { id: w.id });
+  }
+
+  // Spaces in order, each worktree space moved under its main checkout's.
+  ordered() {
+    const sp = spaces();
+    const ps = panes();
+    const ready = (w) =>
+      this.shown.has(w.id) ||
+      checkoutKey(w, ps) in this.git ||
+      Date.now() - (this.born[w.id] ??= Date.now()) > 1500;
+    for (const w of sp) if (!this.shown.has(w.id) && ready(w)) this.shown.add(w.id);
+    const list = sp.map((w, i) => ({ w, i, g: this.git[checkoutKey(w, ps)] ?? null }));
+    const mains = new Set(list.filter((r) => r.g && !r.g.linked).map((r) => r.g.repo));
+    const nested = (r) => r.g?.linked && mains.has(r.g.repo);
+    const out = [];
+    const placed = new Set(); // repos whose worktrees are listed (under the first of its spaces)
+    for (const r of list) {
+      if (nested(r)) continue;
+      const first = r.g && !r.g.linked && !placed.has(r.g.repo);
+      const kids = first ? list.filter((k) => nested(k) && k.g.repo === r.g.repo) : [];
+      out.push({ ...r, tree: null, kids: kids.length });
+      if (!first) continue;
+      placed.add(r.g.repo);
+      kids.forEach((k, n) => out.push({ ...k, tree: n === kids.length - 1 ? "└─" : "├─" }));
+    }
+    // A group's spaces sit together, and Herdr's own order nests the worktrees too, so the model
+    // and the list agree and the number keys pick the space the row shows.
+    const gathered = this.gatherGroups(out);
+    this.nest(sp, gathered);
+    this.track(sp, Date.now());
+    return this.sorted(gathered.filter((r) => this.shown.has(r.w.id)));
+  }
+
+  // Move Herdr's spaces so each worktree sits under its main checkout, as
+  // Herdr's own sidebar does. The batch is simulated, so later indexes include
+  // the earlier moves. A write that lost a race is tried again once the
+  // machines answer.
+  nest(sp, out) {
+    const order = sp.map((w) => w.id);
+    const target = out.map((r) => r.w.id);
+    const key = JSON.stringify([order, target, machines()]);
+    if (order.every((id, i) => id === target[i])) {
+      this.ordering = null;
+      return;
+    }
+    if (this.ordering?.key === key && !this.orderingDue(Date.now())) return;
+    this.ordering = { key, at: Date.now(), machines: [] };
+    const moved = this.applyOrder(order, target);
+    this.ordering.machines = [...new Set(moved.map((id) => sp.find((s) => s.id === id)?.machine ?? null))];
+  }
+
+  // Moves Herdr's spaces from `order` to `target`, one `space.move` each, simulated so every later
+  // index counts the earlier moves. Returns the ids that were moved.
+  applyOrder(order, target) {
+    const now = [...order];
+    const moved = [];
+    for (let i = 0; i < target.length; i++) {
+      const from = now.indexOf(target[i]);
+      if (from === i || from === -1) continue;
+      run("space.move", { id: target[i], index: i + 1 });
+      moved.push(target[i]);
+      now.splice(i, 0, now.splice(from, 1)[0]);
+    }
+    return moved;
+  }
+
+  // The last batch is tried again when the machines that hold the spaces can
+  // answer, and not before: a write that Herdr dropped must not be repeated
+  // on every redraw.
+  orderingDue(now) {
+    return (
+      this.ordering &&
+      now - this.ordering.at >= 1000 &&
+      this.ordering.machines.every((name) =>
+        machines().some((m) => m.name === name && m.layout === "ready"),
+      )
+    );
+  }
+
+  // Stamps tabs whose state changed. Done and idle count as one: looking at a space whose
+  // agent finished turns done into idle, and looking isn't anything happening in it. A tab
+  // seen for the first time starts at Herdr's own stamp (0 when nothing has changed since
+  // Herdr started).
+  track(sp, now) {
+    let dirty = false;
+    const listed = new Set();
+    for (const w of sp)
+      for (const tab of w.tabs ?? []) {
+        listed.add(tab.id);
+        const s = tab.status === "done" ? "idle" : (tab.status ?? null);
+        const was = this.changed[tab.id];
+        if (was && was.s === s) continue;
+        const at = was ? now : Math.max(0, tab.changed_at ?? 0, tab.working_since ?? 0);
+        this.changed[tab.id] = { s, at };
+        dirty = true;
+      }
+    if (!dirty) return;
+    // Gone and old: the list alone is empty right after a start.
+    for (const [k, c] of Object.entries(this.changed))
+      if (!listed.has(k) && now - c.at > 30 * 86400000) delete this.changed[k];
+    try {
+      localStorage.setItem("spaces.changed", JSON.stringify(this.changed));
+    } catch {}
+  }
+
+  // When something in a space last changed state, or 0 when nothing is known.
+  since(w) {
+    return Math.max(0, ...(w.tabs ?? []).map((tab) => this.changed[tab.id]?.at ?? 0));
+  }
+
+  // The rows in the picked order. A main space and its worktrees move together, the worktrees
+  // still under it in the same order; for Recent the group goes by its latest change. Ties
+  // keep Herdr's order. While a row is pressed the order holds still, so the row under the
+  // pointer stays the one pressed.
+  sorted(rows) {
+    const sort = spaceSortOf().id;
+    if (sort === "manual") {
+      this.frozen = null;
+      return rows;
+    }
+    const groups = [];
+    for (const r of rows) {
+      if (!r.tree) groups.push([]);
+      groups.at(-1).push(r);
+    }
+    const head = (g) => g[0].w.id;
+    let keyed;
+    if (this.pressed !== null && this.frozen) {
+      const at = new Map(this.frozen.map((id, n) => [id, n]));
+      keyed = groups.map((g) => ({ g, k: at.get(head(g)) ?? at.size }));
+      keyed.sort((a, b) => a.k - b.k);
+    } else if (sort === "name") {
+      keyed = groups.map((g) => ({ g, k: g[0].w.name }));
+      keyed.sort((a, b) => a.k.localeCompare(b.k, undefined, { sensitivity: "base" }));
+    } else {
+      keyed = groups.map((g) => ({ g, k: Math.max(...g.map((r) => this.since(r.w))) }));
+      keyed.sort((a, b) => b.k - a.k);
+    }
+    this.frozen = keyed.map(({ g }) => head(g));
+    return keyed.flatMap(({ g }) => g);
+  }
+
+  // The rows, under a header per machine once one isn't this computer.
+  grouped(t, collapsed) {
+    const rows = this.ordered();
+    this.order = rows.map((r) => r.w.id);
+    // Where each row stands among its family and group, for dragging (groups.js, layoutRows).
+    this.headOf = {};
+    this.famIds = {};
+    this.famGroup = {};
+    this.stripAfter = new Set();
+    this.prevOf = {};
+    for (const id of this.selected) if (!this.order.includes(id)) this.selected.delete(id);
+    // The shown space's group, so the list can scroll to it.
+    this.shownGroup = null;
+    // `under`, set by the lists view, adds rows beneath a space: its tabs and agents. A space
+    // and its rows are one child of the list, so scrolling to it brings in all of them.
+    const draw = (r) => {
+      const group = collapsed
+        ? this.compact(r, t)
+        : v_flex()
+            .flex_none()
+            .child(this.row(r, t))
+            .children(this.under?.(r) ?? []);
+      if (r.w.active) this.shownGroup = group;
+      return [group];
+    };
+    const remote = [
+      ...new Set([
+        ...rows.map((r) => r.w.machine).filter(Boolean),
+        ...this.machines.map((m) => m.name),
+        ...Object.keys(this.reconnecting),
+      ]),
+    ].sort();
+    if (!remote.length) {
+      return this.machineLoading(null) && !rows.length
+        ? [this.loadingRow(null, t, collapsed)]
+        : this.layoutRows(rows, draw, t, collapsed);
+    }
+    return [null, ...remote].flatMap((m) => {
+      const head = this.machineHeader(m, t, collapsed);
+      const login = this.loginRow(m, t);
+      const items = login ? [head, login] : [head];
+      if (this.folded.has(m)) return items;
+      const mine = rows.filter((r) => (r.w.machine ?? null) === m);
+      if (mine.length) return [...items, ...this.layoutRows(mine, draw, t, collapsed)];
+      const placeholder = this.machineLoading(m)
+        ? this.loadingRow(m, t, collapsed)
+        : this.newSpaceRow(m, t, collapsed);
+      return [...items, placeholder];
+    });
+  }
+
+  machineLoading(m) {
+    const layout = machines().find((k) => k.name === m)?.layout;
+    return (
+      layout === "loading" ||
+      (!layout && this.machines.some((k) => k.name === m && k.state === "connected")) ||
+      spaces().some((s) => (s.machine ?? null) === m && !this.shown.has(s.id))
+    );
+  }
+
+  loadingRow(m, t, collapsed) {
+    return div()
+      .id(`machine-loading-${m ?? "local"}`)
+      .h(28)
+      .flex_none()
+      .px(8)
+      .text_size(TEXT.small)
+      .text_color(t.dim)
+      .child(collapsed ? "…" : "Loading…");
+  }
+
+  newSpaceRow(m, t, collapsed) {
+    return h_flex()
+      .id(`machine-new-${m ?? "local"}`)
+      .h(28)
+      .flex_none()
+      .px(8)
+      .gap(7)
+      .items_center()
+      .rounded(7)
+      .text_size(TEXT.small)
+      .text_color(t.dim)
+      .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .on_click(() => run("space.new", { machine: m ?? "" }))
+      .child(Icon("plus", 12))
+      .when(!collapsed, (el) => el.child("New space there"));
+  }
+
+  // A machine that was rebuilt or replaced: one click connects to the new one.
+  rebuilt(machine) {
+    return (
+      machine?.state === "unreachable" &&
+      /^a different core answers there \("[^"]+"\)$/.test(machine.why ?? "")
+    );
+  }
+
+  // The command that fixes a machine waiting for a password or a host key.
+  loginCommand(m) {
+    const machine = this.machines.find((k) => k.name === m);
+    return machine?.state === "needs_login" ? `hc machine login ${m}` : null;
+  }
+
+  // The row under a machine's header that needs a login, with the command to copy.
+  loginRow(m, t) {
+    const login = this.loginCommand(m);
+    if (!login) return null;
+    return v_flex()
+      .px(8)
+      .pb(6)
+      .gap(3)
+      .flex_none()
+      .child(div().text_size(TEXT.small).text_color(t.blocked).child("needs a login: run"))
+      .child(
+        h_flex()
+          .gap(5)
+          .items_center()
+          // The full command only when it's cut off: the sidebar less its padding and the copy button (L20).
+          .child(div().flex_1().min_w(0).truncate().when(login.length * 6.5 > (this.width ?? 260) - 48, (el) => el.tooltip(login)).text_size(TEXT.small).text_color(t.muted).child(login))
+          .child(
+            div()
+              .id(`machine-login-copy-${m}`)
+              .flex_none()
+              .px(5)
+              .py(2)
+              .rounded(4)
+              .text_size(TEXT.small)
+              .text_color(t.foreground)
+              .bg(t.raised)
+              .cursor_pointer()
+              .hover((s) => s.bg(t.hover))
+              .on_click((_e, cx) => {
+                cx.stop_propagation();
+                cx.write_to_clipboard(login);
+                this.copiedLogin = login;
+                cx.notify();
+              })
+              .child(this.copiedLogin === login ? "Copied" : "Copy"),
+          ),
+      );
+  }
+
+  // Replace the machine's profile with one for the core that answers there now.
+  reconnect(machine, cx) {
+    const name = machine.name;
+    if (this.reconnecting[name]?.busy) return;
+    const state = (this.reconnecting[name] ??= { machine, removed: false });
+    state.busy = true;
+    state.error = null;
+    this.saveReconnecting();
+    cx.notify();
+    cx.spawn(async (cx) => {
+      try {
+        const ask = async (args) => {
+          const r = await hc([...args, "--json"]);
+          if (r.code !== 0) {
+            let error;
+            try {
+              error = JSON.parse(r.stdout || r.stderr).error?.message;
+            } catch {
+              /* The core's answer wasn't JSON: its text says what went wrong. */
+            }
+            throw new Error(error || r.stderr || r.stdout || "Couldn't connect.");
+          }
+        };
+        if (!state.removed) {
+          await ask(["machine", "rm", name]);
+          state.removed = true;
+          this.saveReconnecting();
+        }
+        const args = ["machine", "add"];
+        if (machine.via) args.push("--via", machine.target);
+        else args.push(machine.target);
+        args.push("--name", name);
+        if (machine.session) args.push("--session", machine.session);
+        if (machine.temporary) args.push("--temp");
+        await ask(args);
+        this.folded.delete(name);
+        localStorage.setItem("machines.folded", JSON.stringify([...this.folded]));
+        delete this.reconnecting[name];
+      } catch (e) {
+        state.error = String(e.message ?? e);
+        state.busy = false;
+      }
+      this.saveReconnecting();
+      this.refreshMachines(cx);
+      cx.notify();
+    });
+  }
+
+  saveReconnecting() {
+    try {
+      localStorage.setItem("machines.reconnecting", JSON.stringify(this.reconnecting));
+    } catch {
+      /* The state is kept in memory when it can't be saved. */
+    }
+  }
+
+  machineHeader(m, t, collapsed) {
+    const machine = this.machines.find((k) => k.name === m);
+    const repair = this.reconnecting[m];
+    const connected = !m || machine?.state === "connected";
+    const rebuilt = this.rebuilt(machine) || Boolean(repair);
+    const login = this.loginCommand(m);
+    const head = h_flex()
+      .id(`machine-${m ?? "local"}`)
+      .h(26)
+      .flex_none()
+      .px(collapsed ? 2 : 8)
+      .gap(7)
+      .items_center()
+      .text_size(TEXT.caption)
+      .text_color(t.dim)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_click((_e, cx) => {
+        if (collapsed && login) {
+          run("app.settings", { section: "machines" });
+          return;
+        }
+        if (!this.folded.delete(m)) this.folded.add(m);
+        localStorage.setItem("machines.folded", JSON.stringify([...this.folded]));
+        cx.notify();
+      })
+      .child(Icon(m ? "server" : "monitor", 13));
+    if (collapsed) return head;
+    return head
+      .child(
+        div()
+          .flex_1()
+          .truncate()
+          .child(m ?? "This computer"),
+      )
+      .when(!connected && !rebuilt && !login, (el) =>
+        el.child(
+          div()
+            .flex_none()
+            .child((machine?.state ?? "asleep").replace(/_/g, " ")),
+        ),
+      )
+      // Rebuilt or replaced: one click connects to the core that answers there now.
+      .when(rebuilt, (el) =>
+        el.child(
+          h_flex()
+            .flex_none()
+            .gap(3)
+            .items_center()
+            .child(div().max_w(140).truncate().child(repair?.error || "rebuilt ·"))
+            .child(
+              div()
+                .id(`machine-connect-${m}`)
+                .text_color(repair?.error ? t.blocked : t.muted)
+                .hover((s) => s.text_color(t.foreground))
+                .tooltip(repair?.error || "This machine was rebuilt or replaced. Click to connect to the new one.")
+                .on_click((_e, cx) => {
+                  cx.stop_propagation();
+                  this.reconnect(machine, cx);
+                })
+                .child(repair?.busy ? "Connecting…" : "Connect"),
+            ),
+        ),
+      )
+      // The core says the machine stops its agents when the connection ends.
+      .when(machine?.keeps_running_after_logout === false, (el) =>
+        el.child(
+          div()
+            .id(`machine-logout-${m}`)
+            .flex_none()
+            .text_color(t.blocked)
+            .tooltip("Agents stop when you disconnect. Click for the fix.")
+            .on_click((_e, cx) => {
+              cx.stop_propagation();
+              openOverlay({ mod: "machine-add", kind: "dialog", width: 560 });
+            })
+            .child("⚠"),
+        ),
+      )
+      .when(connected, (el) => el.child(this.machineAddButton(m, t)))
+      .child(
+        div()
+          .size(6)
+          .rounded(3)
+          .flex_none()
+          .bg(connected ? t.ansi2 : t.dim),
+      )
+      .child(Icon(`chevron-${this.folded.has(m) ? "right" : "down"}`, 11));
+  }
+
+  machineAddButton(m, t) {
+    return div()
+      .id(`machine-add-${m ?? "local"}`)
+      .flex_none()
+      .px(4)
+      .rounded(4)
+      .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .on_click((_e, cx) => {
+        cx.stop_propagation();
+        run("space.new", { machine: m ?? "" });
+      })
+      .child("+");
+  }
+
+  // ── Branch and PR descriptions ───────────────────────────────────────────
+
+  // The right end of a name row: the branch unless it's the usual one or repeats the
+  // name, and on the selected space how far it is from its remote.
+  // The branch, quietly beside the name. main, master and the space's own name go without saying.
+  branchName(g, name, t) {
+    const branch = g?.branch === "(detached)" ? "detached" : (g?.branch ?? "detached");
+    const shown = g && !USUAL_BRANCHES.has(branch) && branch !== name;
+    // The name keeps its room; the branch takes what is left, at the right, and gives way first.
+    // Its tooltip only when it's cut off: the row less the insets, icon, gaps and the name (L20).
+    const room = (this.width ?? 260) - 32 - 16 - 16 - Math.min(150, String(name ?? "").length * 7.8);
+    return div()
+      .flex_1()
+      .min_w(0)
+      .truncate()
+      .text_right()
+      .text_size(11)
+      .font_family("JetBrains Mono")
+      .text_color(t.muted)
+      .when(shown, (el) => el.when(branch.length * 6.6 > room, (el) => el.tooltip(branch)).child(branch));
+  }
+
+  // At the right: the checkout's pull request, and ahead/behind on the selected space.
+  gitTail(g, active, t, w) {
+    const pr = w ? this.prBadge(w, t) : null;
+    return h_flex()
+      .flex_none()
+      .gap(4)
+      .items_center()
+      .text_size(11)
+      .text_color(t.muted)
+      .when(Boolean(pr), (el) => el.child(pr))
+      .when(active && g?.ahead > 0, (el) => el.child(Badge(`\u2191${g.ahead}`)))
+      .when(active && g?.behind > 0, (el) => el.child(Badge(`\u2193${g.behind}`)));
+  }
+
+  // The branch and PR must describe the same checkout: the space's first
+  // terminal, matching Herdr's space naming and worktree grouping semantics.
+  checkoutStatus(w) {
+    const ps = panes();
+    const folder = spaceFolder(w, ps);
+    const tabs = new Set((w.tabs ?? []).map((tab) => tab.id));
+    const branch =
+      ps.find((pane) => tabs.has(pane.tab) && pane.cwd === folder)?.branch ??
+      this.git[prPlaceKey(w.machine, folder)]?.branch;
+    const status = this.prObserver.entries.get(prPlaceKey(w.machine, folder));
+    return status?.branch === branch ? status : null;
+  }
+
+  checkoutPRs(w) {
+    return this.checkoutStatus(w)?.prs ?? [];
+  }
+
+  // Keep ordinary clicks available to the enclosing space row. Modified link
+  // presses must stop both mouse events: the row selects on mouse-up, not click.
+  isPRLinkClick(event) {
+    return window().platform === "macos"
+      ? Boolean(event.modifiers?.platform)
+      : Boolean(event.modifiers?.control || event.modifiers?.platform);
+  }
+
+  prNumber(w, pr, status) {
+    const url = pr.url || `https://github.com/${pr.repository}/pull/${pr.number}`;
+    const shortcut = window().platform === "macos" ? "Cmd" : "Ctrl";
+    return div()
+      .id(`space-pr-link-${w.id}-${pr.repository}-${pr.number}`)
+      .text_size(TEXT.caption)
+      .cursor_pointer()
+      .tooltip(
+        `${pr.repository}#${pr.number} · ${status.label}\n${pr.title}\n${url}\n${shortcut}-click to open`,
+      )
+      .on_mouse_down("left", (event, cx) => {
+        if (!this.isPRLinkClick(event)) return;
+        cx.stop_propagation();
+        this.pressed = null;
+        this.drag = null;
+      })
+      .on_mouse_up("left", (event, cx) => {
+        if (this.isPRLinkClick(event)) cx.stop_propagation();
+      })
+      .on_click((event, cx) => {
+        if (!this.isPRLinkClick(event)) return;
+        cx.stop_propagation();
+        cx.open_url(url);
+      })
+      .child(status.ready ? `#${pr.number} ✓` : `#${pr.number}`);
+  }
+
+  prBadge(w, t, compact = false) {
+    const prs = this.checkoutPRs(w);
+    if (!prs.length) return null;
+    const badge = h_flex().gap(5).flex_none().items_center();
+    // Keep the sidebar width bounded when a branch targets several base repos.
+    for (const pr of prs.slice(0, 1)) {
+      const status = prAppearance(pr, t);
+      badge.child(
+        h_flex()
+          .id(`space-pr-${w.id}-${pr.repository}-${pr.number}`)
+          .gap(3)
+          .items_center()
+          .text_color(status.color)
+          .tooltip(`${pr.repository}#${pr.number} · ${status.label}\n${pr.title}`)
+          .child(Icon(`${status.icon}`).size(13).flex_none())
+          .when(!compact, (el) => el.child(this.prNumber(w, pr, status))),
+      );
+    }
+    if (!compact && prs.length > 1)
+      badge.child(
+        div()
+          .text_size(TEXT.caption)
+          .text_color(t.dim)
+          .tooltip(
+            prs
+              .slice(1)
+              .map((pr) => `${pr.repository}#${pr.number} · ${pr.title}`)
+              .join("\n"),
+          )
+          .child(`+${prs.length - 1}`),
+      );
+    return badge;
+  }
+
+  // Under the row only when the PR lookup failed; the PR itself sits at the row's right.
+  prLine(w, t, tree) {
+    const status = this.checkoutStatus(w);
+    return h_flex()
+      .id(`space-pr-line-${w.id}`)
+      .h(20)
+      .pl(tree ? 44 : 27)
+      .items_center()
+      .tooltip(`PR refresh failed: ${status.error}`)
+      .child(
+        div()
+          .text_size(TEXT.caption)
+          .text_color(t.dim)
+          .child(status.prs.length ? "PR may be stale" : "PR unavailable"),
+      );
+  }
+  // ── Expanded/compact rows and sidebar rendering ──────────────────────────
+
+  row({ w, i, g, tree }, t) {
+    const status = this.checkoutStatus(w);
+    const hasPRLine = Boolean(status?.error);
+    // One row is lit: under the lists view, the focused agent beneath takes it.
+    const lit = w.active && !this.quiet?.(w);
+    const height = rowHeight({ tree }) + (hasPRLine ? 22 : 0);
+    const row = v_flex()
+      .relative()
+      .id(`space-${w.id}`)
+      .px(8)
+      .h(height)
+      .flex_none()
+      .justify_center()
+      .rounded(8)
+      .cursor_pointer()
+      .when(lit || this.isSelected(w.id), (el) => el.bg(t.selected))
+      .when(!lit && !this.isSelected(w.id), (el) => el.hover((s) => s.bg(t.hover)))
+      .when(this.drag?.active && this.dragged(w), (el) => el.opacity(0.5))
+      .on_mouse_down("right", () => this.menu(w))
+      .child(this.rowTitle(w, g, tree, t))
+      .when(hasPRLine, (el) => el.child(this.prLine(w, t, Boolean(tree))));
+    // The current space: Primer's current-item indicator (TreeView/NavList aria-current), 4×24px, accent.
+    if (lit) row.child(div().absolute().left(0).top(Math.max(0, (height - 24) / 2)).w(4).h(Math.min(24, height)).rounded(6).bg(t.accent));
+    const line = this.lineOn(w, t);
+    if (line) row.child(line);
+    // A space in a group is the group's color; its own comes back when it leaves.
+    const hue = this.famGroup[this.headOf[w.id] ?? w.id] ? null : AVATAR_COLORS[lookOf(w).color];
+    // A colored space: its tint under the row, so hover and selected lie over it.
+    const dragged = hue ? div().rounded(8).bg(tintOf(hue, t)).child(this.withDragging(row, w)) : this.withDragging(row, w);
+    // Nested under the lists view, a worktree hangs from its main space's line.
+    if (!(tree && this.under)) return dragged;
+    return h_flex().child(Rail(tree.startsWith("└") ? "└" : "├", 14)).child(dragged.flex_1().min_w(0));
+  }
+
+  // Press to select or start a drag (groups.js). A press that comes up in place is a click.
+  withDragging(row, w) {
+    return row
+      .on_mouse_down("left", (e) => this.pressRow(w, e))
+      .on_mouse_move((e, cx) => this.dragOver(e, cx, { row: w.id }))
+      .on_mouse_up("left", (e, cx) => {
+        const d = this.drag;
+        this.rowUp = true;
+        if (d?.active) this.drop(cx);
+        else if (d?.id === w.id || (!d && this.pressed === w.id)) this.click(w, e);
+        this.endDrag(cx);
+      });
+  }
+
+  // Whether this row moves with the drag.
+  dragged(w) {
+    return (this.drag?.heads ?? []).some((h) => (this.famIds[h] ?? [h]).includes(w.id));
+  }
+
+  // A space: a 16px slot with an 8px dot (colors and icons come with Appearance, P1b), the name in
+  // the code font, a dot when an agent needs you, and at the right the branch and ahead/behind.
+  rowTitle(w, g, tree, t) {
+    return h_flex()
+      .gap(8)
+      .items_center()
+      .when(Boolean(tree), (el) => el.when(!this.under, (e) => e.pl(22)).child(Icon("branch", 13).text_color(t.muted)))
+      .when(!tree, (el) => el.child(this.avatar(w, t)))
+      .child(
+        // The full name only when it's cut off (7.8px a character of JetBrains Mono 13; L20).
+        div().flex_none().max_w(150).truncate().when(w.name.length * 7.8 > 150, (el) => el.tooltip(w.name)).font_family("JetBrains Mono").text_color(t.foreground).child(w.name),
+      )
+      .when(w.status === "blocked", (el) => el.child(div().id(`needs-${w.id}`).size(8).flex_none().rounded_full().bg(t.blocked).tooltip("An agent needs you")))
+      .child(this.branchName(g, w.name, t))
+      .child(this.gitTail(g, w.active, t, w));
+  }
+
+  // Its icon from Appearance, else an 8px dot.
+  avatar(w, t) {
+    const icon = lookOf(w).icon;
+    if (icon) return svg(`mods/awsome-icons/ui/${icon}.svg`).size(16).flex_none().text_color(t.foreground);
+    return h_flex().size(16).flex_none().items_center().justify_center().child(div().size(8).rounded_full().bg(t.muted));
+  }
+
+  compact({ w, i }, t) {
+    const badge = this.prBadge(w, t, true);
+    return h_flex()
+      .id(`space-${w.id}`)
+      .h(26)
+      .flex_none()
+      .justify_center()
+      .gap(4)
+      .when(w.active, (el) => el.bg(t.raised))
+      .hover((s) => s.bg(t.hover))
+      .on_click(() => run("space.select", { id: w.id }))
+      .child(
+        div()
+          .text_color(w.active ? t.foreground : t.muted)
+          .child(String(i + 1)),
+      )
+      .when(Boolean(badge), (el) => el.child(badge))
+      .when(!badge, (el) => el.child(div().text_color(tone(t, w.status)).child(glyph(w.status))));
+  }
+
+  // Share avatar colors with Herdr's own space menus. Do this during data
+  // synchronization, never render: setShared itself schedules a redraw.
+  updateColors(sp) {
+    const palette = ["ansi6", "ansi3", "ansi4", "ansi5", "ansi2", "ansi1"];
+    const ids = new Set(sp.map((p) => p.id));
+    const kept = Object.fromEntries(
+      Object.entries(shared("space.colors") ?? {}).filter(([id]) => ids.has(id)),
+    );
+    let changed = Object.keys(kept).length !== Object.keys(shared("space.colors") ?? {}).length;
+    for (const p of sp) {
+      if (kept[p.id] || p.name === "~") continue;
+      const uses = (c) => Object.values(kept).filter((v) => v === c).length;
+      kept[p.id] = palette.reduce((best, c) => (uses(c) < uses(best) ? c : best));
+      changed = true;
+    }
+    if (changed) setShared("space.colors", kept);
+  }
+
+  // A color name from Appearance as its hex, and a hex as the tint behind a row or block.
+  hueOf(name) {
+    return AVATAR_COLORS[name];
+  }
+
+  tint(hex, t) {
+    return tintOf(hex, t);
+  }
+
+  collapsed() {
+    return (this.width ?? findNode(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
+  }
+
+  render() {
+    const t = theme();
+    const collapsed = this.collapsed();
+    return v_flex()
+      .id("awsome-sidebar-root")
+      .size_full()
+      .min_h(0)
+      .bg(t.chrome)
+      .text_size(TEXT.body)
+      .on_size_change((size, cx) => this.resized(size, cx))
+      .child(this.header(t, collapsed))
+      .child(this.body(t, collapsed));
+  }
+
+  resized(size, cx) {
+    const wasCollapsed = (this.width ?? Infinity) < 160;
+    this.width = size.width;
+    if (wasCollapsed !== this.width < 160) cx.notify();
+  }
+
+  newSpaceButton() {
+    return IconButton({
+      id: "space-new",
+      icon: "plus",
+      label: "New space",
+      iconSize: 14,
+      muted: true,
+      onClick: () => run("space.new"),
+    });
+  }
+
+  // The sort menu, then New space, for the header and the lists view's tab bar.
+  headerButtons(collapsed = false) {
+    return h_flex()
+      .gap(2)
+      .items_center()
+      .when(!collapsed, (el) => el.child(this.sortMenu()))
+      .child(this.newSpaceButton());
+  }
+
+  sortMenu() {
+    const sort = spaceSortOf();
+    return Menu({
+      id: "space-sort-menu",
+      open: this.sortOpen,
+      focus: this.sortFocus,
+      onOpenChange: (open, cx) => {
+        this.sortOpen = open;
+        cx.notify();
+      },
+      trigger: IconButton({
+        id: "space-sort",
+        icon: sort.icon,
+        label: `Sort spaces: ${sort.label}`,
+        iconSize: 14,
+        muted: true,
+      }),
+      children: [
+        MenuLabel("Sort spaces"),
+        ...SPACE_SORTS.map((s) =>
+          MenuOption({
+            id: `space-sort-${s.id}`,
+            icon: s.icon,
+            label: s.label,
+            selected: s.id === sort.id,
+            onClick: (cx) => {
+              setShared("spaces.sort", s.id);
+              this.sortOpen = false;
+              cx.notify();
+            },
+          }),
+        ),
+      ],
+    });
+  }
+
+  header(t, collapsed) {
+    return h_flex()
+      .h(32)
+      .pl(16)
+      .pr(10)
+      .items_center()
+      .justify_between()
+      .text_size(11)
+      .font_medium()
+      .text_color(t.muted)
+      .when(!collapsed, (el) => el.child("Spaces"))
+      .child(this.headerButtons(collapsed));
+  }
+
+  body(t, collapsed) {
+    const rows = [...(this.above?.() ?? []), ...this.grouped(t, collapsed)];
+    this.revealShown(rows);
+    return v_flex()
+      .id("spaces-list")
+      .flex_1()
+      .min_h(0)
+      .px(8)
+      .pb(14)
+      .gap(4)
+      .overflow_y_scrollbar()
+      .mode("always")
+      .on_mouse_down("left", () => {
+        this.clickedAt = Date.now();
+      })
+      .on_mouse_up("left", (_e, cx) => {
+        if (!this.rowUp) this.selected = new Set();
+        this.rowUp = false;
+        this.endDrag(cx);
+      })
+      .track_focus(this.listFocus)
+      .on_key_down((ev, cx) => {
+        if (ev.key !== "escape") return;
+        if (this.drag?.active) {
+          cx.stop_propagation();
+          this.endDrag(cx);
+          return;
+        }
+        if (this.selected.size < 2) return;
+        this.selected = new Set();
+        cx.stop_propagation();
+        cx.notify();
+      })
+      .track_scroll(this.listScroll)
+      .children(rows);
+  }
+
+  // Once per change of the shown space, as from a key: scroll its group (its row, then its tabs
+  // and agents) into view. The host scrolls as little as it can, so a group above lands with
+  // the space's row at the top and one below with its last row at the bottom; a group already
+  // on screen stays put. A change from a press in the list doesn't scroll. A space that isn't
+  // listed, as in a folded machine, waits until it is.
+  revealShown(rows) {
+    const shown = spaces().find((s) => s.active)?.id ?? null;
+    if (shown !== this.lastShown) {
+      this.lastShown = shown;
+      this.revealing = shown !== null && Date.now() - this.clickedAt > CLICK_MS;
+    }
+    if (!this.revealing || !this.shownGroup) return;
+    const at = rows.indexOf(this.shownGroup);
+    if (at === -1) return;
+    this.revealing = false;
+    this.listScroll.scroll_to_item(at);
+  }
+}
+
+Object.assign(Spaces.prototype, groupMethods);

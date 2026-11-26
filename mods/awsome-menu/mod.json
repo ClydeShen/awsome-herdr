@@ -1,0 +1,12 @@
+{
+  "$schema": "./mod.schema.json",
+  "version": "1.0.0",
+  "place": "none",
+  "title": "Awsome Menu",
+  "overlay": {
+    "kind": "popup",
+    "width": 300,
+    "height": 620,
+    "frame": "none"
+  }
+}

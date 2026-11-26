@@ -1,0 +1,351 @@
+{
+  "$comment": "Where every color in config/themes/awsome-*.json comes from. scripts/ui-check.py (C1) converts each source value and requires the theme to match. shadcn/ui: apps/v4/registry/themes.ts (neutral). Apple: Human Interface Guidelines > Color > System colors (light/dark, increased contrast). 'derived' values follow the stated rule.",
+  "light": {
+    "background": {
+      "shadcn": "neutral.light.background",
+      "oklch": "oklch(1 0 0)"
+    },
+    "foreground": {
+      "shadcn": "neutral.light.foreground",
+      "oklch": "oklch(0.145 0 0)"
+    },
+    "cursor": {
+      "shadcn": "neutral.light.foreground",
+      "oklch": "oklch(0.145 0 0)"
+    },
+    "selection": {
+      "derived": "accent at 25% over background",
+      "value": null
+    },
+    "colors.surface": {
+      "shadcn": "neutral.light.card",
+      "oklch": "oklch(1 0 0)"
+    },
+    "colors.canvas": {
+      "shadcn": "neutral.light.sidebar",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "colors.chrome": {
+      "shadcn": "neutral.light.background",
+      "oklch": "oklch(1 0 0)"
+    },
+    "colors.popover": {
+      "shadcn": "neutral.light.popover",
+      "oklch": "oklch(1 0 0)"
+    },
+    "colors.raised": {
+      "shadcn": "neutral.light.secondary",
+      "oklch": "oklch(0.97 0 0)"
+    },
+    "colors.hover": {
+      "derived": "light.accent oklch(0.97) as a black overlay on white",
+      "value": "#0000000a"
+    },
+    "colors.selected": {
+      "derived": "same as hover (shadcn uses accent for both)",
+      "value": "#0000000a"
+    },
+    "colors.border": {
+      "shadcn": "neutral.light.border",
+      "oklch": "oklch(0.922 0 0)"
+    },
+    "colors.input": {
+      "shadcn": "neutral.light.input",
+      "oklch": "oklch(0.922 0 0)"
+    },
+    "colors.foreground": {
+      "shadcn": "neutral.light.foreground",
+      "oklch": "oklch(0.145 0 0)"
+    },
+    "colors.terminal_foreground": {
+      "shadcn": "neutral.light.foreground",
+      "oklch": "oklch(0.145 0 0)"
+    },
+    "colors.muted": {
+      "shadcn": "neutral.light.muted-foreground",
+      "oklch": "oklch(0.556 0 0)"
+    },
+    "colors.dim": {
+      "shadcn": "neutral.light.ring",
+      "oklch": "oklch(0.708 0 0)"
+    },
+    "colors.solid": {
+      "shadcn": "neutral.light.primary",
+      "oklch": "oklch(0.205 0 0)"
+    },
+    "colors.solid_foreground": {
+      "shadcn": "neutral.light.primary-foreground",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "colors.accent": {
+      "apple": "blue (increased contrast)",
+      "rgb": "#1e6ef4"
+    },
+    "colors.ring": {
+      "apple": "blue (increased contrast)",
+      "rgb": "#1e6ef4"
+    },
+    "colors.accent_foreground": {
+      "derived": "whichever of white and near-black reads better on accent",
+      "value": null
+    },
+    "colors.working": {
+      "apple": "orange (increased contrast)",
+      "rgb": "#c55300"
+    },
+    "colors.blocked": {
+      "apple": "red (increased contrast)",
+      "rgb": "#e9152d"
+    },
+    "colors.done": {
+      "apple": "green (increased contrast)",
+      "rgb": "#008932"
+    },
+    "colors.idle": {
+      "shadcn": "neutral.light.ring",
+      "oklch": "oklch(0.708 0 0)"
+    },
+    "colors.unknown": {
+      "shadcn": "neutral.light.ring",
+      "oklch": "oklch(0.708 0 0)"
+    },
+    "ansi.0": {
+      "shadcn": "neutral.light.foreground",
+      "oklch": "oklch(0.145 0 0)"
+    },
+    "ansi.7": {
+      "shadcn": "neutral.light.muted-foreground",
+      "oklch": "oklch(0.556 0 0)"
+    },
+    "ansi.8": {
+      "shadcn": "neutral.light.chart-3",
+      "oklch": "oklch(0.439 0 0)"
+    },
+    "ansi.15": {
+      "shadcn": "neutral.light.ring",
+      "oklch": "oklch(0.708 0 0)"
+    },
+    "ansi.1": {
+      "apple": "red (increased contrast)",
+      "rgb": "#e9152d"
+    },
+    "ansi.9": {
+      "apple": "red (increased contrast)",
+      "rgb": "#e9152d"
+    },
+    "ansi.2": {
+      "apple": "green (increased contrast)",
+      "rgb": "#008932"
+    },
+    "ansi.10": {
+      "apple": "green (increased contrast)",
+      "rgb": "#008932"
+    },
+    "ansi.3": {
+      "apple": "yellow (increased contrast)",
+      "rgb": "#a16a00"
+    },
+    "ansi.11": {
+      "apple": "yellow (increased contrast)",
+      "rgb": "#a16a00"
+    },
+    "ansi.4": {
+      "apple": "blue (increased contrast)",
+      "rgb": "#1e6ef4"
+    },
+    "ansi.12": {
+      "apple": "blue (increased contrast)",
+      "rgb": "#1e6ef4"
+    },
+    "ansi.5": {
+      "apple": "purple (increased contrast)",
+      "rgb": "#b02fc2"
+    },
+    "ansi.13": {
+      "apple": "purple (increased contrast)",
+      "rgb": "#b02fc2"
+    },
+    "ansi.6": {
+      "apple": "cyan (increased contrast)",
+      "rgb": "#007eae"
+    },
+    "ansi.14": {
+      "apple": "cyan (increased contrast)",
+      "rgb": "#007eae"
+    }
+  },
+  "dark": {
+    "background": {
+      "shadcn": "neutral.dark.card",
+      "oklch": "oklch(0.205 0 0)"
+    },
+    "foreground": {
+      "shadcn": "neutral.dark.foreground",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "cursor": {
+      "shadcn": "neutral.dark.foreground",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "selection": {
+      "derived": "accent at 25% over background",
+      "value": null
+    },
+    "colors.surface": {
+      "shadcn": "neutral.dark.card",
+      "oklch": "oklch(0.205 0 0)"
+    },
+    "colors.canvas": {
+      "shadcn": "neutral.dark.background",
+      "oklch": "oklch(0.145 0 0)"
+    },
+    "colors.chrome": {
+      "shadcn": "neutral.dark.sidebar",
+      "oklch": "oklch(0.205 0 0)"
+    },
+    "colors.popover": {
+      "shadcn": "neutral.dark.popover",
+      "oklch": "oklch(0.205 0 0)"
+    },
+    "colors.raised": {
+      "shadcn": "neutral.dark.secondary",
+      "oklch": "oklch(0.269 0 0)"
+    },
+    "colors.hover": {
+      "derived": "dark.accent oklch(0.269) as a white overlay on card",
+      "value": "#ffffff10"
+    },
+    "colors.selected": {
+      "derived": "same as hover (shadcn uses accent for both)",
+      "value": "#ffffff10"
+    },
+    "colors.border": {
+      "shadcn": "neutral.dark.border",
+      "oklch": "oklch(1 0 0 / 10%)"
+    },
+    "colors.input": {
+      "shadcn": "neutral.dark.input",
+      "oklch": "oklch(1 0 0 / 15%)"
+    },
+    "colors.foreground": {
+      "shadcn": "neutral.dark.foreground",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "colors.terminal_foreground": {
+      "shadcn": "neutral.dark.foreground",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "colors.muted": {
+      "shadcn": "neutral.dark.muted-foreground",
+      "oklch": "oklch(0.708 0 0)"
+    },
+    "colors.dim": {
+      "shadcn": "neutral.dark.ring",
+      "oklch": "oklch(0.556 0 0)"
+    },
+    "colors.solid": {
+      "shadcn": "neutral.dark.primary",
+      "oklch": "oklch(0.922 0 0)"
+    },
+    "colors.solid_foreground": {
+      "shadcn": "neutral.dark.primary-foreground",
+      "oklch": "oklch(0.205 0 0)"
+    },
+    "colors.accent": {
+      "apple": "blue",
+      "rgb": "#0091ff"
+    },
+    "colors.ring": {
+      "apple": "blue",
+      "rgb": "#0091ff"
+    },
+    "colors.accent_foreground": {
+      "derived": "whichever of white and near-black reads better on accent",
+      "value": null
+    },
+    "colors.working": {
+      "apple": "orange",
+      "rgb": "#ff9230"
+    },
+    "colors.blocked": {
+      "apple": "red (increased contrast)",
+      "rgb": "#ff6165"
+    },
+    "colors.done": {
+      "apple": "green",
+      "rgb": "#30d158"
+    },
+    "colors.idle": {
+      "shadcn": "neutral.dark.ring",
+      "oklch": "oklch(0.556 0 0)"
+    },
+    "colors.unknown": {
+      "shadcn": "neutral.dark.ring",
+      "oklch": "oklch(0.556 0 0)"
+    },
+    "ansi.0": {
+      "shadcn": "neutral.dark.secondary",
+      "oklch": "oklch(0.269 0 0)"
+    },
+    "ansi.7": {
+      "shadcn": "neutral.dark.border (opaque)",
+      "oklch": "oklch(0.922 0 0)"
+    },
+    "ansi.8": {
+      "shadcn": "neutral.dark.ring",
+      "oklch": "oklch(0.556 0 0)"
+    },
+    "ansi.15": {
+      "shadcn": "neutral.dark.foreground",
+      "oklch": "oklch(0.985 0 0)"
+    },
+    "ansi.1": {
+      "apple": "red (increased contrast)",
+      "rgb": "#ff6165"
+    },
+    "ansi.9": {
+      "apple": "red (increased contrast)",
+      "rgb": "#ff6165"
+    },
+    "ansi.2": {
+      "apple": "green",
+      "rgb": "#30d158"
+    },
+    "ansi.10": {
+      "apple": "green",
+      "rgb": "#30d158"
+    },
+    "ansi.3": {
+      "apple": "yellow",
+      "rgb": "#ffd600"
+    },
+    "ansi.11": {
+      "apple": "yellow",
+      "rgb": "#ffd600"
+    },
+    "ansi.4": {
+      "apple": "blue",
+      "rgb": "#0091ff"
+    },
+    "ansi.12": {
+      "apple": "blue",
+      "rgb": "#0091ff"
+    },
+    "ansi.5": {
+      "apple": "purple (increased contrast)",
+      "rgb": "#ea8dff"
+    },
+    "ansi.13": {
+      "apple": "purple (increased contrast)",
+      "rgb": "#ea8dff"
+    },
+    "ansi.6": {
+      "apple": "cyan",
+      "rgb": "#3cd3fe"
+    },
+    "ansi.14": {
+      "apple": "cyan",
+      "rgb": "#3cd3fe"
+    }
+  }
+}

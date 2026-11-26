@@ -1,0 +1,19 @@
+{
+  "mod:awsome-viewer": {
+    "cmd-s": "awsome-viewer.save",
+    "ctrl-g": "awsome-viewer.goto",
+    "cmd-/": "awsome-viewer.comment",
+    "cmd-ctrl-up": "awsome-viewer.moveUp",
+    "cmd-ctrl-down": "awsome-viewer.moveDown",
+    "cmd-shift-d": "awsome-viewer.duplicate",
+    "cmd-enter": "awsome-viewer.insertBelow",
+    "cmd-shift-enter": "awsome-viewer.insertAbove",
+    "cmd-l": "awsome-viewer.selectLine",
+    "cmd-]": "awsome-viewer.indent",
+    "cmd-[": "awsome-viewer.outdent",
+    "ctrl-shift-a": "awsome-viewer.blockComment",
+    "ctrl-shift-m": "awsome-viewer.matchBracket",
+    "ctrl-j": "awsome-viewer.joinLines",
+    "ctrl-alt-z": "awsome-viewer.wrap"
+  }
+}

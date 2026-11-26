@@ -5,6 +5,10 @@
     "version": "0.1.18"
   },
   "type": "row",
+  "theme": {
+    "light": "awsome-light",
+    "dark": "awsome-dark"
+  },
   "children": [
     {
       "id": "sidebar",
@@ -29,7 +33,7 @@
               "id": "spaces",
               "type": "block",
               "content": {
-                "mod": "better-sidebar"
+                "mod": "awsome-sidebar"
               },
               "size": {
                 "weight": 1
@@ -40,7 +44,10 @@
               "id": "agents",
               "type": "block",
               "content": {
-                "mod": "agents"
+                "mod": "awsome-sidebar",
+                "props": {
+                  "view": "agents"
+                }
               },
               "size": {
                 "weight": 1
@@ -53,13 +60,13 @@
           "id": "sidebar-footer",
           "type": "block",
           "content": {
-            "mod": "workspace-chrome",
+            "mod": "awsome-sidebar",
             "props": {
-              "footer": true
+              "view": "footer"
             }
           },
           "size": {
-            "px": 69
+            "px": 32
           }
         }
       ],
@@ -79,7 +86,7 @@
           "id": "tabs",
           "type": "block",
           "content": {
-            "mod": "better-tabs"
+            "mod": "awsome-tabs"
           },
           "window_drag": true,
           "size": {
@@ -102,14 +109,14 @@
                       "id": "files",
                       "type": "block",
                       "content": {
-                        "mod": "filetree"
+                        "mod": "awsome-filetree"
                       }
                     },
                     {
                       "id": "changes",
                       "type": "block",
                       "content": {
-                        "mod": "better-changes"
+                        "mod": "awsome-changes"
                       }
                     }
                   ],
@@ -121,7 +128,30 @@
               },
               "min": 280,
               "max": 900,
-              "hidden": true
+              "hidden": true,
+              "background": "surface",
+              "border": {
+                "width": 1,
+                "color": "border"
+              },
+              "radius": 10
+            },
+            {
+              "id": "preview",
+              "type": "block",
+              "content": {
+                "mod": "awsome-viewer",
+                "props": {
+                  "mode": "slot"
+                }
+              },
+              "size": {
+                "weight": 4
+              },
+              "min": 280,
+              "hidden": true,
+              "background": "background",
+              "radius": 10
             },
             {
               "id": "main",
@@ -147,23 +177,27 @@
                     "color": "accent"
                   },
                   "radius": 10,
-                  "gap": 8,
+                  "gap": 4,
                   "lone": true
                 }
-              }
+              },
+              "size": {
+                "weight": 3
+              },
+              "min": 360
             }
           ],
-          "padding": 8,
-          "gap": 8
+          "padding": 4,
+          "gap": 4
         },
         {
           "id": "status",
           "type": "block",
           "content": {
-            "mod": "workspace-status"
+            "mod": "awsome-statusline"
           },
           "size": {
-            "px": 28
+            "px": 32
           }
         }
       ],
