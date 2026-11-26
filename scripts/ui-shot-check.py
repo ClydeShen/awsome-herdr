@@ -81,8 +81,8 @@ def main():
     def top_line(x):
         col = [im.getpixel((x, y)) for y in range(H)]
         for y in range(H - 2, H // 2, -1):
-            if not near(col[y], col[y + 1], 6) and not near(col[y], col[y - 1], 6):
-                return y  # a one-pixel line
+            if not near(col[y], col[y + 1], 6) and not near(col[y], col[y - 1], 6)                     and all(near(im.getpixel((x + d, y)), col[y], 6) for d in range(-8, 9) if 0 <= x + d < W):
+                return y  # a one-pixel line running across, not the edge of an icon in the status bar
         return None
 
     sidebar_x = segs[0][0] + segs[0][1] // 2 if segs else 10
