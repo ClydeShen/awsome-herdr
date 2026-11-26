@@ -17,7 +17,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 1. **写胶水，不自研功能。** 按顺序找现成的：（A）Herdr 自带的命令和 `gpui-component`；（B）纯 JS 的 npm 库，打成单个文件放进 mod 文件夹（运行时没有 Node、DOM、`setTimeout`，有 `path`、`fs/promises`、`fetch`）；（C）成熟的命令行工具，用 `exec` 调用或放进终端 pane。每个功能开工前先做小验证：库能打包、`herdr-app check` 通过、能跑通一次。自己写的逻辑变多时，先告诉用户。
 2. **Windows、macOS、Linux 三平台通用。** 按 `window().platform` 分支；快捷键存"逻辑键"，写进 `keys.json` 时翻译成各系统的真实按键（macOS 用 `cmd`，其余用 `ctrl`）。避开 `ctrl-alt`（Windows 上是 AltGr）、Option+字母（macOS 会打出字符）、单独的 `ctrl-字母`（终端程序在用）。`alt-shift`、`ctrl-shift` 在 Windows 上可能是切换输入法的系统热键，默认值都要可配置、要在用户机器上实测。脚本用 POSIX sh。
 3. **设置都走 `awsome-config`。** 在 mod 的 `mod.schema.json` 里描述，值写在 `mod.json` 的 `settings` 下（`limits` 和 `default` 并列，不要放进 `default`）。快捷键设置用 `format: "key"` 加 `x-action`。
-4. **所有界面文字用英文**：按钮、菜单、提示（tooltip）、对话框、设置项的标题和说明、通知。文档、需求和与用户的对话用中文；代码、提交说明用英文。
+4. 文档、需求和与用户的对话用中文；代码、界面文字、提交说明用英文。
 5. **安全约定。** 删除一律进系统回收站，不提供撤销。新建、重命名、移动这类低风险文件操作支持撤销，默认 Ctrl+Z（macOS 是 Cmd+Z），只在文件树有焦点时生效，不抢终端的按键。discard 这类会丢用户改动的 Git 操作要确认。
 6. **界面先定稿，再动手。** 用户不接受半成品和返工（P0 的主题做了三遍、菜单重做过一次）。任何新界面或改样式，按这个顺序：
    0. **先查惯例**：任何交互（新做的、或从上游继承的）先写下至少两个常见软件（VS Code、Windows 资源管理器、macOS Finder、浏览器、Herdr 自己）的做法，登记进 `design/conventions.json`，照着做；要偏离写明理由（`docs/UI-LESSONS.md` L8）。
@@ -42,7 +42,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 
 ## 在这个仓库里踩过的坑
 
-- **mod 之间不能互相 import。** `file-icons.js`、`settings.js`、`syntax.js` 在几个 mod 里是逐字节相同的拷贝，改一份要同步改其他几份。图标包 `awsome-icons` 只能按路径读取。
+- **mod 之间不能互相 import。** `file-icons.js`、`settings.js`、`syntax.js` 等在几个 mod 里是逐字节相同的拷贝。图标包 `awsome-icons` 只能按路径读取。
 - **一个视图渲染太久会被 Herdr 打断**：面板卡在"Loading…"，顶部出现 "This view could not be re-rendered"，小字 "interrupted"，没有日志。`awsome-changes` 的 `limits.files` 是 200（600 渲染不完，300 正常）。写长列表要先量。
 - 有 `"place": "right"` 的 mod 会被 Herdr 自动加进当前布局，造成重复面板。
 - mod 的名字出现在布局、共享状态的键、`props`、图标路径里，改名要一起改。每个 mod 在 `data/<mod>/` 里记住自己的状态（比如上次打开的标签页），所以"换了名字就坏"往往是状态不同，不是名字本身。
