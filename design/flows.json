@@ -392,7 +392,7 @@
       "mod": "awsome-filetree",
       "to": "a file kept in its own tab (single-click only previews it in the preview column)",
       "forward": {
-        "mouse": "double-click the file, or Open in tab on the preview",
+        "mouse": "double-click the file, Open in tab in its menu, or Open in tab on the preview (the preview column showing it closes)",
         "keys": "Enter on the file",
         "code": [
           "openViewer(rel, true, cx)"
@@ -429,19 +429,21 @@
     {
       "id": "changes-history-tab",
       "mod": "awsome-changes",
-      "to": "the History tab of the Changes panel",
+      "to": "the History view of the Changes panel",
       "forward": {
-        "mouse": "click the History tab",
-        "keys": "",
+        "mouse": "click the History (2) button",
+        "keys": "2",
         "code": [
-          "setTab(\"commit\""
+          "setTab(\"commit\"",
+          "event.key === \"1\" || event.key === \"2\""
         ]
       },
       "back": {
-        "mouse": "click the Changes tab",
-        "keys": "",
+        "mouse": "click the Changes (1) button",
+        "keys": "1",
         "code": [
-          "setTab(\"changes\""
+          "setTab(\"changes\"",
+          "event.key === \"1\" ? \"changes\" : \"commit\""
         ]
       }
     },
@@ -496,10 +498,72 @@
         ]
       },
       "back": {
-        "mouse": "click the title row again",
+        "mouse": "click the title row again; picking another commit also opens a folded Details group",
         "keys": "",
         "code": [
           "toggleGroup("
+        ]
+      }
+    },
+    {
+      "id": "changes-row-menu",
+      "mod": "awsome-changes",
+      "to": "a changed file's right-click menu",
+      "forward": {
+        "mouse": "right-click a file row",
+        "keys": "",
+        "code": [
+          "openRowMenu(",
+          "on_mouse_down(\"right\""
+        ]
+      },
+      "back": {
+        "mouse": "click outside the menu, or choose an item",
+        "keys": "Esc",
+        "code": [
+          "closeOverlay(props().overlay)",
+          "menuKey("
+        ]
+      }
+    },
+    {
+      "id": "changes-discard",
+      "mod": "awsome-changes",
+      "to": "discard's confirmation, then files back to how the index has them (new files in the Recycle Bin)",
+      "forward": {
+        "mouse": "Discard changes… on a row, folder or the Unstaged title, or in the right-click menu",
+        "keys": "",
+        "code": [
+          "askDiscard(",
+          "openDiscardDialog("
+        ]
+      },
+      "back": {
+        "mouse": "Cancel, or click outside; after a discard, the snapshot ref (git stash apply refs/awsome-changes/discard/<time>) or the Recycle Bin brings files back",
+        "keys": "Esc",
+        "code": [
+          "confirmKey(",
+          "refs/awsome-changes/discard"
+        ]
+      }
+    },
+    {
+      "id": "diff-view-toggles",
+      "mod": "awsome-changes",
+      "to": "every diff shown whole, or side by side",
+      "forward": {
+        "mouse": "the switch on a diff's header",
+        "keys": "",
+        "code": [
+          "diffViewButtons(",
+          "toggleFullFile("
+        ]
+      },
+      "back": {
+        "mouse": "the same switch again",
+        "keys": "",
+        "code": [
+          "setDiffLayout(split ? \"inline\" : \"split\""
         ]
       }
     }

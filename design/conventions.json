@@ -70,6 +70,10 @@
         "awsome-menu": [
           "menuView(",
           "menuNav("
+        ],
+        "awsome-changes": [
+          "openRowMenu(",
+          "menuView("
         ]
       }
     },
@@ -329,14 +333,15 @@
           "behavior": "Space previews the selected item without opening it; Space or Esc closes it."
         }
       ],
-      "ours": "Single-click or Space shows the file in the preview column of the layout (one, global, closed with its close button or Esc); double-click or Enter opens it in its own tab and leaves the preview as it is. When the preview is hidden a single-click waits 250ms for a possible double-click, so the layout changes only once; when it is shown the content is replaced at once.",
+      "ours": "Single-click or Space shows the file in the preview column of the layout (one, global, closed with its close button or Esc); double-click, Enter, the menu's Open in tab or the preview's Open in tab opens it in its own tab, and the tab takes the file over: a preview column showing that file closes, so the file is never on screen twice (VS Code's preview editor turns into a kept one in place; user 2026-11-26). Enter stays VS Code's (pinned), Space previews (user 2026-11-26); the file's menu shows both keys. When the preview is hidden a single-click waits 250ms for a possible double-click, so the layout changes only once; when it is shown the content is replaced at once.",
       "code": {
         "awsome-filetree": [
           "openViewer(",
           "press("
         ],
         "awsome-viewer": [
-          "slot"
+          "slot",
+          "promoteToTab("
         ]
       },
       "herdr": "Reuses Herdr's layout (a hidden layout block shown with layout.show / hide, sized by weights, size kept by Herdr) and its pane frame (background, 1px border, radius 10, accent border when focused). Herdr's own files mod previews inside its panel; that is the fallback in layouts without the block."
@@ -410,26 +415,107 @@
       "herdr": "none: Herdr has no commit graph. Its parts reuse Herdr's looks: rows are the sidebar list rows, labels are Herdr changes' count chip, the switches are Files' header switches."
     },
     {
-      "id": "panel-tabs",
+      "id": "panel-views",
       "what": "Switching what a side panel shows",
       "references": [
         {
-          "app": "Herdr (tab bar panel buttons)",
-          "behavior": "Files and Changes buttons: icon and label, selected when shown, muted otherwise."
+          "app": "Herdr (pane header, mods/pane)",
+          "behavior": "Icon buttons in the header row, 14px in p3, radius 4, dim until hovered; the active one has a background."
         },
         {
-          "app": "VS Code (Source Control view)",
-          "behavior": "Changes and Graph are separate parts of one Source Control container, no counts in the switch itself; counts sit in the groups and on the activity badge."
+          "app": "VS Code (explorer and Source Control view titles)",
+          "behavior": "A view title row with the view's name and icon actions; switching views keeps the title row in place."
         }
       ],
-      "ours": "The Changes panel's header holds only Changes and History, drawn as Herdr's panel buttons at 22 high in the 30px header; no counts there (they are in the groups and Repositories rows); tools sit on each view's group title.",
+      "ours": "Files and Changes share one header (§2.9): the name, the view buttons (Tree (1) / Recent (2); Changes (1) / History (2)), a 1x12 separator, then that view's tools, all the same 20px icon button; 1 and 2 switch views while the panel has the keyboard; no counts in the header.",
       "code": {
         "awsome-changes": [
-          "PanelTabs(",
-          "PanelTab("
+          "FrameHeader(",
+          "PaneButton(",
+          "History (2)"
+        ],
+        "awsome-filetree": [
+          "ft-tab-"
         ]
       },
-      "herdr": "Look and pattern of Herdr's tabs panelButton (mods/tabs/main.js: px 8, gap 5, radius 6, text 12, selected / muted); the Changes tab uses Herdr's own mods/changes/changes.svg icon."
+      "herdr": "Look and pattern of Herdr's pane header buttons (mods/pane), as P2b's preview-column header already uses (PaneButton); the Changes view button uses Herdr's own mods/changes/changes.svg. Changes follows Files' header (user 2026-11-26)."
+    },
+    {
+      "id": "commit-details",
+      "what": "A commit's details under the commit list",
+      "references": [
+        {
+          "app": "GitHub Desktop (History)",
+          "behavior": "Summary in bold, the description in normal text below it, then author, time and short SHA (copy from the menu), then the changed files with +/-."
+        },
+        {
+          "app": "GitHub (commit page)",
+          "behavior": "Title, description with its line breaks, author and time, the SHA with a copy button right beside it, then the files."
+        },
+        {
+          "app": "JetBrains IDEs (Git log details)",
+          "behavior": "Message, then hash, author and date, the branches it is in, and the changed files."
+        }
+      ],
+      "ours": "Details (title row: fold and Close only) shows the message (subject bold, body normal, one selectable text; wrapped lines joined, lists and trailers on their own lines), then author / time / hash (+ Copy full hash, Open on GitHub beside it) / refs as rows with a 16px icon at x 10 and text at x 30, a rule, the files (flat rows, Preview on hover), and panel.end at the end. Loading files shows only after 300ms; an error stays in place with Retry; picking another commit opens a folded block.",
+      "code": {
+        "awsome-changes": [
+          "renderCommitBody(",
+          "messageMarkdown(",
+          "Copy full hash",
+          "loadCommitFiles(",
+          "commitFilesSlow"
+        ]
+      },
+      "herdr": "Look of the awsome panel frame (§2.9: group title, PaneButton = Herdr's pane header button, tree row) and Herdr's own TextView for selectable text; Herdr has no commit view of its own."
+    },
+    {
+      "id": "scm-file-actions",
+      "what": "Acting on a changed file: groups, inline actions, right-click menu, discard",
+      "references": [
+        {
+          "app": "VS Code (Source Control)",
+          "behavior": "Groups Staged Changes / Changes; on hover a row shows Open File, Discard Changes, Stage Changes (Unstage for staged); the context menu adds Open Changes, Reveal, Copy Path, Add to .gitignore; Discard asks first."
+        },
+        {
+          "app": "GitHub Desktop (Changes)",
+          "behavior": "Right-click a file: Discard changes (asks, files go to the Recycle Bin / Trash), Ignore file, Copy file path, Reveal in Explorer."
+        }
+      ],
+      "ours": "Groups Conflicts / Staged / Unstaged. Hover: Preview, Discard changes… (Unstaged), Stage / Unstage; group titles: Discard all changes…, Stage all changes / Unstage all changes; folders too. Menu: Open diff, Preview | Stage or Unstage | Reveal in File Explorer, Copy relative / absolute path, Add to .gitignore (new files) | Discard changes… (red, last). Only the system's Reveal: VS Code's Reveal in Explorer View read the same as it (user 2026-11-26). Discard asks (confirm.js), keeps a git snapshot ref first, sends new files to the Recycle Bin / Trash, and shows a toast.",
+      "code": {
+        "awsome-changes": [
+          "rowMenuEntries(",
+          "askDiscard(",
+          "openDiscardDialog(",
+          "discardFiles(",
+          "Add to .gitignore"
+        ]
+      },
+      "herdr": "Herdr's own confirm look through the shared confirm.js, the shared menu.js (Herdr's menu sizes), the pane header button for the inline actions, and Herdr's notify toast."
+    },
+    {
+      "id": "diff-view-toggles",
+      "what": "How a diff is shown: whole file, side by side",
+      "references": [
+        {
+          "app": "VS Code (diff editor toolbar)",
+          "behavior": "Icon buttons on the diff's own title bar: Toggle Inline View, Show Unchanged Regions; they sit with the editor they change."
+        },
+        {
+          "app": "GitHub (pull request Files changed)",
+          "behavior": "Unified / Split chosen on the diff view itself, remembered for every file."
+        }
+      ],
+      "ours": "Two always-visible PaneButtons on the diff's header (Show full file / Show changes only, Show side by side / Show inline), parted by a 1x12 line from the pane's own buttons, which show on hover; they act on every diff tab. The Changes panel no longer has its own side-by-side switch.",
+      "code": {
+        "awsome-changes": [
+          "diffViewButtons(",
+          "Show side by side",
+          "Show full file"
+        ]
+      },
+      "herdr": "Herdr's pane header: its 14px icon buttons and hover-only pane actions; the separator is the one the preview column's header uses."
     }
   ]
 }

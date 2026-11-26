@@ -91,6 +91,7 @@
 - **按平台写的叫法**：`Reveal in File Explorer`（Windows）/ `Reveal in Finder`（macOS）/ `Open in file manager`（Linux）；`Recycle Bin` / `Trash`。Files、Changes、侧边栏用同一套叫法。
 - **快捷键的写法**：菜单右侧、tooltip 括号里，等宽淡色，如 `Up a folder (Ctrl+Alt+Backspace)`；macOS 上显示 `⌘` 等符号。
 - tooltip 只放纯文字，不放可点击的内容。
+- **tooltip 只写元素上看不到的东西**（用户 2026-11-26；`docs/UI-LESSONS.md` L20）。只有三类可以写：① 只靠颜色表达的状态，写成字（§2.4 要求的第二个线索：`Modified`、`Ignored by Git`）；② 元素上没有位置放的事实（`Also staged +3 −1`、`Renamed from …`、`Binary file`、文件夹里有什么、行上没显示时的修改时间、提交的作者和精确时间）；③ 被省略的全文，**只在真的放不下时**才写（按宽度估算）。名字、`+N −N`、已经显示出来的文字一律不再写；三类都没有，就不显示 tooltip。按钮的 tooltip 写名字和快捷键，不在此列。
 
 ### 2.6 交互模式
 
@@ -184,16 +185,18 @@
 - 按钮：全部是同一种图标按钮（P2b 的 `PaneButton`：14px Phosphor 图标、内边距 3、圆角 4、`dim`，悬停 `hover` + `foreground`；**开着的开关**和**当前视图** `selected` 底 + `foreground`）；组内间距 2（`paneHeader.groupGap`）。**同一行里只有这一种按钮**，不放文字标签、不放计数。
   - §2.2 写的"图标按钮 22px 点击区"在标题栏里改用 Herdr pane 头部的 20（14 + 3 × 2），和预览列头部一致。
 - **视图按钮组**：tooltip 带快捷键，面板有焦点时按数字键切换（Files 已有的做法）。
-  - Files：`Tree (1)`（`tree-structure`）、`Recent (2)`（`clock-counter-clockwise`）。
+  - Files：`Tree (1)`（`tree-structure`）。~~`Recent (2)`~~（2026-11-26 去掉，§4.5b A5）。**只有一个视图时不画视图按钮组和它后面的分隔线**；§4.7 的 Search 加进来后再出现。
   - Changes：`Changes (1)`（Herdr 自带的 `mods/changes/changes.svg`）、`History (2)`（`git-commit`）。tooltip 第二部分写数量：`Changes (1) · 1,015 changed files`、`History (2) · 2 not pushed`。
 - **工具组**（随视图变；开关的 tooltip 写点了以后的结果）：
-  - Files · Tree：`Up a folder`、`Follow the focused pane`、`Show dotfiles`、`Show sizes`、`Collapse all`（§4.3 已定的 5 个）。Files · Recent：`Clear the list`。
-  - Changes：`Show as tree`（`tree-structure`）、`Side-by-side diff`（`columns`）、`Refresh`（`arrows-clockwise`）。
+  - Files · Tree：`Up a folder`、`Follow the focused pane`、`Show dotfiles`、`Show sizes`、`Collapse all`（§4.3 已定的 5 个）。
+  - Changes：`Show as tree`（`tree-structure`）、`Refresh`（`arrows-clockwise`）。~~`Side-by-side diff`~~ 移到 diff 自己的头部（§4.5b B3）。
   - History：`Show graph`（`git-merge`）、`All branches`（`git-fork`，只在图视图）、`Refresh`。
 
-**2 分支行**（Files 摘要的第一行；Changes 只要这一行）
-- 高 28，px 10，gap 8，字号 12：图标 14 Phosphor `git-branch`（`muted`）在 x = 10；分支名 JetBrains Mono 12、`foreground`；`↑2 ↓1` 12、`muted`。
-- Files 才有的：右端 `+94 −5`（11、`ansi2` / `ansi1`），下面 2px 比例条、`3 modified · 1 new` 计数行（§4.3a；彩色数字加文字，零值省略）。Changes 不重复这些（用户 2026-11-26："filetree 中有这个 progress bar，为什么 changes 里还有重复出现"）。
+**2 不再有分支行**（2026-11-26 交叉核对后用户同意：分支名已经同时出现在侧边栏当前 space 那一行和底部状态栏，面板里再写一次是重复信息）
+- **Files 的摘要**（§4.3a）：高 28、px 10 的一行，左边 `13 modified · 1 new`（彩色数字加文字，字号 11、`muted`，零值省略），右边 `+618 −559`（11、`ansi2` / `ansi1`）；下面 2px 比例条，左右各留 10；下边 1px `border`。不写分支名、不写 `↑ ↓`。
+- **Changes**：分支写进提交框的占位文字 `Message (Ctrl+Enter to commit on main)`（macOS `Cmd+Enter`；VS Code 的写法），提交时就在眼前；`↑2 ↓1` 写进 `History (2)` 按钮的提示：`History (2) · 2 not pushed · 1 not pulled`。
+- **History**：没有分支行；当前分支在图里是实心标签，List 视图的组头写着分支名。
+- 有多个 repo 时（P4d），Repositories 列表每行写着它的分支（画板 12），不另加分支行。
 
 **3 树和列表的行**
 - **树**（Files 的树、Changes 的文件树，§2.2）：行高 22，每级缩进 12，缩进参考线 1px `border`；第一列 12 宽放箭头（`caret-down` / `caret-right`，12px、`dim`），文件没有箭头留空；然后 16px 文件图标（Awsome Icons / Material），名字 JetBrains Mono 13，颜色是 Git 状态（§2.4，删除加删除线）；gap 4；圆角 4。
@@ -271,7 +274,7 @@
 | viewer | `editors` | More editors | macOS app IDs, such as dev.zed.Zed. | — |
 | viewer | `fileManager.name` | Name | — | File manager |
 | viewer | `fileManager.command` | Command | — | open -a Finder |
-| viewer | `gutter` | Changed lines | Off uses Herdr's editor, with selection and folding. | — |
+| viewer | `gutter` | Changed lines | Off uses Herdr's editor, with selection and folding. | —（**默认关**，2026-11-26 用户选：预览要能选中、复制） |
 | viewer | `markdown` | Markdown opens as | — | — |
 - **中键关闭 tab 的开关**（⬜）：awsome-tabs 的设置 `Close tabs with the middle mouse button`，默认开。
 
@@ -469,7 +472,7 @@
 
 - **文件夹**：名字取里面最严重状态的颜色，不画数字、不画小点；悬停给明细（`2 modified · 1 new`）。
 - 其它标记一种状态一种写法：被忽略 = 名字变灰；隐藏文件 = 名字更淡；符号链接 = 名字后一个小箭头图标。
-- **顶部汇总**：分支名、领先落后（`↑2 ↓1`）、一条 2px 的比例细条、**彩色数字加文字**（`3 modified · 1339 new · 2531 deleted`，零值省略）。多 repo 时跟随 Changes 里选中的 repo。
+- **顶部汇总**：**彩色数字加文字**（`3 modified · 1339 new · 2531 deleted`，零值省略）、右边总行数 `+N −N`、一条 2px 的比例细条（§2.9）。~~分支名、领先落后~~（2026-11-26 去掉：侧边栏和状态栏已有分支名）。多 repo 时跟随 Changes 里选中的 repo。
 
 **详细模式（标题栏的滑杆图标开关，记住选择）= 极简 + 三个槽位**：
 
@@ -482,8 +485,8 @@
 - **对齐**：右侧信息靠右成列，各列固定宽度、右对齐，所有行上下对齐：行数变化（64px，`+N` 和 `−N` 各占固定宽度）在最左，次要列（34px）在右。名字过长在末尾省略，不推挤右边。
 - **悬停提示**：极简视图里，悬停一行 = 看到详细模式的全部信息（`Modified · +4 −1 · 2m ago`；文件夹 `2 modified · 1 new · +12 −3`）。用 Herdr 的 `tooltip`（纯文字，贴着这一行，不跟随鼠标，延迟由 Herdr 决定）；手感不对再换 `HoverCard`（默认 600ms 出现、300ms 关闭）。
 - **响应式**：只看名字那一列还剩多宽。不足约 120px（面板约 300px）就**整体退回极简**，不做中间状态；拉宽了自动恢复，开关的选择不丢，窄时滑杆图标变灰并在 tooltip 写原因。阈值 `row.detailMinWidth`（默认 300）。
-- 每行最多 4 个子元素，渲染预算安全。**Recent 视图**沿用同样的槽位，按 `Today` / `Yesterday` / `Earlier` 分组。
-- **agent 读写闪烁层**：去掉（依赖 Claude Code 的 hook，在这台机器上休眠）；"刚动过"小点代替它。以后要 agent 归因，用 Herdr 自己的 `agents()` 做。
+- 每行最多 4 个子元素，渲染预算安全。~~Recent 视图~~ 已去掉（§4.5b A5）。
+- **agent 读写闪烁层**：去掉（依赖 Claude Code 的 hook，在这台机器上休眠）；"刚动过"小点代替它。以后要 agent 归因，用 Herdr 自己的 `agents()` 做。✅ 2026-11-26 已去掉（连同 git 动作小标签，§4.5b）。
 
 **多 repo 的工作区**：
 - **子 repo 里的文件用它自己的 Git 状态着色**；repo 的根文件夹名字后一个淡色的**分支小图标**，悬停给 `libs/foo · main ↑1 · 3 modified`。被主 repo 忽略的子 repo 也按它自己的状态着色；子 repo 自己忽略的文件才变灰。
@@ -553,10 +556,10 @@
 | 操作 | 结果 |
 |---|---|
 | 单击文件 | 写 `awsome-viewer.slot`，预览位没显示就 `layout.show`；再单击别的文件只换内容 |
-| 双击文件 / Enter | 在独立 tab 里打开（现有的固定 tab）；文件已有自己的 tab 就切过去；**预览位保持原样，不去收它** |
+| 双击文件 / Enter / 菜单 `Open in tab` | 在独立 tab 里打开（现有的固定 tab）；文件已有自己的 tab 就切过去。**tab 接管这个文件：预览位显示的正是它时收起预览位**，别的文件不动（2026-11-26 用户试用后改，原来是"预览位保持原样"，§4.5b A2） |
 | `Space` | 预览光标行（Finder 的 Quick Look 惯例，不动光标，不开 tab） |
 | 方向键 | 只移动光标，不预览（不一路刷新） |
-| 预览位头部 `Open in tab` | 把当前预览的文件开成 tab |
+| 预览位头部 `Open in tab` | 把当前预览的文件开成 tab，并收起预览位（"转正"，VS Code 的预览编辑器原地变成固定的） |
 | 预览位头部 × / Esc | 收起预览位（Esc 在树里：先清选择，没有选择再收起预览位） |
 
 - 双击用鼠标事件的 `click_count`；同一行才算，两下落在不同行各自当单击。
@@ -665,9 +668,9 @@
 
 **Changes 视图从上到下**
 1. 标题栏（§2.9）。
-2. 分支行（§2.9 的 2，只有分支这一行）。
-3. **提交框**（§4.5：在最上面）：多行输入框，左右 px 10、上下 8；4 行高（字号 12，`paneHeader.text`），圆角 8，1px `border`，有焦点时 `accent`（Herdr `changes` 的提交框）。下面 8，通栏 **Commit 按钮**：高 32、圆角 8（Herdr `changes` 和 `confirm` 的按钮），`raised` 底、1px `input` 描边、文字 `foreground`，深浅两套一样，也就是 §2.2 的文字按钮（用户 2026-11-26 从四种候选里选定：Herdr 的 `solid` 在浅色主题里是黑色按钮，Herdr 自带的 `paper` 主题也是 `#1b1b1e`，用户不要；实心 `accent` 也不要）；悬停叠 `hover`，右侧 30 宽的下拉触发；下拉菜单用共用的 `menu.js`（`Commit` / `Amend`），不再用上游的 `Menu`。禁用时 `raised` 底、`dim` 字，tooltip `Stage changes first` / `Enter a commit message`。`Ctrl+Enter`（macOS `Cmd+Enter`）提交。
-4. **分组**：`Conflicts`、`Staged changes`、`Changes`（§4.5，各自可折叠，§2.9 的分组标题）；组头悬停时右端出现整组操作：`Unstage all`（`minus`）、`Stage all`（`plus`）。（`Discard all…` 是 P4c。）
+2. ~~分支行~~（交叉核对后去掉，§2.9 的 2）。
+3. **提交框**（§4.5：在最上面）：多行输入框，左右 px 10、上下 8；4 行高（字号 12，`paneHeader.text`），圆角 8，1px `border`，有焦点时 `accent`（Herdr `changes` 的提交框）。下面 8，通栏 **Commit 按钮**：高 32、圆角 8（Herdr `changes` 和 `confirm` 的按钮），`raised` 底、1px `input` 描边、文字 `foreground`，深浅两套一样，也就是 §2.2 的文字按钮（用户 2026-11-26 从四种候选里选定：Herdr 的 `solid` 在浅色主题里是黑色按钮，Herdr 自带的 `paper` 主题也是 `#1b1b1e`，用户不要；实心 `accent` 也不要）；悬停叠 `hover`，右侧 30 宽的下拉触发。下拉菜单暂时仍是上游的 `Menu`（`Commit` / `Amend` 单选、当前项打勾）：共用的 `menu.js` 只有动作、没有打勾，换过去要先定菜单里放什么（例如 VS Code 的 `Commit (amend)` 动作），**挪到 P4e** 和提交框的其它改动一起设计（2026-11-26）。禁用时 `raised` 底、`dim` 字，tooltip `Stage changes first` / `Enter a commit message`。`Ctrl+Enter`（macOS `Cmd+Enter`）提交（原来没实现，P4a 补上）；占位文字 `Message (Ctrl+Enter to commit on <分支>)`，分支变了就换（输入框状态重建，已输入的文字保留）。Commit 按钮的图标是 Phosphor `check`（VS Code 的提交按钮是对勾），Amend 是 `pencil-simple`：`git-commit` 只留给 History 视图按钮，一个图标一个意思（交叉核对）。
+4. **分组**：`Conflicts`、`Staged`、`Unstaged`（2026-11-26 改名，§4.5b B2；各自可折叠，§2.9 的分组标题）；组头悬停时右端出现整组操作：`Unstage all`（`minus`）、`Stage all`（`plus`）。（`Discard all…` 是 P4c。）
 5. 超出上限时最下面一行 `Showing the first 200 of 3,912 changed files.`（11、`muted`、px 10）。
 
 **文件行**（§2.9 的树行；平铺视图是同一种行、不缩进、名字后跟淡色目录）
@@ -675,8 +678,12 @@
 - **悬停时右端换成操作**（同样 64 宽，不推挤）：`Open file`（`arrow-square-out`，在预览列打开当前版本，和 History 的文件一样）、`Stage changes`（`plus`）或 `Unstage changes`（`minus`）。`Discard changes…` 在 P4c 加。按钮是 §2.9 的图标按钮。
 - 文件夹行：名字是里面最严重的状态色，不显示数字；只有一个子目录的链合并成一行（`mods/awsome-filetree`，VS Code 的 compact folders）。
 - 单击文件：打开 diff tab（照现在的做法，用户 2026-11-26 选 A）。
+- **右键菜单**（ui-ux-pro-max 复查：悬停才出现的操作要有不靠悬停的路径；用户 2026-11-26 同意）：共用 `menu.js`，`Open diff`（Enter）、`Open file`、分隔线、`Stage changes`（Space）或 `Unstage changes`（Space）；P4c 加 `Discard changes…`。右键的行成为键盘光标。
+- **键盘光标**（和 Files 一样，§2.3）：面板有焦点时 ↑ ↓ 在可见的行之间移动（文件和文件夹，跨分组），1px `accent` 内描边；Enter 打开 diff（文件夹：展开 / 折叠），Space 暂存 / 取消暂存，← → 收起 / 展开文件夹。在提交框里打字时不响应。
 
-**History 视图**：结构不变（§4.6a），只按 §2.9 改：标题栏换成 Files 式的；工具从提交分组的标题行移到标题栏；行和分组标题按 x = 10 / 4 的竖线重排；分组标题高 28。
+**History 视图**：结构不变（§4.6a），只按 §2.9 改：标题栏换成 Files 式的；工具从提交分组的标题行移到标题栏；行和分组标题按 x = 10 / 4 的竖线重排；分组标题高 28；没有分支行。
+
+**右上角的面板按钮**（`awsome-tabs`）：`Changes` 改叫 **`Git`**，图标 `git-branch`（交叉核对：右上角的 `Changes` 指整个面板，面板里的 `Changes (1)` 指其中一个视图，同一个词、同一个图标表示两件事；用户 2026-11-26 同意）。
 
 **和规格的差距（代码只是初始状态，P4a 都改）**
 
@@ -691,6 +698,132 @@
 **令牌**：`design/tokens.json` 新增 `panel`（标题栏 = `paneHeader`，竖线 10 / 4，树行 22 / 12，列表行 28，分组标题 28，提交框和按钮尺寸），`history` 里和它重复的值改成引用它；C9 核对两个 mod 的常量都等于 `panel`，并加 C3 的关系检查（标题栏高 = `paneHeader.height`、内容竖线 = `paneHeader.px`）。
 
 **往返**：视图切换（`1` / `2` 键和点按钮，两个方向都一样）；分组折叠（点组头去、再点回）；悬停操作没有"去处"。
+
+### 4.5b P4a 修订：试用反馈（2026-11-26；A、B 都已做，预览用户确认过，交互待你试）
+
+> **实现时定下的细节**（2026-11-26，做的时候发现、按"小细节自己定"处理，这里写明）：
+> - **正文的换行**：Git 的提交正文通常在 72 列处硬换行，面板比这窄时一行行参差不齐。所以段落里被硬换行的行接回同一段；空行、列表项（`- `、`1. `）、trailer（`Co-authored-by: …`）仍然各起一行。上面 B1 说的"保留原来的换行"按这条改。
+> - **引用那一行的图标**用 `bookmark-simple`，不用 `tag`：`tag` 在侧边栏的排序菜单里已经是"按名字前缀分组"（`design/icons.json`）。
+> - **B5 的待定项**：Markdown 的 `Rendered view` **保留 `eye`**（用户选），登记成 `design/icons.json` 里的例外。
+> - **A5 的同一类一起清了**（用户同意）：文件树里 Claude hook 驱动的读写闪烁、git 动作小标签、`bridge.ts`、`config.json` 的 `activity` 都去掉。顺带发现 Files 的 Git 颜色和 §2.4 不一致（修改用了 `ansi11`、重命名用了 `ansi4`，为了和闪烁的橙色区分），闪烁没了，改回 §2.4 的 `ansi3` / `ansi6`，和 Changes 一样。
+> - **Discard 恢复的是"暂存区里的样子"**（`git restore --worktree`），所以已暂存的部分不会丢；这和 VS Code 在 Changes 组里的 Discard 一样。§4.5 写的"从 HEAD 还原"指的是没有暂存时的结果，两者在那时相同。
+> - **两条新检查**：C8 按 `design/icons.json` 检查"一个图标一个意思"（L16）；C3 检查面板里每个滚动列表都留了 `panel.end`（L18）。都在仓库副本里故意造错验证过能拦住。
+
+> 用户试用 P4a 后提出 8 条。用户这次定的：Enter 保持 VS Code 的做法、预览用 Herdr 自带的编辑器、分组叫 `Staged` / `Unstaged`、提交详情用分区式。教训见 `docs/UI-LESSONS.md` L16～L18。B 部分按 `CLAUDE.md` 规则 6 先出预览，确认后才写正式代码。
+
+**A 已做（行为，不涉及新界面）**
+1. **选另一条提交，收起的详情块自动展开**：选一条提交就是要看它（`openCommit` 清掉 `h-detail` 的收起状态）。§4.6a 原来写的"换选中时标题跟着换、仍收起"作废。
+2. **开成 tab = tab 接管这个文件**：双击、Enter、文件菜单的 `Open in tab`、预览列头部的 `Open in tab`，只要预览列显示的正是这个文件，就收起预览列（VS Code 的预览编辑器原地转成固定的，不会同时出现两份）。§4.4a 原来的"预览位保持原样"作废。
+3. **Enter 保持 VS Code 的做法**（用户选）：VS Code 源码 `listService.ts` 里，键盘选择时 `pinned = !preserveFocus`，所以 Enter 打开固定的编辑器（我们的 tab），Space（`selectAndPreserveFocus`）打开预览。为了好发现，文件的右键菜单写出两个键：`Preview`（`Space`）、`Open in tab`（`Enter`，图标 `tabs`）。
+4. **预览默认用 Herdr 的编辑器**（`gutter` 默认关，用户选）：能选中、复制、折叠。改动行的标记交给 Changes 的 diff；想要标记可以在设置里打开，打开后不能选中（设置说明已经写明）。
+5. **去掉 Recent 视图**：它只认 Claude Code 的 hook，这台机器上 hook 没在跑，所以永远是空的；而且只对一种 agent 有效（agent 功能必须对所有 agent 有效）。看 agent 改了什么，用 Files 的状态色和 Changes。Files 标题栏只剩一个视图，不画视图按钮组（§2.9）。
+   - 同一类还没处理的：文件树里还有 Claude hook 驱动的读写闪烁、git 动作小标签（`watchActivity`），§4.3a 早已定"去掉"但没执行。列给你，下次一起清。
+
+**B1 提交详情块**（History 里提交列表下面那一块；用户选"分区式"）
+- **标题行只放作用于这一块本身的操作**：§2.9 的分组标题（高 28，箭头在 x = 10，标题 11、medium、`muted`），标题固定写 `Details`（选中的是哪条，看提交列表里 `selected` 的那一行）；右端只有 `x` `Close (Esc)`，和所有分组标题一样悬停才出现。复制哈希、在 GitHub 打开是对**这条提交**的操作，放进内容（L16）。
+- **内容**（整块竖向滚动；内容竖线 x = 10、右边 w − 10，§2.9）：
+  1. **说明**（上 8）：标题行（subject）13、medium、`foreground`；正文（`%b`）13、`muted`，和标题隔 4，没有就不画。都换行，**可以选中复制**（Herdr `TextView`，`selectable(true)`；按纯文本显示，先转义 Markdown 符号，换行保留，因为 Git 的提交说明不是 Markdown）。
+  2. **元数据**（和说明隔 12）：三行，每行高 20（= 图标按钮的高度，按钮放进来行高不变）；图标 14、`muted`，在 x = 10；文字从 x = 32（10 + 14 + 8）开始，字号 12（`paneHeader.text`）。
+     - `user`：作者名，Geist，`foreground`；悬停提示 `Clyde Shen <邮箱>`。
+     - `clock`：`2026-11-26 14:03 · 3h ago`，JetBrains Mono，`muted`。
+     - `hash`：7 位短哈希，JetBrains Mono，`foreground`；**紧跟在哈希后面**（间隔 4）两个图标按钮（§2.9 的 `PaneButton`）：`copy` `Copy full hash`（写入完整 40 位，toast `Copied`），`arrow-square-out` `Open on GitHub`（只在远端已有这条提交时出现）。**始终显示**：它们是内容里的操作，不是行的悬停操作。GitHub 网页的复制按钮也紧挨着哈希。
+     - 窄了：作者、日期在末尾省略，全文在悬停提示里；哈希不省略。
+  3. **分隔线**：1px `border`，左右伸到块的两边（和分组标题行上边那条线一样宽），上面隔 12；下面直接接文件的标题行（标题行 28 高，自带上下空白，预览里再加 12 显得空）。
+  4. **文件**：标题行 `3 files changed`，右边是 `+162 −17`（11、medium、`muted`，加减用 `ansi2` / `ansi1`；高 28；数字右对齐在 w − 10，和文件行的 `+N −N` 同一列）。文件行是 §2.9 的树行（22）、平铺：文件图标、名字（状态色，删除加删除线）、淡色目录、右端 64 宽的 `+N −N`；悬停时槽里换成 `eye` `Preview`（在预览列看**当前版本**）。单击打开这条提交对这个文件的 diff（现有的 `pick`，scope `commit`）。
+  5. 列表最后留 12（B4）。
+- **惯例**：GitHub Desktop 的历史详情、JetBrains 的 Git log 详情、VS Code Source Control Graph 的悬停卡片，都是"说明 → 作者、时间、哈希 → 文件"的顺序；GitHub 网页的提交页把复制按钮放在哈希旁边。
+
+**B1 细化**（用户 2026-11-26 用 ui-ux-pro-max 要求"更完善的细节"；**和上面的 1～5 冲突时以这里为准**）
+
+*版式：只有两条竖线、一套行高*
+- **图标列 x = 10～26、文字列 x = 30**：元数据的图标改成 16（和文件图标一样大），图标和文字间隔 4（`panel.treeGap`）。于是元数据的图标和文件行的图标在同一列，作者名、时间、哈希和文件名都从 x = 30 开始。上面写的"图标 14、文字从 x = 32"作废。
+- **平铺的文件列表不留箭头槽**：箭头槽（12）只在树里有意义，因为树里有文件夹；平铺列表没有文件夹，留着它只会让图标错开（预览里文件图标在 26、元数据图标在 10，就是这个原因）。所以详情的文件行和 Changes 的平铺视图都从 x = 10 画图标。树视图不变。
+- **说明的行高 20**：字号 13 × 1.5（ui-ux-pro-max `line-height`：正文 1.5～1.75），落在 4px 栅格上。元数据行也是 20，所以整块的行距统一是 20 和 22（文件行）。
+- **纵向**：上 8 → 说明 → 12 → 元数据 → 12 → 分隔线 → 文件标题行 28 → 文件行 22 × N → 12。
+
+*说明*
+- **标题行和正文放进同一个 `TextView`**，一次拖选就能把两者一起复制。标题行 semibold（600），正文 regular（400）；**两者都用 `foreground`**（ui-ux-pro-max `weight-hierarchy`：层次靠字重，不靠变灰。GitHub Desktop 和 GitHub 网页的正文也是正常的文字颜色，不是灰色）。上面写的"正文 `muted`"作废。
+- 按纯文本显示：先转义 Markdown 符号，保留原来的换行（硬换行）；行尾的 `Co-authored-by:` 等 trailer 原样显示，不另做头像或合并到作者行（克制）。
+- 长标题换行，不截断（ui-ux-pro-max `truncation-strategy`：能换行就不截断）。
+- 预览里看到的（2026-11-26）：标题行用 `TextView` 的粗体（Markdown 的 strong）；正文里的网址、邮箱被 `TextView` 自动变成链接（GitHub 网页的提交说明也会把网址变成链接），保留。`TextView` 的 `line_height` 是倍数，不是像素：写 `20 / 13`。
+- 引用标签在这里要写全名：现有的 `RefLabel` 最宽 120、会省略（图里需要），详情里加一个不限宽的写法，放不下就换行。
+
+*元数据*（每行一个图标；只在有内容时出现）
+
+| 图标 | 内容 | 字体、颜色 | 悬停提示 | 什么时候有 |
+|---|---|---|---|---|
+| `user` | 作者名 | Geist 12、`foreground` | `Clyde Shen <邮箱>`；提交者不是作者时（rebase、cherry-pick）加一行 `Committed by X · 2026-11-27 09:12` | 总有 |
+| `clock` | `2026-11-26 14:03 · 3h ago` | JetBrains Mono 12、`muted` | 完整时间带时区 `2026-11-26 14:03:12 +08:00` | 总有 |
+| `hash` | 7 位短哈希 + `copy` `Copy full hash` + `arrow-square-out` `Open on GitHub` | Mono 12、`foreground` | 完整的 40 位 | 总有；GitHub 按钮只在远端已有时出现 |
+| `bookmark-simple` | 这条提交上的分支和 tag，用图里同一种引用标签（`RefLabel`），放不下就换行 | 同图里的标签 | 标签全名 | 只在这条提交有引用时。图里的标签窄了会被省略成几个字（§4.6a 已确认），这里是看全名的地方 |
+
+- 哈希本身也能选中复制（同样放进可选中的 `TextView`），所以键盘用户也有不靠按钮的路径（ui-ux-pro-max `tooltip-keyboard`：不能只靠悬停和点按钮）。
+- 复制后 toast `Copied`，不抢焦点（Herdr 的 `notify`；ui-ux-pro-max `toast-accessibility`）。
+- 作者名、时间放不下时末尾省略，全文在悬停提示里；哈希和按钮永远完整（280 宽时这一行约 126 宽，放得下）。
+
+*文件*
+- 标题行：`4 files changed`，右边 `+163 −17`；只有 1 个文件写 `1 file changed`。**合并提交**的文件是相对第一个父提交算的（现有的 `--diff-merges=first-parent`），标题行的悬停提示写 `Compared with the first parent`。没有任何文件改动（空提交、和第一个父提交相同的合并）：标题行写 `No files changed`，下面不画列表（这是标题本身，不是另加的说明句）。
+- 文件行：§2.9 的行（22），图标在 x = 10、名字在 x = 30（见上，平铺不留箭头槽）。
+  - **重命名**：名字和目录用新路径，名字是 `ansi6`；悬停提示 `Renamed from old/path.js`。
+  - **二进制**：`+N −N` 那一格空着；悬停提示写 `Binary file`。
+  - 悬停时右端换成 `eye` `Preview`；单击打开这条提交里这个文件的 diff；当前打开的那个文件行 `selected`。
+- **上限**：最多画 `limits.files`（200）个文件，再多在最后一行写 `Showing the first 200 of 1,203 files.`（11、`muted`，和 Changes 同一句式）。整个详情块只有一个滚动区域，文件列表不再套一层滚动（ui-ux-pro-max `scroll-behavior`）。
+
+*状态*
+
+| 状态 | 画法 |
+|---|---|
+| 刚选中 | 说明和元数据**立刻**显示（数据已经在 `git log` 里），只有文件列表要再读一次 |
+| 读文件中 | 300ms 内不画任何东西（Git 一般马上就回，避免闪一下 `Loading…`，ui-ux-pro-max `loading-states`）；超过 300ms 在标题行的位置写 `Loading files…`（11、`muted`） |
+| 读文件出错 | 在文件那一段原地写错误（11、`ansi1`）和一个 `Retry` 文字按钮（§2.2 的文字按钮，高 24）；不弹框（§2.6） |
+| 换另一条提交 | 内容替换，滚动回到顶部；收起的块自动展开（A1） |
+| 很窄（280） | 说明换行；元数据末尾省略；文件行先省略目录，再省略名字（§2.9 已有） |
+
+- **不做**：头像、签名验证、父提交列表（图里已经画出来）、"包含这条提交的分支"（要额外跑 `git branch --contains`，慢）。
+- **还缺的**（不在这次范围，列给你）：History 的提交列表没有键盘导航（↑ ↓ 选提交），所以详情目前只能用鼠标打开。要加的话按 Changes 已有的键盘光标做。
+
+**B2 Changes 的分组和文件操作**（VS Code 的 Source Control）
+- **分组**：`Conflicts`、`Staged`、`Unstaged`（用户 2026-11-26 选；§4.5 原来的 `Staged changes` / `Changes` 作废）。**去掉 `Committed · not on origin/main`**：它是从上游继承来的；"有几个提交没推送"已经写在 `History (2)` 按钮的提示里。
+- **文件行悬停时右端的操作**（64 宽的槽：三个 20 的按钮加两个 2 的间距 = 64，不挤动布局）：
+  - Unstaged：`eye` `Preview`、`arrow-counter-clockwise` `Discard changes…`、`plus` `Stage changes`（VS Code 的顺序：打开、丢弃、暂存）。
+  - Staged：`eye` `Preview`、`minus` `Unstage changes`。
+  - Conflicts：`eye` `Preview`、`plus` `Stage changes`（标记为已解决，和 VS Code 一样）。
+  - 文件夹行：Unstaged 有 `Discard changes…`、`Stage changes`；Staged 有 `Unstage changes`。
+- **组头悬停时的操作**：Unstaged 有 `Discard all changes…`、`Stage all changes`；Staged 有 `Unstage all changes`。
+- **右键菜单**（共用 `menu.js`，顺序按 §2.6，条目取自 VS Code）：
+  - Unstaged：`Open diff`（Enter）、`Preview` ｜ `Stage changes`（Space）｜ `Reveal in File Explorer`（按平台写，§2.5）、`Copy relative path`、`Copy absolute path`、`Add to .gitignore`（只对未跟踪的文件）｜ `Discard changes…`（红色，放最后）。
+  - Staged：`Open diff`、`Preview` ｜ `Unstage changes`（Space）｜ `Reveal in File Explorer`、`Copy relative path`、`Copy absolute path`。
+  - Conflicts：`Open diff`、`Preview` ｜ `Stage changes` ｜ `Reveal in File Explorer`、Copy × 2。冲突的文件**没有** discard。
+  - **不放 VS Code 的 `Reveal in Explorer View`**（我们的 `Reveal in Files`）：和 `Reveal in File Explorer` 读起来是同一件事，用户看预览时指出重复（2026-11-26）。只留系统的那一个，和 Files 菜单的叫法一样。
+- **"Open file" 改叫 `Preview`、图标 `eye`**：它就是在预览列看，和 Files 的单击、Files 菜单的 `Preview` 是同一件事（一件事一个名字、一个图标）。
+- **Discard**（P4c 提前到这次做；规则是 §4.5 早就定的）：确认框按 §2.6：`Discard changes in sidebar.js?` / `Discard changes in 3 files?`，正文列出文件名，红色按钮 `Discard changes`；未跟踪的文件写 `Move to Recycle Bin`（macOS `Trash`），进回收站。执行前先 `git stash create`，存成隐藏引用 `refs/awsome-changes/discard/<时间>`，可以找回（`discard.snapshot`，默认开）。没有 `Don’t ask again`，只能在 awsome-config 里关（`confirm.discard`）。完成后 toast `Discarded changes in 3 files`。
+- 键盘：在 Unstaged 的行上 Space 暂存、在 Staged 的行上 Space 取消暂存（§4.5a 已有）；discard 不配单键（会丢改动），走菜单或按钮。
+
+**B3 Diff 的头部**（awsome-changes 画的 pane 头部）
+- 左边不变：图标、文件名、目录、`+N −N`。右边两组，中间一条 1 × 12 的 `border` 分隔线（`paneHeader.separator`），和预览列头部的分法一样（§4.4a：文件视图组 ｜ 预览列操作组）：
+  - **diff 显示方式**（始终显示，因为它是状态）：`arrows-out-line-vertical` 全文开关（提示 `Show full file` / `Show changes only`），`columns` 分栏开关（提示 `Show side by side` / `Show inline`）。打开时 `selected` 底 + `foreground`。对所有 diff tab 同时生效（现在的 `Full file` 就是这样）。
+  - **pane 操作**（照 Herdr 的 pane：鼠标在头部时才显示）：向右分屏、向下分屏、放大、关闭。
+- `Full file` 文字按钮去掉（同一行只有一种按钮，L15）；Changes 面板标题栏的 `Side-by-side diff` 去掉（同一个功能只出现一次）。`default.diff` 设置保留，它是默认值。
+
+**B4 列表的结尾留白**
+- 面板里所有会滚动的列表，最后一行下面留 **12**（`panel.end`）：Files 的树、Changes 的列表、History 的列表和图、提交详情。最后一行的底色和面板的下边缘分开，一眼看出已经到底，不会以为下面还有。12 是 4px 栅格的 3 格，和设置页每行的上下内边距同一个值（`design/tokens.json` 的 `settings`）。
+
+**B5 图标：一个图标只有一个意思**（和同时在屏幕上的 mod 交叉核对）
+
+| 图标 | 意思 | 用在 |
+|---|---|---|
+| `eye` | 在预览列看 | Files 菜单的 `Preview`；Changes 行、详情文件行的 `Preview` |
+| `tabs` | 开成 tab | Files 菜单的 `Open in tab`；预览列头部的 `Open in tab`（原来是 `arrow-square-out`） |
+| `arrow-square-out` | 离开 Herdr（系统程序、浏览器） | `Open in default app`、`Open on GitHub` |
+| `copy` | 复制 | `Copy … path`、`Copy full hash` |
+| `arrows-out-line-vertical` / `arrows-in-line-vertical` | 展开 / 收起 | diff 的 `Show full file` / Files 的 `Collapse all` |
+| `columns` | 左右分栏 | diff 的 `Show side by side` |
+| `arrow-counter-clockwise` | 回到原来的样子 | `Discard changes…`；设置对话框的 `Reset`（同一个意思，不同时出现） |
+
+- ~~待你定：`Rendered view` 也用 `eye`~~：用户选保留 `eye`（2026-11-26），登记为例外。完整的表在 `design/icons.json`，C8 检查。
+
+**往返**（登记 `design/flows.json`）：discard 确认框（去：按钮或菜单；回：`Cancel` / Esc，误删后用快照引用找回）；diff 的两个开关（再点一次）；详情块（不变：再点同一条、Esc、×）。
+**惯例**（`design/conventions.json`）：`commit-details`（GitHub Desktop、JetBrains、GitHub 网页）、`scm-file-actions`（VS Code Source Control、GitHub Desktop 的右键菜单）、`diff-view-toggles`（VS Code diff 编辑器工具栏的 `Toggle Inline View`、GitHub PR 的 `Unified / Split`）。代码写完时登记（C12 会核对代码里真的有这些字符串）。
 
 ### 4.6 awsome-changes：多 repo、History 的图视图和 review ✅（设计已确认，review 除外）
 
@@ -780,7 +913,7 @@
 - History 视图从上到下三块：**Repositories**（只有 ≥ 2 个 repo 时）、**提交**、**详情**（只在选中了一条提交时）。
 - **分组标题行**（`sidebar` 令牌，和 Repositories 的标题行同一个部件）：高 `labelHeight` 32；折叠箭头 12px 放在图标列（x = 16～32）；标题在 x = 40；右端操作按钮 `action` 20、图标 16，按钮之间 2，点击区右边缘 = 宽 − 8；每块的标题行上边一条 1px `border`（第一块除外）。单击标题行（按钮以外的地方）折叠或展开；状态记进 `localStorage`。收起的块不显示操作按钮（看不到内容，就没有可操作的；详情块的 × 例外，它让详情块整个消失）。
   - **提交块**：标题是分支名（JetBrains Mono 11、`foreground`），有多个 repo 时后面跟 repo 名（11、`muted`）；`↑2 ↓1`（11、`muted`）。操作：`Show graph`（`git-merge`，开关）、`All branches`（`git-fork`，开关，只在图视图出现）、`Refresh`（`arrows-clockwise`）。**原来的分支行就是这一行**，不再单独占一行；操作按钮也统一成分组标题行的 20 / 16，和 Repositories 的按钮同一种。
-  - **详情块**：标题是短哈希（JetBrains Mono 11、`foreground`）。操作：`Copy hash`（`copy`）、`Open on GitHub`（`arrow-square-out`，只有远端已有这条提交时出现，沿用 `commitUrl` 的判断）、`Close (Esc)`（`x`）。
+  - ~~**详情块**：标题是短哈希。操作：`Copy hash`、`Open on GitHub`、`Close (Esc)`~~。**以 §4.5b B1 为准**（2026-11-26：标题行只留 ×，复制和 GitHub 移进内容；详情块的内容、换选中时自动展开也按 §4.5b）。
   - Repositories：§4.6 已定"折叠后只剩当前一行和 `4 more · 1 has changes`"，照旧（这是已定的，不改成只剩标题行）。
 - **分隔线和高度**：展开的块放进 gpui-component 的 `v_resizable`（拖动、分隔线、按 id 记住高度都是现成的，规则 1 A）；收起的块只画标题行，放在分组外面，按原来的顺序排。分组 id 按"哪几块展开"取名（例如 `history:commits+detail`），每种组合各自记住拖过的高度。只有一块展开时它占满剩下的高度。Repositories 展开时高度由内容决定（最多 5 行，不参与拖动）。
 - **详情块的出现和收起**：没有选中提交时没有这一块。单击一条提交 → 选中（`selected` 底，§2.3），详情块出现（第一次占提交块和详情块合计高度的 40%，最小 120，提交块至少留 3 行）；单击另一条 → 换内容；**再单击已选中的那条、Esc、或 ×** → 取消选中，详情块消失。点箭头只是收起（只剩标题行，选中保留，换选中时标题跟着换）。
@@ -810,7 +943,7 @@
 
 像 VS Code 的搜索，搜文件内容。
 - **引擎**：`rg --json`（这台机器是 14.1.1）；没装 `rg` 就退回 `git grep`。三个平台都能用，默认遵守 `.gitignore`。
-- **界面**：文件树标题栏的第三个视图 **Search**（Tree | Recent | Search）；输入框下面是 `Aa`（大小写）、`ab`（整词）、`.*`（正则）三个开关，以及包含 / 排除的 glob；结果按文件分组，文件头是图标、名字、路径、匹配数徽标，下面是命中的行，匹配的字高亮；虚拟列表。
+- **界面**：文件树标题栏的第二个视图 **Search**（Tree | Search）；输入框下面是 `Aa`（大小写）、`ab`（整词）、`.*`（正则）三个开关，以及包含 / 排除的 glob；结果按文件分组，文件头是图标、名字、路径、匹配数徽标，下面是命中的行，匹配的字高亮；虚拟列表。
 - **点结果**：单击在临时预览里打开并跳到该行，双击固定（规则同 §4.4）；需要把行号传给 `awsome-viewer`（已有 `scroll_to_item`）。
 - **范围**：文件树当前的根（所以"进入文件夹"也能用来缩小范围）。
 - **限制**：每个文件最多 20 条、总数 500 条、15 秒超时，超出写 `Results truncated`。
