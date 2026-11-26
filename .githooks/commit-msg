@@ -1,0 +1,14 @@
+#!/bin/sh
+# Refuse a commit message that is not a Conventional Commit (commitlint.config.mjs).
+# Enabled per clone with: git config core.hooksPath .githooks
+# Needs: npm install -g @commitlint/cli @commitlint/config-conventional
+root=$(git rev-parse --show-toplevel) || exit 1
+if ! command -v commitlint >/dev/null 2>&1; then
+  echo "commit-msg: commitlint is not installed. Run: npm install -g @commitlint/cli @commitlint/config-conventional" >&2
+  exit 1
+fi
+# A global install does not resolve the shared preset by itself; point node at the global modules.
+NODE_PATH="$(npm root -g)" commitlint --config "$root/commitlint.config.mjs" --edit "$1" || {
+  echo "commit-msg: not a Conventional Commit (type(scope): subject, e.g. feat(filetree): show git letters). See https://www.conventionalcommits.org" >&2
+  exit 1
+}

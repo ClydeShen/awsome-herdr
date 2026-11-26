@@ -56,6 +56,7 @@ Clyde 的 Herdr 配置仓库：`mods/` 下 7 个 mod（`awsome-*`，改自 munza
 
 ## 仓库约定
 
+- **提交说明用 Conventional Commits**（`type(scope): subject`，英文，type 取 feat / fix / docs / style / refactor / perf / test / build / ci / chore / revert，subject 小写开头、不加句号；`BREAKING CHANGE:` 写在脚注）。`.githooks/commit-msg` 用 commitlint 检查，不合格就拒绝提交；需要先全局安装：`npm install -g @commitlint/cli @commitlint/config-conventional`，并执行 `git config core.hooksPath .githooks`。配置在 `commitlint.config.mjs`。此前的历史提交（`P4a: …` 这类）不改。
 - 不提交：仓库根目录的截图（`changes-ui.png` 等）、`HANDOFF.md`、任何带本机路径的文件。没有用户要求不推送。
 - 许可证和上游改动记录，等到发布 mod 时再统一处理。
 - 界面审美用 `ui-ux-pro-max` skill 补足：取它的原则（间距、层次、反馈、可访问性），不套网页的实现，因为这套界面是 GPU 渲染的 Herdr mod，不是网页。
