@@ -199,7 +199,6 @@ export const treeMethods = {
             Button({
               id: "files-prompt-send",
               label: this.sending ? "Sending…" : "Send",
-              primary: true,
               disabled: this.sending || !agent || !this.editor.value().trim(),
               onClick: (cx) => this.sendToAgent(cx),
             }),

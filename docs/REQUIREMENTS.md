@@ -45,7 +45,7 @@
 | 字体 | 只用 Herdr 自带的两种。**标识类文字一律用 JetBrains Mono**：文件名、路径、分支名、space 名、哈希、数字、快捷键，因为它们要逐字核对，而 JetBrains Mono 能分清 `O` / `0`（0 中间有点）和 `I` / `l` / `1`（衬线、尾巴、旗角）。**说明类文字用 Geist**：按钮、菜单、标题、提示。实测 Geist 和 Segoe UI 里 `I` 和 `l` 都是一根竖线、`O` 和 `0` 几乎一样，几乎所有无衬线界面字体都这样，所以不靠换界面字体解决 |
 | 圆角 | 卡片（Files / Changes 面板、终端 pane）10px，即 shadcn 的 `--radius`；行 6px（shadcn `radius-sm`）；菜单 7px、对话框 8px（和 Herdr 一致） |
 | 图标 | UI 控件用 **Phosphor regular，14px**；文件、文件夹、程序图标用 **Material**。都放在共享的 `awsome-icons/`，按路径读 |
-| 按钮 | 三种：主要（实心 `accent`）、次要（描边）、图标按钮（22px 点击区，悬停才显示底色，**必须有 tooltip**）。高度：对话框里 32px（和 Herdr 一致），面板里 24px |
+| 按钮 | **文字按钮只有一种样子**：`raised` 底、1px `input` 描边、`foreground` 文字，悬停叠 `hover`（用户 2026-11-26 选定；原来的"主要 = 实心 `accent`"和 Herdr 的 `solid` 都不用：`solid` 在浅色主题里是黑色按钮）。**危险动作**（删除、discard、关闭）例外：实心 `blocked` 红色，不变。哪个是主要动作靠文字、位置（最右）和 Enter 区分。图标按钮：悬停才显示底色，**必须有 tooltip**。高度：对话框和提交按钮 32px（和 Herdr 一致），面板里 24px |
 | 动效 | 悬停 ≤150ms；除 agent"工作中"的呼吸动画外，不做装饰动画 |
 
 ### 2.3 行的状态（所有列表和树只有这一套）
@@ -167,6 +167,39 @@
 | 状态"永远配字母 A / M / D"（旧 §2.1） | 状态 = 名字颜色 + §2.4 的第二线索，字母可选 | 已在 §4.3a 确认 |
 | 菜单项首字母大写（`Discard Changes`、`Stage Changes`、`Open File`） | sentence case | 和 Herdr 一致 |
 | 中文的界面文字（"已移到回收站"、"结果已截断"） | `Moved to Recycle Bin`、`Results truncated` | 界面只用英文 |
+
+### 2.9 面板框架：Files 和 Changes 共用（P4a，2026-11-26，规格待预览确认）
+
+> 两个面板在布局里是同一个位置（`panel-body`），互相切换时什么都不能跳。**模板是 §4.3 已定的 Files**，Changes 跟着它（用户 2026-11-26："应该是 changes 跟着 files 改"；`docs/UI-LESSONS.md` L15）。数值来源：标题栏是 `design/tokens.json` 的 `paneHeader`（Herdr 的 pane 头部，P2b 的预览列头部已经在用，用户确认过）；行和缩进是 §2.2；颜色是 §2.3、§2.4。两个面板现有的代码都只是初始状态，和本节不一致的地方都要改（差距见 §4.5a）。
+
+**竖线**（整个面板只有这几条，切换面板时位置不变）
+- **x = 10：内容的左边缘**。标题栏的名字（`paneHeader.px` 10）、分支行的分支图标、树和列表第一列（箭头 / 图标 / 第 0 条泳道）、分组标题的箭头，都从这里开始。
+- **x = 4：悬停、选中底色的左边缘**。列表左右各留 4，行的左右内边距 6（4 + 6 = 10）。
+- 右边对称：内容的右边缘 = 宽 − 10（最后一个按钮、行尾的数字），底色的右边缘 = 宽 − 4。
+- P4b 里 History 的行和分组标题用侧边栏的 8 + 8（文字在 16），**改成这套**：侧边栏是另一个区块，面板里只用面板自己的竖线。
+
+**1 标题栏**（`paneHeader`：高 30、px 10、gap 8、字号 12；`background` 底、下边 1px `border`，和 Herdr 的 pane 头部一样）
+- 从左到右：**名字** → **视图按钮组** → 1×12 分隔线（`paneHeader.separator`，`border` 色）→ **这个视图的工具组**。
+- 名字：JetBrains Mono 12、`muted`，占满剩下的宽度，放不下就省略。Files 写树的根文件夹名；Changes 写当前 repo 的名字（只有一个 repo 时是 repo 根文件夹名；多个时是它的相对路径，P4d）。
+- 按钮：全部是同一种图标按钮（P2b 的 `PaneButton`：14px Phosphor 图标、内边距 3、圆角 4、`dim`，悬停 `hover` + `foreground`；**开着的开关**和**当前视图** `selected` 底 + `foreground`）；组内间距 2（`paneHeader.groupGap`）。**同一行里只有这一种按钮**，不放文字标签、不放计数。
+  - §2.2 写的"图标按钮 22px 点击区"在标题栏里改用 Herdr pane 头部的 20（14 + 3 × 2），和预览列头部一致。
+- **视图按钮组**：tooltip 带快捷键，面板有焦点时按数字键切换（Files 已有的做法）。
+  - Files：`Tree (1)`（`tree-structure`）、`Recent (2)`（`clock-counter-clockwise`）。
+  - Changes：`Changes (1)`（Herdr 自带的 `mods/changes/changes.svg`）、`History (2)`（`git-commit`）。tooltip 第二部分写数量：`Changes (1) · 1,015 changed files`、`History (2) · 2 not pushed`。
+- **工具组**（随视图变；开关的 tooltip 写点了以后的结果）：
+  - Files · Tree：`Up a folder`、`Follow the focused pane`、`Show dotfiles`、`Show sizes`、`Collapse all`（§4.3 已定的 5 个）。Files · Recent：`Clear the list`。
+  - Changes：`Show as tree`（`tree-structure`）、`Side-by-side diff`（`columns`）、`Refresh`（`arrows-clockwise`）。
+  - History：`Show graph`（`git-merge`）、`All branches`（`git-fork`，只在图视图）、`Refresh`。
+
+**2 分支行**（Files 摘要的第一行；Changes 只要这一行）
+- 高 28，px 10，gap 8，字号 12：图标 14 Phosphor `git-branch`（`muted`）在 x = 10；分支名 JetBrains Mono 12、`foreground`；`↑2 ↓1` 12、`muted`。
+- Files 才有的：右端 `+94 −5`（11、`ansi2` / `ansi1`），下面 2px 比例条、`3 modified · 1 new` 计数行（§4.3a；彩色数字加文字，零值省略）。Changes 不重复这些（用户 2026-11-26："filetree 中有这个 progress bar，为什么 changes 里还有重复出现"）。
+
+**3 树和列表的行**
+- **树**（Files 的树、Changes 的文件树，§2.2）：行高 22，每级缩进 12，缩进参考线 1px `border`；第一列 12 宽放箭头（`caret-down` / `caret-right`，12px、`dim`），文件没有箭头留空；然后 16px 文件图标（Awsome Icons / Material），名字 JetBrains Mono 13，颜色是 Git 状态（§2.4，删除加删除线）；gap 4；圆角 4。
+- **列表**（History 的行、Repositories 的行）：行高 28（§2.2），列表第一列从 x = 10 开始；其它尺寸见 §4.6a。
+- **分组标题**（Changes 的 `Staged changes` / `Changes`，History 的提交 / 详情）：高 28，箭头在 x = 10 的 12px 槽里，标题 11、medium、`muted`，计数徽标（千分位）；右端操作只在悬停时出现（§4.5）。
+- 状态、选中、悬停、键盘光标按 §2.3。
 
 ---
 
@@ -626,6 +659,39 @@
 - **确认对话框**按 §2.6：`Discard changes in 2 files?`，列出文件名，红色按钮写明动作（`Discard changes` / `Move to Recycle Bin` / `Discard all changes`）；**没有 `Don’t ask again`**，只能在 awsome-config 里关（`confirm.discard`，默认开）。对话框的设计参考 `herdr-git-graph` 的 `dialog.js`（错误留在对话框里），**借鉴设计，不复制代码**。
 - 左右分栏 / inline diff 保持现状。
 
+### 4.5a P4a 的完整规格：Changes 的布局、文件行、树，和 Files 一起按 §2.9 改（2026-11-26，规格待预览确认）
+
+> 需求：§4.5（画板 06、07）和 §2.9。P4a 不做的：discard（P4c）、多 repo（P4d，只有一个 repo 时 Repositories 列表本来就隐藏）、生成 commit message（P4e，提交框里那两个小图标留到 P4e）。
+
+**Changes 视图从上到下**
+1. 标题栏（§2.9）。
+2. 分支行（§2.9 的 2，只有分支这一行）。
+3. **提交框**（§4.5：在最上面）：多行输入框，左右 px 10、上下 8；4 行高（字号 12，`paneHeader.text`），圆角 8，1px `border`，有焦点时 `accent`（Herdr `changes` 的提交框）。下面 8，通栏 **Commit 按钮**：高 32、圆角 8（Herdr `changes` 和 `confirm` 的按钮），`raised` 底、1px `input` 描边、文字 `foreground`，深浅两套一样，也就是 §2.2 的文字按钮（用户 2026-11-26 从四种候选里选定：Herdr 的 `solid` 在浅色主题里是黑色按钮，Herdr 自带的 `paper` 主题也是 `#1b1b1e`，用户不要；实心 `accent` 也不要）；悬停叠 `hover`，右侧 30 宽的下拉触发；下拉菜单用共用的 `menu.js`（`Commit` / `Amend`），不再用上游的 `Menu`。禁用时 `raised` 底、`dim` 字，tooltip `Stage changes first` / `Enter a commit message`。`Ctrl+Enter`（macOS `Cmd+Enter`）提交。
+4. **分组**：`Conflicts`、`Staged changes`、`Changes`（§4.5，各自可折叠，§2.9 的分组标题）；组头悬停时右端出现整组操作：`Unstage all`（`minus`）、`Stage all`（`plus`）。（`Discard all…` 是 P4c。）
+5. 超出上限时最下面一行 `Showing the first 200 of 3,912 changed files.`（11、`muted`、px 10）。
+
+**文件行**（§2.9 的树行；平铺视图是同一种行、不缩进、名字后跟淡色目录）
+- 右端 `+N −N`：固定 64 宽、右对齐，`+N` 和 `−N` 各 32（§4.3a 的行数槽位），字号 11，`ansi2` / `ansi1`。
+- **悬停时右端换成操作**（同样 64 宽，不推挤）：`Open file`（`arrow-square-out`，在预览列打开当前版本，和 History 的文件一样）、`Stage changes`（`plus`）或 `Unstage changes`（`minus`）。`Discard changes…` 在 P4c 加。按钮是 §2.9 的图标按钮。
+- 文件夹行：名字是里面最严重的状态色，不显示数字；只有一个子目录的链合并成一行（`mods/awsome-filetree`，VS Code 的 compact folders）。
+- 单击文件：打开 diff tab（照现在的做法，用户 2026-11-26 选 A）。
+
+**History 视图**：结构不变（§4.6a），只按 §2.9 改：标题栏换成 Files 式的；工具从提交分组的标题行移到标题栏；行和分组标题按 x = 10 / 4 的竖线重排；分组标题高 28。
+
+**和规格的差距（代码只是初始状态，P4a 都改）**
+
+| | Files（`awsome-filetree`） | Changes（`awsome-changes`） |
+|---|---|---|
+| 标题栏 | px 8、gap 4、`chrome` 底 → px 10、gap 8、`background` 底；按钮 22 高 → 20；视图组间距 1 → 2；分隔线 mx 3 → 两边 gap 8 | P4b 的文字标签 + 空标题栏 → Files 式：名字、视图按钮、分隔线、工具 |
+| 分支行 / 摘要 | 摘要 px 8 → 10；`↑` 青、`↓` 蓝 → `muted`（§2.3 次要文字）；计数 `M 2`（字母、`dim`）→ `2 modified`（彩色数字加文字，§4.3a） | 没有分支行（P4b 把它当分组标题）→ §2.9 的分支行 |
+| 树 / 行 | 列表 px 4 + 行 pl 4（内容在 8）→ 行 pl 6（内容在 10）；行尾总是画状态字母 → 只在设置 `row.statusLetter` 打开时画（§4.3a 默认关） | 行高 28、图标槽 14、缩进 20（上游 kit 的 `Row`）→ §2.9 的树行 22 / 12；组头 30（上游 `GroupHeader`）→ 28 |
+| 提交框 | — | 在列表下面 → 最上面（§4.5）；下拉用上游 `Menu` → 共用 `menu.js` |
+| History | — | 分组标题 32、行的文字在 16 → 28、10 |
+
+**令牌**：`design/tokens.json` 新增 `panel`（标题栏 = `paneHeader`，竖线 10 / 4，树行 22 / 12，列表行 28，分组标题 28，提交框和按钮尺寸），`history` 里和它重复的值改成引用它；C9 核对两个 mod 的常量都等于 `panel`，并加 C3 的关系检查（标题栏高 = `paneHeader.height`、内容竖线 = `paneHeader.px`）。
+
+**往返**：视图切换（`1` / `2` 键和点按钮，两个方向都一样）；分组折叠（点组头去、再点回）；悬停操作没有"去处"。
+
 ### 4.6 awsome-changes：多 repo、History 的图视图和 review ✅（设计已确认，review 除外）
 
 > 画板 09（History）、12（Repositories 列表）。画板 10、11 是被取代的早期方案。
@@ -758,7 +824,7 @@
 
 ### 5.1 顺序和依赖
 
-**顺序（已确认）：P0 → P1 → P1b → ~~P1c~~（2026-11-26 推迟，见 §4.2.5）→ P2 → P4b → P4 → P3b → P3 → P5**。会动用户文件的 P3 放在靠后，等确认对话框和平台适配表在 P4 里用熟了再做。
+**顺序（已确认）：P0 → P1 → P1b → ~~P1c~~（2026-11-26 推迟，见 §4.2.5）→ P2 → P4b ✅ → P4（拆成 P4a → P4c → P4d → P4e）→ P3b → P3 → P5**。会动用户文件的 P3 放在靠后，等确认对话框和平台适配表在 P4 里用熟了再做。
 
 | 阶段 | 内容 | 依赖 | 风险 |
 |---|---|---|---|
@@ -768,7 +834,11 @@
 | P1c | ⏸ 推迟（nice to have，复杂）：侧边栏平铺（`Tile agents`、快捷键开关） | P1b | 中 |
 | P2 | 打开文件：单击在布局的全局预览位（`layout.show`）、双击固定 tab（§4.4a）；文件树的选择模型（§2.6）和选择条 | P0 | 中（文件树、viewer、布局三处联动） |
 | P4b | History 的图视图 | P0 | 低 |
-| P4 | Changes：布局、树视图、discard + 快照、commit message 生成；多 repo（发现、Repositories 列表、Files 着色） | P0 | 中高（discard 会丢改动） |
+| P4 | Changes，2026-11-26 拆成四块，每块单独预览、提交： | P0 | 中高（discard 会丢改动） |
+| P4a | Changes 的布局、文件行、树视图；**Files 一起改**（用户 2026-11-26：两个面板在同一个位置切换，标题行、文件行、树按同一份规格）。**方向：Changes 跟着 Files 改**（用户 2026-11-26："应该是 changes 跟着 files 改"）：Changes 的标题栏照 §4.3 的 Files 标题栏（名字 + 视图图标按钮 `Changes (1)` / `History (2)` + 分隔线 + 这个视图的工具，全是 22px 图标按钮），P4b 的文字标签和"工具放在分支行"改回来；分支行只留分支（Files 摘要的第一行），比例条和计数只在 Files。提交按钮的下拉改用共用 `menu.js`（L15 遗留） | P4b | 中（动到已试用过的 Files 和刚做的 P4b） |
+| P4c | Discard + 快照、确认对话框 | P4a | 高（会丢改动） |
+| P4d | 多 repo：发现、Repositories 列表、Files 着色 | P4a | 中 |
+| P4e | 生成 commit message | P4a | 中 |
 | P3b | 内容搜索 | P2 | 中 |
 | P3 | 文件操作：新建、重命名、删除、拖拽移动、`Ctrl+Z`；批量发送给 agent、批量删除 | P2、P4 的确认对话框和平台适配表 | **高（改磁盘文件，三个系统命令不同）** |
 | P5 | diff 行选择 + review + 发给 agent | P4 | **最大** |

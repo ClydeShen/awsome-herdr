@@ -276,7 +276,6 @@ export const sidebarMethods = {
       icon: amend ? "amend" : "commit",
       label: this.commitButtonLabel(),
       enabled: this.canCommit(),
-      primary: !amend,
       onClick: (cx) => this.commit(cx),
       menu: this.renderCommitMenu(),
     });

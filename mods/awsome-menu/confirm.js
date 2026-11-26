@@ -45,7 +45,8 @@ export function confirmKey(key, onConfirm, onCancel) {
 export function confirmView({ id, title, names = [], note, action, danger = true, dontAsk = null, onToggle, onConfirm, onCancel, mono }) {
   const t = theme();
   const shown = names.slice(0, CONFIRM.shown), more = names.length - shown.length;
-  const fill = danger ? t.blocked : t.solid;
+  // docs/REQUIREMENTS.md §2.2: one look for text buttons (raised, input border); only danger is red.
+  const fill = danger ? t.blocked : t.raised;
   const button = (bid, label, bg, fg, border, act) => h_flex().id(bid).h(CONFIRM.button).px(14).items_center().rounded(CONFIRM.radius)
     .border_1().border_color(border).bg(bg).text_color(fg).cursor_pointer().hover((s) => s.opacity(0.9)).on_click((_e, cx) => act(cx)).child(label);
   return v_flex().id(id).size_full().p(CONFIRM.pad).gap(CONFIRM.gap).rounded(CONFIRM.radius).bg(t.popover).text_size(CONFIRM.text).text_color(t.foreground)
@@ -60,5 +61,5 @@ export function confirmView({ id, title, names = [], note, action, danger = true
       .child("Don’t ask again")))
     .child(h_flex().justify_end().gap(8).text_size(12)
       .child(button(`${id}-no`, "Cancel", t.raised, t.foreground, t.input, (cx) => onCancel(cx)))
-      .child(button(`${id}-yes`, action, fill, inkOn(fill, t), fill, (cx) => onConfirm(cx))));
+      .child(button(`${id}-yes`, action, fill, danger ? inkOn(fill, t) : t.foreground, danger ? fill : t.input, (cx) => onConfirm(cx))));
 }

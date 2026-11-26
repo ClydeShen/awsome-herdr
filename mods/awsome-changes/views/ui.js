@@ -331,9 +331,8 @@ export function TextBox({ id, state, focused, label, height = 84 }) {
 }
 
 // A primary action and, joined to it, the trigger for choosing another one.
-export function SplitButton({ id, icon, label, enabled, primary = true, onClick, menu }) {
+export function SplitButton({ id, icon, label, enabled, onClick, menu }) {
   const t = theme();
-  const solid = enabled && primary;
   return h_flex()
     .id(id)
     .h(SIZE.button)
@@ -352,13 +351,15 @@ export function SplitButton({ id, icon, label, enabled, primary = true, onClick,
         .items_center()
         .justify_center()
         .rounded_l(RADIUS.button)
-        .bg(solid ? t.solid : t.raised)
-        .text_color(solid ? t.solid_foreground : enabled ? t.foreground : t.dim)
+        .bg(t.raised)
+        .border_1()
+        .border_color(t.input)
+        .text_color(enabled ? t.foreground : t.dim)
         .accessibility_label(label)
         .when(enabled, (el) =>
           el
             .cursor_pointer()
-            .hover((s) => (solid ? s.opacity(0.88) : s.bg(t.hover)))
+            .hover((s) => s.bg(t.hover))
             .on_click((_e, cx) => onClick(cx)),
         )
         .child(Icon(icon, 14))
@@ -379,6 +380,8 @@ export function SplitTrigger({ id, label }) {
     .justify_center()
     .rounded_r(RADIUS.button)
     .bg(t.raised)
+    .border_1()
+    .border_color(t.input)
     .text_color(t.foreground)
     .cursor_pointer()
     .accessibility_label(label)

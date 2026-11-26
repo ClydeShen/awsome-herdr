@@ -229,6 +229,13 @@ def c4_no_new_hex():
     for path, n in hex_counts().items():
         if n > base.get(path, 0):
             fail("C4", "L1", f"{path} has {n} hard-coded colors (baseline {base.get(path, 0)})", "use a theme() token; if a color has no token, add it to the theme with a source")
+    # §2.2: text buttons have one look (raised, input border); `solid` draws a black button in the
+    # light theme, which the user rejected (2026-11-26, lesson L13).
+    for path, src in mod_js():
+        code = strip_comments(src)
+        for m in re.finditer(r"\bt\.solid(?:_foreground)?\b", code):
+            line = code[: m.start()].count("\n") + 1
+            fail("C4", "L13", f"{path}:{line} uses theme().solid for a button", "use the §2.2 text button: raised background, 1px input border, foreground text (danger: blocked)")
 
 
 def c5_shared():

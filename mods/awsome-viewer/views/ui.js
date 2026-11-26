@@ -144,10 +144,9 @@ export function TextButton({ id, icon, label, onClick, disabled = false, active 
     .child(label);
 }
 
-// A full-size action. `primary` is the solid one; a view has at most one.
-export function Button({ id, icon, label, onClick, primary = false, disabled = false }) {
+// A full-size action: §2.2's one text-button look (raised, input border), primary or not.
+export function Button({ id, icon, label, onClick, disabled = false }) {
   const t = theme();
-  const solid = primary && !disabled;
   return h_flex()
     .id(id)
     .h(32)
@@ -158,13 +157,15 @@ export function Button({ id, icon, label, onClick, primary = false, disabled = f
     .justify_center()
     .rounded(8)
     .text_size(TEXT.small)
-    .bg(solid ? t.solid : t.raised)
-    .text_color(solid ? t.solid_foreground : disabled ? t.dim : t.foreground)
+    .bg(t.raised)
+    .border_1()
+    .border_color(t.input)
+    .text_color(disabled ? t.dim : t.foreground)
     .accessibility_label(label)
     .when(!disabled, (el) =>
       el
         .cursor_pointer()
-        .hover((s) => (solid ? s.opacity(0.88) : s.bg(t.hover)))
+        .hover((s) => s.bg(t.hover))
         .on_click((_e, cx) => onClick(cx)),
     )
     .when(Boolean(icon), (el) => el.child(Icon(icon, 14)))
