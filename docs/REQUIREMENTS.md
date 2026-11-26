@@ -297,6 +297,35 @@
 
 ## 4. 各 mod 的需求
 
+### 4.0 mod 的边界（所有 mod 共用，2026-11-27 用户确认）
+
+**原则：mod 只消费外部工具，把结果呈现出来**（用户 2026-11-27）。项目自己的工具（git、formatter、linter、测试、构建）和 agent 才是做事的一方；mod 不造这些工具，也不为它们负责。mod 做两件事：把工具和 agent 做事的**效果和结果展示出来**（文件改了就重新载入、Git 的提交图、改动的行），以及**调用通用工具的命令**（`git add`、`git commit`）。例子：
+- Git 提交图：不自己实现 git，读 `git log` 的结果画出来。
+- 格式化：项目的 formatter 可能是 prettier、oxfmt、biome 或别的，mod 不认识它们，也不替项目选。格式化由项目的工具或 agent 去做（保存时的钩子、agent 按项目的规矩运行），viewer 只把改动后的文件呈现出来（§4.8 "外部改动"）。所以不做编辑器里的 `Format Document`。
+
+**界定一个功能归谁**（每个功能的规格最前面写一段"边界"，回答这六条）
+1. **主人**：它动的是谁的数据，功能就归谁。编辑器里没保存的内容归 viewer，Git 暂存区归 changes，每个 mod 的设置归它自己的 `mod.json`（config 只是编辑它们的界面）。按"作用在谁的数据上"分，不按功能名分：同叫"格式化"，作用在编辑器内容上和作用在磁盘文件上是两个主人。
+2. **区域**：画在哪一块，那块归谁，样子就由谁决定；别的 mod 只能往里登记内容（statusline 的项）。
+3. **通道**：跨 mod 只走三种：共享状态 `shared("<主人>.<键>")`、命令 `<mod>.<命令>`、按路径读文件。**一个键只有名字前缀那个 mod 写**，别人只读；要多方登记的（`awsome-statusline.items`），每个 mod 只写自己名下那一项。
+4. **外部工具**：调用什么，只取它的结果；工具自己的配置（`.prettierrc`、`.gitconfig`）留给工具，我们的设置里不重复。
+5. **拔掉测试**：这个 mod 不在时，别的 mod 少一个功能，但不报错、不坏。
+6. **不做**：明确写出来。
+
+**mod 的四类**
+
+| 类 | 例子 | 拥有 | 规则 |
+|---|---|---|---|
+| 区域 mod | sidebar、tabs、filetree、changes、viewer、statusline | 一块屏幕和它的数据 | 只画自己的块；要别人的数据从共享状态读 |
+| 服务 mod | menu、config | 一种界面模式 | 用 props 调用，不懂调用方的业务：调用方给内容，它只显示、返回选择 |
+| 资源 mod | icons | 文件 | 只读，按路径取 |
+| 外部工具 | git、sh、项目的 formatter | 它自己的配置 | 只调用、只呈现结果 |
+
+**按这把尺量出来、待清理的地方**（还没排期）
+1. viewer 里还带着一棵没用的文件树（README "Known rough edges"），那是 filetree 的。
+2. menu 的 `space` 分区里写着 space 自己的操作（Terminals、Agents、worktree），menu 懂了 sidebar 的业务；`statusline` 分区由调用方传 `choices`，是服务 mod 该有的样子。
+3. `awsome-viewer.viewers` 由 filetree 和 viewer 两边写，形式改一边就要改另一边；应当只有 viewer 写。
+4. 逐字节相同的拷贝（`menu.js`、`file-icons.js`、`settings.js`）：能做成弹出层的做成服务 mod（像 menu），只有纯函数才复制。
+
 ### 4.1 总览
 
 | mod | 现状 | 本轮要做 |
@@ -1100,7 +1129,7 @@
 
 **只读标记**：远程文件在文件名后显示 14px `pencil-simple-slash`（Phosphor，`dim`），tooltip `Read-only on another machine`。VS Code 用锁，但 `lock-simple` 已经是 `Appearance…` 里可选的 space 图标（`awsome-menu/picker.js`），同一个图标不表示两种意思，所以换成"不能编辑"的铅笔（ui-ux-pro-max 交叉核对）。
 
-**不做**：查找、替换、多光标、自动提示（Herdr 没开放，用户 2026-11-26 决定不做）；自动保存（VS Code 默认也关）；`Compare`（P6c）；格式化（以后可以用 `exec` 调 prettier 等，另议）。
+**不做**：查找、替换、多光标、自动提示（Herdr 没开放，用户 2026-11-26 决定不做）；自动保存（VS Code 默认也关）；`Compare`（P6c）；格式化（2026-11-27：项目的 formatter 由项目和 agent 运行，viewer 只呈现改动后的文件，§4.0）；粘贴图片存成文件（2026-11-27 用户：较复杂，先跳过；Herdr 不给 mod 读剪贴板图片，要按平台调 PowerShell、osascript、wl-paste / xclip）。
 
 **往返**（登记在 `design/flows.json`）：Go to line 操作条（去：`Ctrl+G`；回：Esc、×）；保存冲突确认（去：`Ctrl+S` 被拒；回：Esc、`Cancel`）；未保存确认（去：离开有改动的文件；回：Esc、`Cancel`）。`Rendered view` ⇄ `Source` 已有。
 **惯例**（`design/conventions.json`）：`editor-save`、`dirty-marker`、`save-conflict`、`external-reload`、`unsaved-prompt`、`hot-exit`、`go-to-line`、`toggle-comment`、`move-line`、`duplicate-line`、`markdown-source-first`、`detect-indentation`、`read-only-marker`。
