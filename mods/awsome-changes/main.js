@@ -24,7 +24,7 @@ const STATUS_POLL_MS = 10000;
 const DEFAULT_SETTINGS = {
   refresh: { status: "10s" },
   limits: { files: 1000, diff_lines: 1500, line_length: 4000, commits_per_page: 50 },
-  default: { view: "tree", diff: "inline" },
+  default: { view: "tree", diff: "inline", history: "list" },
   panel: { toggle: false },
 };
 
@@ -61,8 +61,12 @@ class AwsomeChanges extends View {
       shared("awsome-changes.diff-layout") ??
       (localStorage.getItem("diff-layout") === "split" ? "split" : "inline");
     if (this.mode === "sidebar") setShared("awsome-changes.diff-layout", this.diffLayout);
-    this.menuOpen = false;
-    this.menuFocus = cx.focus_handle();
+    // The panel's keyboard, for Esc on a commit's details (§4.6a).
+    this.focus = cx.focus_handle();
+    this.historyView = localStorage.getItem("commit-view") === "graph" ? "graph" : "list";
+    this.range = localStorage.getItem("commit-range") === "all" ? "all" : "current";
+    this.hoveredFile = null;
+    this.wantMore = false;
     this.closed = new Set();
     this.collapsed = new Set(savedCollapsed());
     this.files = [];
@@ -146,6 +150,8 @@ class AwsomeChanges extends View {
       this.settings = settings;
       if (localStorage.getItem("view") === null && ["tree", "flat"].includes(settings.default.view))
         this.view = settings.default.view;
+      if (localStorage.getItem("commit-view") === null && ["list", "graph"].includes(settings.default.history))
+        this.historyView = settings.default.history;
       if (
         this.mode === "sidebar" &&
         localStorage.getItem("diff-layout") === null &&
@@ -168,6 +174,8 @@ class AwsomeChanges extends View {
     if (command === "changes" || command === "commit") this.setTab(command, cx);
     if (command === "flat" || command === "tree") this.setView(command, cx);
     if (command === "inline" || command === "split") this.setDiffLayout(command, cx);
+    if (command === "history-list" || command === "history-graph")
+      this.setHistoryView(command.slice("history-".length), cx);
     if (command.startsWith("open:")) {
       const file = this.files.find((f) => f.path === command.slice(5));
       if (file)
@@ -183,6 +191,11 @@ class AwsomeChanges extends View {
       cx.notify();
     }
     if (this.contextKey() !== this.context) this.refresh(cx);
+    // The graph asked for its next page while drawing; reading starts here, outside the draw.
+    if (this.wantMore) {
+      this.wantMore = false;
+      if (this.tab === "commit" && !this.commitsDone) this.loadCommits(cx, true);
+    }
     if (this.mode === "diff") {
       this.syncSelection(cx);
       if (this.root && this.path && this.shownFull !== this.fullFile()) this.loadDiff(cx);

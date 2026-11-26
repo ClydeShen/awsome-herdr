@@ -3,7 +3,7 @@
 import { changedFiles, parseLog, commitFiles, githubRepo } from "./model.js";
 
 const NO_HELPERS = ["--no-renames", "--no-ext-diff", "--no-textconv"];
-const LOG_FORMAT = "--format=%H%x00%h%x00%an%x00%ae%x00%at%x00%s%x00%b%x1e";
+const LOG_FORMAT = "--format=%H%x00%h%x00%an%x00%ae%x00%at%x00%P%x00%D%x00%s%x00%b%x1e";
 
 const lines = (text) => text.split("\n").filter(Boolean);
 
@@ -118,15 +118,20 @@ export async function readBehind(git, committed) {
   return behind.code === 0 ? Number(behind.stdout) || 0 : 0;
 }
 
-export async function readLog(git, count, skip) {
+// revs: what to walk, HEAD by default; the graph adds the upstream or every branch.
+// --date-order keeps every child before its parents, which the lane layout needs.
+export async function readLog(git, count, skip, revs = []) {
   const log = await git([
     "log",
     "--no-color",
+    "--date-order",
+    "--decorate=full",
     LOG_FORMAT,
     "-n",
     String(count),
     "--skip",
     String(skip),
+    ...revs,
   ]);
   if (log.code !== 0) throw Error(log.stderr || "Cannot read history");
   return parseLog(log.stdout);

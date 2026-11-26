@@ -1,8 +1,8 @@
 // The sidebar: its tabs, options menu, file groups and commit views.
 import { div } from "gpui-kit";
-import { v_flex, h_flex } from "gpui-base";
-import { theme, shared, setShared } from "herdr";
-import { fileTree, timeAgo } from "../git/model.js";
+import { v_flex, h_flex, v_virtual_list, Scrollbar, v_resizable, resizable_panel } from "gpui-base";
+import { theme, shared, setShared, notify, spaces, run } from "herdr";
+import { fileTree, timeAgo, shortAgo, stamp, grouped } from "../git/model.js";
 import {
   TEXT,
   SPIN_MS,
@@ -10,8 +10,6 @@ import {
   FileIcon,
   Chevron,
   Panel,
-  PanelHeader,
-  HeaderTab,
   IconButton,
   TextButton,
   GroupHeader,
@@ -20,22 +18,22 @@ import {
   StatusLetter,
   Message,
   Menu,
-  MenuLabel,
-  MenuDivider,
   MenuOption,
   TextBox,
   SplitButton,
   SplitTrigger,
+  HISTORY as H,
+  PanelTabs,
+  PanelTab,
+  ToolButton,
+  GroupTitle,
+  LaneCell,
+  RefLabel,
 } from "./ui.js";
 
-const VIEWS = [
-  { id: "flat", label: "Flat", icon: "flat" },
-  { id: "tree", label: "Tree", icon: "tree" },
-];
-const LAYOUTS = [
-  { id: "inline", label: "Inline", icon: "diff-inline" },
-  { id: "split", label: "Side by side", icon: "diff-split" },
-];
+// The graph's lane colors, one hue each, blue first like the current branch's label (\4.6a).
+const laneColors = (t) => [t.ansi4, t.ansi2, t.ansi5, t.ansi6, t.ansi3, t.ansi1];
+const STATUS_COLOR = { A: "ansi2", D: "ansi1", R: "ansi6", C: "ansi6", U: "ansi5" };
 
 export const sidebarMethods = {
   // ── Preferences ───────────────────────────────────────────────────────────
@@ -73,56 +71,67 @@ export const sidebarMethods = {
     if (this.mode === "pane-header") return this.renderPaneHeader();
     if (this.mode === "diff") return this.renderDiff();
     return Panel({ id: "awsome-changes" })
+      .on_size_change((size, cx) => {
+        if (Math.abs(size.height - (this.panelHeight ?? 0)) > 4) {
+          this.panelHeight = size.height;
+          cx.notify();
+        }
+      })
+      .track_focus(this.focus)
+      .on_key_down((event, cx) => this.key(event, cx))
       .child(this.renderHeader())
-      .child(
-        this.tab === "commit"
-          ? this.selectedCommit
-            ? this.renderCommit()
-            : this.renderHistory()
-          : this.renderChanges(),
-      );
+      .child(this.tab === "commit" ? this.renderHistory() : this.renderChangesView());
   },
 
+  // Esc closes a commit's details (\4.6a).
+  key(event, cx) {
+    if (event.key !== "escape" || !this.selectedCommit) return;
+    cx.stop_propagation();
+    this.closeCommit(cx);
+  },
+
+  // Only the two tabs: counts live in the groups and the Repositories rows (\4.6a).
   renderHeader() {
     const unpushed = this.committed?.unpushed.size;
-    return PanelHeader()
-      .child(
-        h_flex()
-          .flex_1()
-          .min_w(0)
-          .ml(-8) // Lines the pills up with the list rows below.
-          .gap(4)
-          .items_center()
-          .role("tab_list")
-          .child(
-            HeaderTab({
-              id: "tab-changes",
-              label: "Changes",
-              count: this.total || null,
-              active: this.tab === "changes",
-              onClick: (cx) => this.setTab("changes", cx),
-            }),
-          )
-          .child(
-            HeaderTab({
-              id: "tab-commit",
-              label: "Commits",
-              count: unpushed,
-              active: this.tab === "commit",
-              onClick: (cx) => this.setTab("commit", cx),
-            }),
-          ),
-      )
-      .child(
-        IconButton({
-          id: "refresh",
-          icon: "refresh",
-          label: "Refresh",
-          spinning: this.refreshSpinning,
-          onClick: (cx) => this.refreshAll(cx),
-        }),
-      )
-      .child(this.renderMore());
+    return PanelTabs([
+      PanelTab({
+        id: "tab-changes",
+        icon: "mods/changes/changes.svg",
+        label: "Changes",
+        tip: this.total ? `Changes · ${grouped(this.total)} changed files` : "Changes",
+        active: this.tab === "changes",
+        onClick: (cx) => this.setTab("changes", cx),
+      }),
+      PanelTab({
+        id: "tab-commit",
+        icon: "mods/awsome-icons/ui/git-commit.svg",
+        label: "History",
+        tip: unpushed ? `History · ${grouped(unpushed)} not pushed` : "History",
+        active: this.tab === "commit",
+        onClick: (cx) => this.setTab("commit", cx),
+      }),
+    ]);
+  },
+
+  refreshButton() {
+    return ToolButton({
+      id: "refresh",
+      icon: "arrows-clockwise",
+      label: "Refresh",
+      spinning: this.refreshSpinning,
+      onClick: (cx) => this.refreshAll(cx),
+    });
+  },
+
+  // The current repository's branch, as a group title: name, then how far it is from upstream.
+  branchTitle() {
+    const t = theme();
+    const ahead = this.committed?.unpushed.size;
+    const sync = [ahead ? `↑${ahead}` : "", this.behind ? `↓${this.behind}` : ""].filter(Boolean).join(" ");
+    return [
+      div().flex_none().font_family(codeFont()).text_color(t.foreground).child(this.branch ?? "HEAD"),
+      ...(sync ? [div().flex_none().text_color(t.muted).child(sync)] : []),
+    ];
   },
 
   refreshAll(cx) {
@@ -144,40 +153,38 @@ export const sidebarMethods = {
     cx.notify();
   },
 
-  renderMore() {
-    const option = (group, choice, selected, set) =>
-      MenuOption({
-        id: `${group}-${choice.id}`,
-        icon: choice.icon,
-        label: choice.label,
-        selected,
-        onClick: (cx) => {
-          this.menuOpen = false;
-          set(choice.id, cx);
-          cx.notify();
-        },
-      });
-    return Menu({
-      id: "more",
-      open: this.menuOpen,
-      focus: this.menuFocus,
-      onOpenChange: (open, cx) => {
-        this.menuOpen = open;
-        cx.notify();
-      },
-      trigger: IconButton({ id: "more-trigger", icon: "more", label: "Options" }),
-      children: [
-        MenuLabel("Changes"),
-        ...VIEWS.map((v) =>
-          option("view", v, this.view === v.id, (id, cx) => this.setView(id, cx)),
-        ),
-        MenuDivider(),
-        MenuLabel("Diff"),
-        ...LAYOUTS.map((l) =>
-          option("layout", l, this.diffLayout === l.id, (id, cx) => this.setDiffLayout(id, cx)),
-        ),
-      ],
-    });
+  renderChangesView() {
+    const tree = this.view === "tree";
+    const split = this.diffLayout === "split";
+    return v_flex()
+      .flex_1()
+      .min_h(0)
+      .child(
+        GroupTitle({
+          id: "changes-title",
+          icon: "git-branch",
+          title: this.branchTitle(),
+          divided: false,
+          actions: [
+            ToolButton({
+              id: "view-tree",
+              icon: "tree-structure",
+              label: tree ? "Show as list" : "Show as tree",
+              active: tree,
+              onClick: (cx) => this.setView(tree ? "flat" : "tree", cx),
+            }),
+            ToolButton({
+              id: "diff-split",
+              icon: "columns",
+              label: split ? "Show inline diff" : "Show side-by-side diff",
+              active: split,
+              onClick: (cx) => this.setDiffLayout(split ? "inline" : "split", cx),
+            }),
+            this.refreshButton(),
+          ],
+        }),
+      )
+      .child(this.renderChanges());
   },
 
   renderChanges() {
@@ -449,8 +456,196 @@ export const sidebarMethods = {
     return row;
   },
 
+  // Commits and, when one is chosen, its details: groups that fold, in a resizable split (\4.6a).
   renderHistory() {
-    const list = v_flex().id("commit-list").flex_1().min_h(0).overflow_y_scrollbar().p(6);
+    const commitsOpen = !this.collapsed.has("h-commits");
+    const detailOpen = !this.collapsed.has("h-detail");
+    const graph = this.historyView === "graph";
+    const all = this.range === "all";
+    const commitsTitle = GroupTitle({
+      id: "h-commits",
+      open: commitsOpen,
+      title: this.branchTitle(),
+      divided: false,
+      onClick: (cx) => this.toggleGroup("h-commits", cx),
+      actions: [
+        ToolButton({
+          id: "history-graph",
+          icon: "git-merge",
+          label: graph ? "Show list" : "Show graph",
+          active: graph,
+          onClick: (cx) => this.setHistoryView(graph ? "list" : "graph", cx),
+        }),
+        ...(graph
+          ? [
+              ToolButton({
+                id: "history-all",
+                icon: "git-fork",
+                label: all ? "Show current branch" : "Show all branches",
+                active: all,
+                onClick: (cx) => this.setRange(all ? "current" : "all", cx),
+              }),
+            ]
+          : []),
+        this.refreshButton(),
+      ],
+    });
+    const commitsBody = graph ? this.renderGraph() : this.renderCommitList();
+    const commit = this.selectedCommit;
+    const detailTitle =
+      commit &&
+      GroupTitle({
+        id: "h-detail",
+        open: detailOpen,
+        title: [div().font_family(codeFont()).text_color(theme().foreground).child(commit.short)],
+        onClick: (cx) => this.toggleGroup("h-detail", cx),
+        actions: this.detailActions(commit),
+      });
+    const body = v_flex().id("history").flex_1().min_h(0);
+    if (commitsOpen && commit && detailOpen) {
+      const room = (this.panelHeight ?? 640) - H.header;
+      const detail = Math.max(H.detailMin, Math.round(room * H.detailShare));
+      return body.child(
+        v_resizable("history:commits+detail")
+          .flex_1()
+          .min_h(0)
+          .child(
+            resizable_panel()
+              .size_range(H.title + H.listRows * H.row)
+              .child(v_flex().size_full().min_h(0).child(commitsTitle).child(commitsBody)),
+          )
+          .child(
+            resizable_panel()
+              .size(detail)
+              .size_range(H.detailMin)
+              .child(v_flex().size_full().min_h(0).child(detailTitle).child(this.renderCommitBody())),
+          ),
+      );
+    }
+    return body
+      .child(commitsTitle)
+      .when(commitsOpen, (el) => el.child(commitsBody))
+      .when(Boolean(commit), (el) =>
+        el.child(detailTitle).when(detailOpen, (el) => el.child(this.renderCommitBody())),
+      );
+  },
+
+  detailActions(commit) {
+    const url = this.commitUrl(commit);
+    return [
+      ToolButton({
+        id: "commit-copy",
+        icon: "copy",
+        label: "Copy hash",
+        onClick: (cx) => {
+          cx.write_to_clipboard(commit.hash);
+          notify({ title: "Copied", body: commit.hash, level: "info", timeout: 2000 });
+        },
+      }),
+      ...(url
+        ? [
+            ToolButton({
+              id: "commit-open",
+              icon: "arrow-square-out",
+              label: "Open on GitHub",
+              onClick: (cx) => cx.open_url(url),
+            }),
+          ]
+        : []),
+      ToolButton({ id: "commit-close", icon: "x", label: "Close (Esc)", onClick: (cx) => this.closeCommit(cx) }),
+    ];
+  },
+
+  // The graph: a virtual list that reads the next page when it nears the end (\4.6a).
+  renderGraph() {
+    const t = theme();
+    const list = div().id("graph").flex_1().min_h(0).relative().px(H.inset);
+    if (this.commitsError) return list.child(Message(this.commitsError, true));
+    if (!this.commits.length)
+      return list.child(Message(this.commitsLoading || !this.root ? "Loading history…" : "No commits yet"));
+    const commits = this.commits;
+    const count = commits.length + (this.commitsDone ? 0 : 1);
+    return list
+      .child(
+        v_virtual_list("graph-rows", count, H.row, (i) => commits[i]?.hash ?? "loading", (range) => {
+          if (!this.commitsDone && range.end >= commits.length - H.loadAhead) this.wantMore = true;
+          const rows = [];
+          for (let i = range.start; i < range.end; i++)
+            rows.push(
+              i < commits.length
+                ? this.graphRow(i)
+                : h_flex()
+                    .id("graph-loading")
+                    .w_full()
+                    .h(H.row)
+                    .px(H.px)
+                    .items_center()
+                    .text_size(TEXT.small)
+                    .text_color(t.muted)
+                    .child("Loading…"),
+            );
+          return rows;
+        })
+          .size_full()
+          // A virtual list's rows can't hold handlers (gpui-kit.d.ts): the list takes the click.
+          .on_item_click((key, cx) => {
+            const commit = this.commits.find((c) => c.hash === key);
+            if (commit) this.openCommit(commit, cx);
+          }),
+      )
+      .child(Scrollbar.vertical("graph-rows").viewport_from_layout().absolute().inset_0());
+  },
+
+  graphRow(i) {
+    const t = theme();
+    const commit = this.commits[i];
+    const row = this.graph.rows[i];
+    const colors = laneColors(t);
+    const color = (lane) => colors[lane % colors.length];
+    const head = commit.refs.some((r) => r.kind === "current" || r.kind === "head");
+    const shown = commit.refs.slice(0, H.labels);
+    const hidden = commit.refs.slice(H.labels);
+    const mono = (text) =>
+      div().flex_none().text_size(H.secondary).font_family(codeFont()).text_color(t.muted).child(text);
+    return h_flex()
+      .id(`graph-${commit.hash}`)
+      .w_full()
+      .h(H.row)
+      .flex_none()
+      .px(H.px)
+      .gap(H.gap)
+      .items_center()
+      .rounded(H.radius)
+      .cursor_pointer()
+      .when(this.selectedCommit?.hash === commit.hash, (el) => el.bg(t.selected))
+      .hover((s) => s.bg(t.hover))
+      .tooltip(`${commit.subject}\n${commit.author} · ${stamp(commit.at)}`)
+      .child(LaneCell({ row, lanes: this.graph.width, color, ring: head || commit.parents.length > 1 }))
+      .child(div().flex_1().min_w(H.subjectMin).truncate().text_size(H.text).child(commit.subject))
+      .when(shown.length > 0, (el) =>
+        el.child(
+          h_flex()
+            .flex_shrink_1()
+            .min_w(H.labelMin)
+            .gap(H.gap)
+            .overflow_hidden()
+            .children(shown.map((ref) => RefLabel({ ...ref, color: color(row.lane) })))
+            .when(hidden.length > 0, (el) =>
+              el.child(
+                RefLabel({ kind: "more", name: `+${hidden.length}` })
+                  .flex_none()
+                  .tooltip(hidden.map((ref) => ref.name).join(", ")),
+              ),
+            ),
+        ),
+      )
+      .child(mono(shortAgo(commit.at)).w(H.time).text_right())
+      .child(mono(commit.short));
+  },
+
+  // List: the commits grouped by where they are (local, remote, default branch), as before.
+  renderCommitList() {
+    const list = v_flex().id("commit-list").flex_1().min_h(0).overflow_y_scrollbar().px(H.inset);
     if (this.commitsError) return list.child(Message(this.commitsError, true));
     if (!this.commits.length)
       return list.child(
@@ -550,6 +745,7 @@ export const sidebarMethods = {
       .items_center()
       .rounded(7)
       .cursor_pointer()
+      .when(this.selectedCommit?.hash === commit.hash, (el) => el.bg(t.selected))
       .hover((s) => s.bg(t.hover))
       .on_click((_e, cx) => this.openCommit(commit, cx))
       .child(
@@ -562,7 +758,7 @@ export const sidebarMethods = {
             div()
               .truncate()
               .text_size(TEXT.caption)
-              .text_color(t.dim)
+              .text_color(t.muted)
               .child(`${commit.author} · ${timeAgo(commit.at)}`),
           ),
       )
@@ -576,114 +772,122 @@ export const sidebarMethods = {
       );
   },
 
-  renderCommit() {
-    return v_flex()
-      .id("commit-detail")
-      .flex_1()
-      .min_h(0)
-      .child(this.renderCommitTopRow())
-      .child(
-        v_flex()
-          .id("commit-scroll")
-          .flex_1()
-          .min_h(0)
-          .overflow_y_scrollbar()
-          .child(this.renderCommitAbout())
-          .child(this.renderCommitChanges()),
-      );
-  },
-
   // Only a commit the remote has can be opened there.
   commitUrl(commit) {
     if (!this.repo || this.committed?.unpushed.has(commit.hash)) return null;
     return `https://github.com/${this.repo}/commit/${commit.hash}`;
   },
 
-  renderCommitTopRow() {
+  // A commit's details, under the commits: message, then the files it changed (\4.6a).
+  renderCommitBody() {
     const t = theme();
     const commit = this.selectedCommit;
-    const url = this.commitUrl(commit);
-    const row = PanelHeader()
-      .px(8)
-      .gap(4)
+    return v_flex()
+      .id("commit-detail")
+      .flex_1()
+      .min_h(0)
+      .overflow_y_scrollbar()
       .child(
-        IconButton({
-          id: "commit-back",
-          icon: "chevron-left",
-          label: "Back to commits",
-          onClick: (cx) => {
-            this.selectedCommit = null;
-            this.commitToken++;
-            cx.notify();
-          },
-        }),
+        v_flex()
+          .flex_none()
+          .px(H.inset + H.px)
+          .py(8)
+          .gap(4)
+          .child(div().whitespace_normal().text_size(H.text).font_medium().child(commit.subject))
+          .child(
+            div().text_size(H.secondary).text_color(t.muted).child(`${commit.author} · ${stamp(commit.at)}`),
+          )
+          .when(Boolean(commit.body), (el) =>
+            el.child(div().pt(4).whitespace_normal().text_size(H.text).text_color(t.muted).child(commit.body)),
+          ),
       )
-      .child(
-        div()
-          .flex_1()
-          .min_w(0)
-          .truncate()
-          .text_size(TEXT.small)
-          .text_color(t.dim)
-          .font_family(codeFont())
-          .child(commit.short),
-      );
-    if (url) {
-      row.child(
-        IconButton({
-          id: "commit-open",
-          icon: "external-link",
-          label: "Open on GitHub",
-          onClick: (cx) => cx.open_url(url),
-        }),
-      );
-    }
-    return row;
+      .child(this.renderCommitFiles());
   },
 
-  renderCommitAbout() {
+  renderCommitFiles() {
     const t = theme();
-    const commit = this.selectedCommit;
-    const when = new Date(commit.at * 1000).toLocaleString();
-    const about = v_flex()
-      .id("commit-about")
-      .flex_none()
-      .px(14)
-      .py(10)
-      .gap(4)
-      .border_b(1)
-      .border_color(t.border)
-      .child(div().font_medium().whitespace_normal().child(commit.subject))
+    const files = v_flex().id("commit-files").flex_none().px(H.inset);
+    if (this.commitFilesError) return files.child(Message(this.commitFilesError, true));
+    if (this.commitFilesLoading) return files.child(Message("Loading…"));
+    const list = this.commitFiles;
+    if (!list.length) return files;
+    const add = list.reduce((n, f) => n + f.add, 0);
+    const del = list.reduce((n, f) => n + f.del, 0);
+    return files
       .child(
-        div()
-          .text_size(TEXT.caption)
-          .text_color(t.dim)
-          .whitespace_normal()
-          .child(`${commit.author} · ${when}`),
-      );
-    if (commit.body) {
-      about.child(
-        div()
-          .pt(6)
-          .text_size(TEXT.small)
+        h_flex()
+          .h(H.row)
+          .px(H.px)
+          .gap(H.gap)
+          .items_center()
+          .text_size(H.titleText)
+          .font_medium()
           .text_color(t.muted)
-          .whitespace_normal()
-          .child(commit.body),
-      );
-    }
-    return about;
+          .child(`${grouped(list.length)} ${list.length === 1 ? "file" : "files"}`)
+          .when(add > 0, (el) => el.child(div().text_color(t.ansi2).child(`+${grouped(add)}`)))
+          .when(del > 0, (el) => el.child(div().text_color(t.ansi1).child(`−${grouped(del)}`))),
+      )
+      .children(list.map((file) => this.commitFileRow(file)));
   },
 
-  renderCommitChanges() {
-    const changes = v_flex().id("commit-changes").flex_none().p(6);
-    if (this.commitFilesError) return changes.child(Message(this.commitFilesError, true));
-    if (this.commitFilesLoading) return changes.child(Message("Loading changes…"));
-    if (this.commitFiles.length) {
-      changes.child(
-        GroupHeader({ id: "group-commit", label: "Changes", count: this.commitFiles.length }),
-      );
-    }
-    this.addRows(changes, "commit", this.commitFiles);
-    return changes;
+  // A changed file: its status is the name's color (\2.4); hovering swaps the counts for Open file.
+  commitFileRow(file) {
+    const t = theme();
+    const parts = file.path.split("/");
+    const name = parts.pop();
+    const hovered = this.hoveredFile === file.path;
+    const open = shared("awsome-changes.selection");
+    const color = t[STATUS_COLOR[file.status] ?? "ansi3"];
+    const mono = (text, c) => div().flex_none().font_family(codeFont()).text_size(H.secondary).text_color(c).child(text);
+    return h_flex()
+      .id(`commit-file-${file.path}`)
+      .h(H.row)
+      .flex_none()
+      .px(H.px)
+      .gap(H.gap)
+      .items_center()
+      .rounded(H.radius)
+      .cursor_pointer()
+      .when(open?.path === file.path && open?.scope === "commit", (el) => el.bg(t.selected))
+      .hover((s) => s.bg(t.hover))
+      .on_hover((over, cx) => {
+        if (over) this.hoveredFile = file.path;
+        else if (this.hoveredFile === file.path) this.hoveredFile = null;
+        cx.notify();
+      })
+      .on_click((_e, cx) => this.pick(file, "commit", cx))
+      .child(FileIcon({ icons: this.fileIcons, path: `${this.root}/${file.path}`, color: t.muted, t, size: H.icon }))
+      .child(
+        div()
+          .flex_none()
+          .max_w(190)
+          .truncate()
+          .text_size(H.text)
+          .text_color(color)
+          .when(file.status === "D", (el) => el.line_through())
+          .child(name),
+      )
+      .child(div().flex_1().min_w(0).truncate().text_size(H.secondary).text_color(t.muted).child(parts.join("/")))
+      .when(hovered, (el) =>
+        el.child(
+          ToolButton({
+            id: `commit-file-open-${file.path}`,
+            icon: "arrow-square-out",
+            label: "Open file",
+            onClick: (cx) => this.openFile(file.path, cx),
+          }),
+        ),
+      )
+      .when(!hovered && file.add > 0, (el) => el.child(mono(`+${grouped(file.add)}`, t.ansi2)))
+      .when(!hovered && file.del > 0, (el) => el.child(mono(`−${grouped(file.del)}`, t.ansi1)));
+  },
+
+  // The file as it is now, in the layout's preview column, the way Files previews one (\4.4a).
+  openFile(path, cx) {
+    const space = spaces().find((s) => s.active)?.id;
+    const file = { path: `${this.root}/${path}`, root: this.root, on: this.on ?? null };
+    setShared("awsome-viewer.slot", { space, file });
+    run("layout.show", { id: "preview" });
+    cx.notify();
   },
 };

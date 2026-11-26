@@ -1,7 +1,9 @@
-// The design kit: Herdr's own conventions, measured from its shipped mods, as
-// tokens and small components. UI only: values in, callbacks out, no Git or
-// Herdr commands. Components return ordinary elements, so callers can chain.
-import { div, image, svg } from "gpui-kit";
+// The design kit: tokens and small components. UI only: values in, callbacks out,
+// no Git or Herdr commands. Components return ordinary elements, so callers can chain.
+// The parts at the end (the panel frame and History, docs/REQUIREMENTS.md §4.6a) follow
+// design/tokens.json `history`. The older parts above came from the upstream mod: they are
+// an initial state, not a standard, and are redone against the spec as each area is (P4).
+import { div, image, svg, PathBuilder } from "gpui-kit";
 import { h_flex, v_flex, Popover, Textarea } from "gpui-base";
 import { theme, settings } from "herdr";
 import { fileIcon, isLight } from "../file-icons.js";
@@ -459,4 +461,220 @@ export function MenuOption({ id, icon, label, selected, onClick }) {
     .child(Icon(icon, 14).text_color(t.muted))
     .child(div().flex_1().child(label))
     .when(selected, (el) => el.child(Icon("check", 14)));
+}
+
+// ── The panel frame and History (docs/REQUIREMENTS.md §4.6a) ──────────────────
+
+// design/tokens.json `history`; scripts/ui-check.py C9 keeps the two equal.
+export const HISTORY = {
+  inset: 8,
+  px: 8,
+  gap: 8,
+  row: 28,
+  radius: 8,
+  text: 13,
+  secondary: 11,
+  icon: 16,
+  header: 30,
+  tab: 22,
+  tabPx: 8,
+  tabGap: 5,
+  tabRadius: 6,
+  tabText: 12,
+  tabIcon: 14,
+  tabBetween: 2,
+  title: 32,
+  titleText: 11,
+  action: 20,
+  actionIcon: 16,
+  actionGap: 2,
+  actionRadius: 6,
+  chevron: 12,
+  lane: 16,
+  lanes: 6,
+  dot: 8,
+  ring: 10,
+  ringStroke: 2,
+  line: 1,
+  labelMax: 120,
+  labels: 2,
+  labelPx: 5,
+  labelRadius: 4,
+  labelText: 10,
+  time: 28,
+  subjectMin: 64,
+  labelMin: 32,
+  detailShare: 0.4,
+  detailMin: 120,
+  listRows: 3,
+  loadAhead: 10,
+};
+const H = HISTORY;
+
+// Phosphor, shared by every awsome-* mod (§2.2).
+export const UiIcon = (name, size) => svg(`mods/awsome-icons/ui/${name}.svg`).size(size).flex_none();
+
+// The panel's top row: the Changes / History tabs and nothing else, as high as a pane's header.
+export function PanelTabs(children) {
+  const t = theme();
+  return h_flex()
+    .h(H.header)
+    .flex_none()
+    .pl(H.inset)
+    .gap(H.tabBetween)
+    .items_center()
+    .bg(t.background)
+    .border_b(1)
+    .border_color(t.border)
+    .role("tab_list")
+    .children(children);
+}
+
+// One tab: Herdr tabs' panelButton. icon: an svg path.
+export function PanelTab({ id, icon, label, tip, active, onClick }) {
+  const t = theme();
+  return h_flex()
+    .id(id)
+    .h(H.tab)
+    .px(H.tabPx)
+    .gap(H.tabGap)
+    .flex_none()
+    .items_center()
+    .rounded(H.tabRadius)
+    .text_size(H.tabText)
+    .text_color(active ? t.foreground : t.muted)
+    .when(active, (el) => el.bg(t.selected))
+    .hover((s) => s.bg(t.hover))
+    .cursor_pointer()
+    .role("tab")
+    .aria_selected(Boolean(active))
+    .tooltip(tip)
+    .on_click((_e, cx) => onClick(cx))
+    .child(svg(icon).size(H.tabIcon).flex_none())
+    .child(label);
+}
+
+// A group title's action. `active`: a switch that is on.
+export function ToolButton({ id, icon, label, onClick, active = false, spinning = false }) {
+  const t = theme();
+  return div()
+    .id(id)
+    .size(H.action)
+    .flex_none()
+    .flex()
+    .items_center()
+    .justify_center()
+    .rounded(H.actionRadius)
+    .cursor_pointer()
+    .text_color(active ? t.foreground : t.dim)
+    .when(active, (el) => el.bg(t.selected))
+    .hover((s) => s.bg(t.hover).text_color(t.foreground))
+    .accessibility_label(label)
+    .tooltip(label)
+    .on_click((_e, cx) => {
+      cx.stop_propagation();
+      onClick(cx);
+    })
+    .child(spinning ? UiIcon(icon, H.actionIcon).spin(SPIN_MS) : UiIcon(icon, H.actionIcon));
+}
+
+// A group's title row, the sidebar's: a chevron (or an icon) in the icon column, the title at
+// the name column, actions at the end. `onClick` folds the group; `actions` show only while open.
+export function GroupTitle({ id, open = true, icon, title, actions = [], divided = true, onClick }) {
+  const t = theme();
+  return h_flex()
+    .id(id)
+    .h(H.title)
+    .flex_none()
+    .mx(H.inset)
+    .pl(H.px)
+    .gap(H.gap)
+    .items_center()
+    .text_size(H.titleText)
+    .when(divided, (el) => el.border_t(1).border_color(t.border))
+    .when(Boolean(onClick), (el) => el.cursor_pointer().on_click((_e, cx) => onClick(cx)))
+    .child(
+      div()
+        .w(H.icon)
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .text_color(onClick ? t.dim : t.muted)
+        .child(onClick ? UiIcon(open ? "caret-down" : "caret-right", H.chevron) : UiIcon(icon, H.icon)),
+    )
+    .child(h_flex().flex_1().min_w(0).gap(6).items_center().children(title))
+    .when(open && actions.length > 0, (el) =>
+      el.child(h_flex().flex_none().gap(H.actionGap).children(actions)),
+    );
+}
+
+// One commit's lanes. row: { lane, segments } from layoutLanes; lanes: the column's lane count;
+// color(lane): that lane's color; ring: a hollow ring (HEAD, a merge) instead of a dot.
+export function LaneCell({ row, lanes, color, ring }) {
+  const x = (lane) => H.lane * lane + H.lane / 2;
+  const centre = H.row / 2;
+  // A ring is hollow: a line stops at its edge rather than run through it.
+  const gap = ring ? H.ring / 2 : 0;
+  const y = (lane, v, towards) =>
+    v !== 0.5 || lane !== row.lane ? v * H.row : centre + (towards > 0.5 ? gap : -gap);
+  const paths = new Map();
+  for (const [a, ya, b, yb, c] of row.segments) {
+    const fill = color(c);
+    const top = y(a, ya, yb);
+    const bottom = y(b, yb, ya);
+    let path = (paths.get(fill) ?? PathBuilder.stroke(H.line)).move_to(x(a), top);
+    if (a === b) path = path.line_to(x(b), bottom);
+    else {
+      const mid = (top + bottom) / 2;
+      path = path.cubic_bezier_to(x(b), bottom, x(a), mid, x(b), mid);
+    }
+    paths.set(fill, path);
+  }
+  const size = ring ? H.ring : H.dot;
+  const own = color(row.lane);
+  const dot = div()
+    .absolute()
+    .left(x(row.lane) - size / 2)
+    .top(centre - size / 2)
+    .size(size)
+    .rounded(size / 2);
+  return div()
+    .relative()
+    .flex_none()
+    .w(Math.min(lanes, H.lanes) * H.lane)
+    .h(H.row)
+    .overflow_hidden()
+    .children(
+      [...paths].map(([fill, path]) =>
+        window.paint_path(path.build(), fill).absolute().top(0).left(0).size_full(),
+      ),
+    )
+    .child(ring ? dot.border(H.ringStroke).border_color(own) : dot.bg(own));
+}
+
+// A branch or tag on a commit, in Herdr changes' count-chip shape. kind: current, head (a
+// detached HEAD), branch, remote, tag, more (the "+3" of the ones left out); color: the
+// commit's lane, which outlines a local branch.
+export function RefLabel({ kind, name, color }) {
+  const t = theme();
+  const current = kind === "current" || kind === "head";
+  const quiet = kind === "remote" || kind === "more";
+  const edge = current ? t.accent : quiet ? t.border : kind === "tag" ? t.ansi3 : color;
+  const fg = current ? t.accent_foreground : quiet ? t.muted : kind === "tag" ? t.ansi3 : t.foreground;
+  return div()
+    .px(H.labelPx)
+    .py(1)
+    .max_w(H.labelMax)
+    .min_w(H.labelMin)
+    .flex_shrink_1()
+    .rounded(H.labelRadius)
+    .border_1()
+    .border_color(edge)
+    .when(current, (el) => el.bg(t.accent))
+    .truncate()
+    .text_size(H.labelText)
+    .font_family(codeFont())
+    .text_color(fg)
+    .child(name);
 }

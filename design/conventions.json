@@ -361,6 +361,75 @@
         ]
       },
       "herdr": "Copies the look and pattern of Herdr's pane header (mods/pane): 30 high, 14px icon buttons in p3, radius 4, dim until hovered, shown while the pointer is on the header. The code can't be reused: the column is a layout block, not a pane."
+    },
+    {
+      "id": "panel-groups",
+      "what": "Several lists in one panel: folding groups in a resizable split",
+      "references": [
+        {
+          "app": "VS Code (side bar views)",
+          "behavior": "Each view (Source Control Repositories, Changes, Graph) has a title row with a chevron; clicking it folds the view to its title; open views share the height through draggable dividers."
+        },
+        {
+          "app": "JetBrains IDEs (tool window split)",
+          "behavior": "The Git log's commit details sit under the list behind a draggable divider and can be hidden."
+        }
+      ],
+      "ours": "History has a commits group and, once a commit is chosen, a details group under it; their title rows are the sidebar's group title (chevron in the icon column, title at the name column, 20px actions); open groups share the height in a v_resizable split that remembers its sizes.",
+      "code": {
+        "awsome-changes": [
+          "GroupTitle(",
+          "v_resizable(",
+          "resizable_panel("
+        ]
+      },
+      "herdr": "Look and pattern of the awsome sidebar's Spaces / Agents section titles (shadcn Sidebar tokens, user-confirmed) and Herdr's own layout splits (stacked blocks with dividers); the split itself is gpui-component's v_resizable, so its divider is the toolkit's. Herdr has no folding group inside a mod to reuse as code."
+    },
+    {
+      "id": "history-graph",
+      "what": "A commit graph beside a commit list",
+      "references": [
+        {
+          "app": "VS Code (Source Control Graph)",
+          "behavior": "Lanes on the left, one color per lane, lines bend only at forks and merges; HEAD is a ring; ref labels follow the subject; the full message shows on hover; more commits load as you scroll."
+        },
+        {
+          "app": "Git Graph for VS Code / Fork",
+          "behavior": "Same lane layout; branch, remote and tag labels; clicking a commit shows its details and changed files below or beside the list."
+        }
+      ],
+      "ours": "Lanes 16 wide on the icon column (lane 0 under the group chevron), dots and rings from VS Code's geometry, six theme hues, labels after the subject, the next page read 10 rows before the end, a click opens the details group.",
+      "code": {
+        "awsome-changes": [
+          "LaneCell(",
+          "RefLabel(",
+          "layoutLanes(",
+          "v_virtual_list("
+        ]
+      },
+      "herdr": "none: Herdr has no commit graph. Its parts reuse Herdr's looks: rows are the sidebar list rows, labels are Herdr changes' count chip, the switches are Files' header switches."
+    },
+    {
+      "id": "panel-tabs",
+      "what": "Switching what a side panel shows",
+      "references": [
+        {
+          "app": "Herdr (tab bar panel buttons)",
+          "behavior": "Files and Changes buttons: icon and label, selected when shown, muted otherwise."
+        },
+        {
+          "app": "VS Code (Source Control view)",
+          "behavior": "Changes and Graph are separate parts of one Source Control container, no counts in the switch itself; counts sit in the groups and on the activity badge."
+        }
+      ],
+      "ours": "The Changes panel's header holds only Changes and History, drawn as Herdr's panel buttons at 22 high in the 30px header; no counts there (they are in the groups and Repositories rows); tools sit on each view's group title.",
+      "code": {
+        "awsome-changes": [
+          "PanelTabs(",
+          "PanelTab("
+        ]
+      },
+      "herdr": "Look and pattern of Herdr's tabs panelButton (mods/tabs/main.js: px 8, gap 5, radius 6, text 12, selected / muted); the Changes tab uses Herdr's own mods/changes/changes.svg icon."
     }
   ]
 }

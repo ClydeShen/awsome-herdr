@@ -10,6 +10,7 @@ import {
   readLog,
   readCommitFiles,
 } from "./reads.js";
+import { layoutLanes } from "./model.js";
 
 // Reads must not take optional index locks or start fsmonitor helpers.
 const READ_ONLY = [
@@ -257,6 +258,7 @@ export const gitMethods = {
 
   resetCommits() {
     this.commits = [];
+    this.graph = { rows: [], width: 1 };
     this.remoteHead = null;
     this.behind = 0;
     this.commitsDone = false;
@@ -289,7 +291,7 @@ export const gitMethods = {
     cx.notify();
     cx.spawn(async (cx) => {
       try {
-        const page = await readLog(git, count, skip);
+        const page = await readLog(git, count, skip, this.historyRevs());
         if (isStale()) return;
         if (!more) {
           const behind = await readBehind(git, this.committed);
@@ -299,6 +301,8 @@ export const gitMethods = {
           this.remoteHead = remoteHead;
         }
         this.commits = more ? [...this.commits, ...page] : page;
+        // Every page re-runs the layout over all loaded commits, so lanes continue across pages.
+        if (this.historyView === "graph") this.graph = layoutLanes(this.commits);
         this.commitsDone = page.length < count;
         this.commitsError = null;
       } catch (error) {
@@ -435,7 +439,43 @@ export const gitMethods = {
     });
   },
 
+  // What the history walks (§4.6a): the list reads HEAD; the graph adds the upstream, or every
+  // branch, remote and tag (not --all, which would draw the stash).
+  historyRevs() {
+    if (this.historyView !== "graph") return [];
+    if (this.range === "all") return ["--branches", "--remotes", "--tags", "HEAD"];
+    return this.committed ? ["HEAD", this.committed.ref] : ["HEAD"];
+  },
+
+  setHistoryView(view, cx) {
+    this.historyView = view;
+    localStorage.setItem("commit-view", view);
+    this.resetCommits();
+    this.loadCommits(cx);
+    cx.notify();
+  },
+
+  setRange(range, cx) {
+    this.range = range;
+    localStorage.setItem("commit-range", range);
+    this.resetCommits();
+    this.loadCommits(cx);
+    cx.notify();
+  },
+
+  closeCommit(cx) {
+    this.selectedCommit = null;
+    this.commitToken++;
+    cx.notify();
+  },
+
+  // A click shows a commit's details under the list; a second click on it closes them.
   openCommit(commit, cx) {
+    this.focus.focus();
+    if (this.selectedCommit?.hash === commit.hash) {
+      this.closeCommit(cx);
+      return;
+    }
     const context = this.context;
     const token = ++this.commitToken;
     this.selectedCommit = commit;

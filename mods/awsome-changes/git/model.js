@@ -292,18 +292,98 @@ export function conflictRows(text) {
   return { inline, split, count };
 }
 
-// `git log` records separated by \x1e; fields by \0: hash, short hash, author,
-// email, unix time, subject, body. Git adds a newline after each record.
+// `git log` records separated by \x1e; fields by \0: hash, short hash, author, email,
+// unix time, parents, refs (%D with --decorate=full), subject, body. Git adds a newline
+// after each record.
 export function parseLog(text) {
   return text
     .split("\x1e")
     .filter((record) => record.includes("\0"))
     .map((record) => {
-      const [hash, short, author, email, at, subject, body = ""] = record
+      const [hash, short, author, email, at, parents, refs, subject, body = ""] = record
         .replace(/^\n/, "")
         .split("\0");
-      return { hash, short, author, email, at: Number(at), subject, body: body.trim() };
+      return {
+        hash,
+        short,
+        author,
+        email,
+        at: Number(at),
+        parents: parents ? parents.split(" ") : [],
+        refs: parseRefs(refs),
+        subject,
+        body: body.trim(),
+      };
     });
+}
+
+const REF_ORDER = { head: 0, current: 0, branch: 1, remote: 2, tag: 3 };
+
+// `%D` with --decorate=full: "HEAD -> refs/heads/main, refs/remotes/origin/main, tag: refs/tags/v1".
+// A detached HEAD is a bare "HEAD". A remote's HEAD (origin/HEAD) only repeats a branch: left out.
+export function parseRefs(text) {
+  const refs = [];
+  for (const part of (text ?? "").split(", ").filter(Boolean)) {
+    if (part === "HEAD") {
+      refs.push({ kind: "head", name: "HEAD" });
+      continue;
+    }
+    const current = part.startsWith("HEAD -> ");
+    const ref = part.replace(/^HEAD -> /, "").replace(/^tag: /, "");
+    if (ref.startsWith("refs/heads/"))
+      refs.push({ kind: current ? "current" : "branch", name: ref.slice(11) });
+    else if (ref.startsWith("refs/remotes/") && !ref.endsWith("/HEAD"))
+      refs.push({ kind: "remote", name: ref.slice(13) });
+    else if (ref.startsWith("refs/tags/")) refs.push({ kind: "tag", name: ref.slice(10) });
+  }
+  return refs.sort((a, b) => REF_ORDER[a.kind] - REF_ORDER[b.kind]);
+}
+
+// Lays commits out on lanes. Commits come newest first, every child before its parents
+// (git log --date-order). A lane is a column waiting for one commit and keeps its column
+// until that commit arrives, so lines bend only where branches fork or merge (the idea of
+// herdr-git-graph's lanes.js, MIT). Each row gets the commit's lane and its segments
+// [fromLane, fromY, toLane, toY, colorLane], y 0 = the row's top, 0.5 = the dot, 1 = its
+// bottom. width: the most lanes any row uses.
+export function layoutLanes(commits) {
+  const lanes = []; // lanes[i]: the hash column i waits for, or null
+  const free = () => {
+    const i = lanes.indexOf(null);
+    return i < 0 ? lanes.length : i;
+  };
+  let width = 1;
+  const rows = commits.map((commit) => {
+    const above = lanes.slice();
+    const segments = [];
+    let lane = above.indexOf(commit.hash);
+    if (lane < 0) {
+      lane = free(); // a branch tip: nothing above it
+      lanes[lane] = commit.hash;
+    }
+    above.forEach((hash, i) => {
+      if (hash === null || hash === undefined) return;
+      if (hash !== commit.hash) segments.push([i, 0, i, 1, i]);
+      else {
+        segments.push([i, 0, lane, 0.5, i]);
+        if (i !== lane) lanes[i] = null; // a branch that ends here
+      }
+    });
+    const [first, ...rest] = commit.parents;
+    lanes[lane] = first ?? null;
+    if (first) segments.push([lane, 0.5, lane, 1, lane]);
+    for (const parent of rest) {
+      let k = lanes.indexOf(parent);
+      if (k < 0) {
+        k = free();
+        lanes[k] = parent;
+      }
+      segments.push([lane, 0.5, k, 1, k]);
+    }
+    width = Math.max(width, above.length, lanes.length);
+    while (lanes.length && lanes.at(-1) === null) lanes.pop();
+    return { lane, segments };
+  });
+  return { rows, width };
 }
 
 // Combine `show --numstat -z` and `show --name-status -z` output for one commit.
@@ -328,19 +408,38 @@ export function commitFiles(numstat, nameStatus) {
     });
 }
 
+const UNITS = [
+  ["y", 31536000],
+  ["mo", 2592000],
+  ["w", 604800],
+  ["d", 86400],
+  ["h", 3600],
+  ["m", 60],
+];
+
 export function timeAgo(at, now = Date.now() / 1000) {
   const seconds = Math.max(0, now - at);
-  for (const [unit, size] of [
-    ["y", 31536000],
-    ["mo", 2592000],
-    ["w", 604800],
-    ["d", 86400],
-    ["h", 3600],
-    ["m", 60],
-  ])
+  for (const [unit, size] of UNITS)
     if (seconds >= size) return `${Math.floor(seconds / size)}${unit} ago`;
   return "just now";
 }
+
+// "3h": a graph row's time.
+export function shortAgo(at, now = Date.now() / 1000) {
+  const seconds = Math.max(0, now - at);
+  for (const [unit, size] of UNITS) if (seconds >= size) return `${Math.floor(seconds / size)}${unit}`;
+  return "now";
+}
+
+// "2026-11-26 14:03": a commit's time in full.
+export function stamp(at) {
+  const d = new Date(at * 1000);
+  const two = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
+// "1,015": the runtime's toLocaleString adds no separators.
+export const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
 // "owner/repo" for a GitHub remote URL (https, git@, or ssh), else null.
 export function githubRepo(remote) {

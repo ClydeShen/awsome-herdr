@@ -256,7 +256,9 @@ def c6_english():
 
 
 PROPER = {"File", "Explorer", "Finder", "Recycle", "Bin", "Git", "GitHub", "Herdr", "PowerShell", "Windows", "WSL", "Command", "Prompt",
-          "Bash", "Claude", "Codex", "Gemini", "Kiro", "macOS", "Linux", "Material", "Phosphor", "Ubuntu", "Debian", "Trash", "HEAD", "PR"}
+          "Bash", "Claude", "Codex", "Gemini", "Kiro", "macOS", "Linux", "Material", "Phosphor", "Ubuntu", "Debian", "Trash", "HEAD", "PR",
+          # Key names, as a tooltip's shortcut writes them (docs/REQUIREMENTS.md §2.5: "Up a folder (Ctrl+Alt+Backspace)").
+          "Esc", "Ctrl", "Alt", "Shift", "Enter", "Backspace", "Tab", "Cmd"}
 
 
 def c7_menus():
@@ -308,6 +310,20 @@ def c9_tokens():
             if got != want:
                 diff = sorted(set(got.items()) ^ set(want.items()))
                 fail("C9", "L2", f"mods/{mod}/{name} {const} differs from design/tokens.json {key}: {diff}", "change design/tokens.json first (with its source), then the constant")
+    # The awsome-changes panel frame and History (docs/REQUIREMENTS.md §4.6a). Its values are
+    # the sidebar's and the pane header's: they stay equal, so the panel can't drift (L15).
+    ui = P("mods", "awsome-changes", "views", "ui.js")
+    if os.path.isfile(ui) and "history" in tok:
+        got = js_object(open(ui, encoding="utf-8").read(), r"export const HISTORY") or {}
+        want = tok["history"]["values"]
+        if got != want:
+            diff = sorted(set(got.items()) ^ set(want.items()))
+            fail("C9", "L2", f"mods/awsome-changes/views/ui.js HISTORY differs from design/tokens.json history: {diff}", "change design/tokens.json first (with its source), then the constant")
+        same = {k: ("sidebar", k) for k in ("inset", "px", "gap", "row", "radius", "text", "secondary", "icon", "action", "actionIcon")}
+        same.update({"title": ("sidebar", "labelHeight"), "titleText": ("sidebar", "labelText"), "header": ("paneHeader", "height")})
+        for k, (group, other) in same.items():
+            if want.get(k) != tok[group]["values"][other]:
+                fail("C9", "L15", f"design/tokens.json history.{k} ({want.get(k)}) must equal {group}.{other} ({tok[group]['values'][other]})", "the panel frame reuses the sidebar and pane header values; change those instead")
 
 
 def c10_way_back():

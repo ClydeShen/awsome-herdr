@@ -660,7 +660,7 @@
 - 最后统一发给 agent 整改：复用 `Send to agent`，默认发给当前 space 的主 agent，发之前可改。
 - 做之前先把数据结构给你看一眼。
 
-### 4.6a P4b 的完整规格：awsome-changes 面板的框架和 History 的图视图（2026-11-26，规格已确认；预览看过第三版的结构和第五版的分组式分屏）
+### 4.6a P4b 的完整规格：awsome-changes 面板的框架和 History 的图视图✅（2026-11-26 规格确认、实现，用户试用通过）
 
 > **需求**：§4.5、§4.6、画板 06（Changes）、09（History）、12（Repositories 列表，多 repo 的主要设计）。**标准是规格和公开来源，任何现有代码（awsome-changes、Files）都只是初始状态**（用户 2026-11-26；`docs/UI-LESSONS.md` L13、L15）。前两版预览被否定的原因见 L15：标题栏 42 高、文字标签和图标按钮混在同一层、计数进了标题栏、上游的 `Menu`、Lucide 图标、内容竖线不齐；第二版又照抄了 Files 的代码，把 Files 的摘要和进度条重复进来，而且没考虑多 repo。
 >
@@ -724,7 +724,7 @@
 
 **数据**
 - `git log --date-order --decorate=full --format=%H%x00%h%x00%P%x00%an%x00%ae%x00%at%x00%D%x00%s%x00%b%x1e`（和 List 一样用 `` 分记录，所以正文里的换行不会断开记录）；当前分支 = `HEAD` + `@{upstream}`，所有分支 = `--branches --remotes --tags HEAD`。
-- 泳道布局先验证 npm 的 `graph-lab`（纯布局，算法来自 SourceGit）：打包成单个文件、`herdr-app check` 通过、和自己写的 `layoutLanes` 结果一致才用；否则用自己的约 40 行，原因写在这里。
+- 泳道布局：**不用 npm 的 `graph-lab`**（2026-11-26 验证：包里没有许可证，`package.json` 没有 `license`，README 写"见 NOTICE"但包里没有 NOTICE；GitHub 仓库 404；它移植自 Apache-2.0 和 MIT 的项目，缺 NOTICE 就不能合规使用）。用自己写的约 40 行 `layoutLanes`（`herdr-git-graph` 的 `lanes.js` 的思路，MIT，只借思路），放进 `git/model.js`。
 - 设置：`default.history`（`list` / `graph`，默认 `list`），和 `default.view`、`default.diff` 同一组。
 
 **往返路径**（代码写完时登记 `design/flows.json`）

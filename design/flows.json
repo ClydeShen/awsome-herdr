@@ -106,19 +106,21 @@
     {
       "id": "commit-detail",
       "mod": "awsome-changes",
-      "to": "a commit's details",
+      "to": "a commit's details, in a group under the commits",
       "forward": {
         "mouse": "click a commit",
         "keys": "",
         "code": [
-          "this.selectedCommit = commit"
+          "openCommit("
         ]
       },
       "back": {
-        "mouse": "Back to commits button",
-        "keys": "",
+        "mouse": "click the same commit again, or the details' Close button",
+        "keys": "Esc",
         "code": [
-          "Back to commits"
+          "closeCommit(",
+          "escape",
+          "Close (Esc)"
         ]
       }
     },
@@ -421,6 +423,83 @@
         "keys": "Esc",
         "code": [
           "layout.hide"
+        ]
+      }
+    },
+    {
+      "id": "changes-history-tab",
+      "mod": "awsome-changes",
+      "to": "the History tab of the Changes panel",
+      "forward": {
+        "mouse": "click the History tab",
+        "keys": "",
+        "code": [
+          "setTab(\"commit\""
+        ]
+      },
+      "back": {
+        "mouse": "click the Changes tab",
+        "keys": "",
+        "code": [
+          "setTab(\"changes\""
+        ]
+      }
+    },
+    {
+      "id": "history-graph",
+      "mod": "awsome-changes",
+      "to": "History drawn as a graph",
+      "forward": {
+        "mouse": "the Show graph switch",
+        "keys": "",
+        "code": [
+          "setHistoryView(graph ? \"list\" : \"graph\""
+        ]
+      },
+      "back": {
+        "mouse": "the same switch (Show list)",
+        "keys": "",
+        "code": [
+          "\"Show list\""
+        ]
+      }
+    },
+    {
+      "id": "history-all-branches",
+      "mod": "awsome-changes",
+      "to": "the graph with every branch, remote and tag",
+      "forward": {
+        "mouse": "the Show all branches switch",
+        "keys": "",
+        "code": [
+          "\"Show all branches\""
+        ]
+      },
+      "back": {
+        "mouse": "the same switch (Show current branch)",
+        "keys": "",
+        "code": [
+          "\"Show current branch\""
+        ]
+      }
+    },
+    {
+      "id": "history-group-fold",
+      "mod": "awsome-changes",
+      "to": "a History group folded to its title",
+      "forward": {
+        "mouse": "click the group's title row",
+        "keys": "",
+        "code": [
+          "toggleGroup(\"h-commits\"",
+          "toggleGroup(\"h-detail\""
+        ]
+      },
+      "back": {
+        "mouse": "click the title row again",
+        "keys": "",
+        "code": [
+          "toggleGroup("
         ]
       }
     }

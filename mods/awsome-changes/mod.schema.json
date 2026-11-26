@@ -148,6 +148,19 @@
                 "split": "Side by side"
               },
               "default": "inline"
+            },
+            "history": {
+              "title": "History view",
+              "type": "string",
+              "enum": [
+                "list",
+                "graph"
+              ],
+              "x-labels": {
+                "list": "List",
+                "graph": "Graph"
+              },
+              "default": "list"
             }
           },
           "title": "Defaults"
