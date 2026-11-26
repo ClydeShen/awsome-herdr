@@ -20,7 +20,7 @@ It does five things:
 2. Copies `config/layouts/awsome.json` into `layouts/`.
 3. Adds the keys in `config/keys.merge.json` to your `keys.json` (on macOS, the spellings in `config/keys.merge.macos.json` replace the ones bound to the same action, `cmd` where others use `ctrl`). A key you already use is left alone and reported.
 4. Adds the setting in `config/settings.merge.json` (`telemetry: false`) to your `settings.json` if you have not set it.
-5. Runs `herdr-app check` on every mod and switches to the `awsome` layout. If Herdr is not running, switch with `ctrl-shift-l`.
+5. Runs `herdr-app check` on every mod and switches to the `awsome` layout. If Herdr is not running, switch with `ctrl-shift-l` (`cmd-shift-l` on macOS).
 
 It was tested against a throwaway Herdr folder (backups, merging, `herdr-app check` on every mod), and on 2026-11-25 installed from a fresh Herdr 0.1.18 folder on Windows 11 with Git Bash.
 
@@ -63,7 +63,7 @@ git commit -am "..." && git push
 
 ## Undo
 
-Delete `~/.config/herdr-app/mods/<name>` and `layouts/awsome.json`, put the original files back from the backup folder, and switch layout with `ctrl-shift-l`.
+Delete `~/.config/herdr-app/mods/<name>` and `layouts/awsome.json`, put the original files back from the backup folder, and switch layout with `ctrl-shift-l` (`cmd-shift-l` on macOS).
 
 ## Known rough edges
 

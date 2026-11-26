@@ -13,7 +13,7 @@ say() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 [ -d "$HOME_DIR" ] || fail "$HOME_DIR not found. Start Herdr once so it creates its folder, then run this again."
-command -v python3 >/dev/null 2>&1 || fail "python3 is needed to merge keys.json and settings.json."
+python3 -c 'pass' >/dev/null 2>&1 || fail "python3 is needed to merge keys.json and settings.json."
 mkdir -p "$HOME_DIR/mods" "$HOME_DIR/layouts"
 
 BACKUP="$HOME_DIR/.awsome-herdr-backup-$(date +%Y%m%d-%H%M%S)"
@@ -55,11 +55,11 @@ import json, os, sys
 home, cfg = sys.argv[1], sys.argv[2]
 def load(p, default):
     try:
-        with open(p) as f: return json.load(f)
+        with open(p, encoding="utf-8") as f: return json.load(f)
     except FileNotFoundError: return default
 def save(p, d):
-    with open(p, "w") as f:
-        json.dump(d, f, indent=2); f.write("\n")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(d, f, indent=2, ensure_ascii=False); f.write("\n")
 
 keys_path = os.path.join(home, "keys.json")
 keys = load(keys_path, {})
@@ -100,9 +100,9 @@ if command -v herdr-app >/dev/null 2>&1; then
   done
   say "Switching to the $LAYOUT layout"
   herdr-app do layout.switch "{\"name\":\"$LAYOUT\"}" >/dev/null 2>&1 \
-    || say "  Herdr is not running; switch later with ctrl-shift-l."
+    || say "  Herdr is not running; switch later with ctrl-shift-l (cmd-shift-l on macOS)."
 else
-  say "herdr-app is not on PATH; open Herdr and switch layout with ctrl-shift-l."
+  say "herdr-app is not on PATH; open Herdr and switch layout with ctrl-shift-l (cmd-shift-l on macOS)."
 fi
 
 [ -d "$BACKUP" ] && say "Replaced files were moved to $BACKUP"
