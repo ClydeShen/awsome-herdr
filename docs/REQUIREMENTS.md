@@ -592,6 +592,15 @@
 - 条出现 / 消失会让树整体上下移一次：不做动画，直接切。
 - 颜色、字体全部取现有令牌（`foreground`、`muted`、`border`、`hover`、`selected`、`accent`），没有新颜色；对比度沿用 §2.4 已算过的"行上 `muted` 文字 ≥ 4.2"。数值 32 / 24 / 8 / 4 是 4px 网格（`layout.bar` = 32），按钮 24 取自 shadcn `Button size="sm"` 的紧凑档。选择条和选中行的预览截图已给用户看，用户只对斜体提了意见，其余等用户明确确认。
 
+**预览位的头部和外框**（2026-11-26，用户确认预览；原则："预览文件的 UI / UX 尽可能贴近 Herdr 原生 pane 的表达方式和视觉语言"）
+
+- **来源**：Herdr 自带 `pane` mod（`~/.config/herdr-app/mods/pane/main.js`）：头部行高 30、左右 10、间距 8、字号 12；按钮是 14px 图标、`p(3)`、圆角 4，平时 `dim`，悬停变 `foreground` 加 `hover` 底；按钮**只在鼠标移到头部时显示**。外框取布局里 `main` 的 pane 外框：`background` 底、1px `border`、圆角 10、聚焦时 1px `accent` 边框。
+- **头部**：文件图标、文件名（中等粗细）、文件夹（`dim`）；右边两组图标按钮，组间一条 1px × 12px 的 `border` 线（同文件树标题栏）。
+  - **文件视图组**（只有 Markdown 文件，**始终显示**，是状态）：`eye` = `Rendered view`、`code` = `Source`，当前的用 `selected` 底。它是文件的显示方式，和预览列无关，所以与下一组分开；在普通 tab 里的 viewer 也是这一组。
+  - **预览列操作组**（只在预览列，**鼠标在头部时显示**）：`arrow-square-out` = `Open in tab`、`x` = `Close preview`；按钮间距 2。
+- 图标全部取 Awsome Icons 里的 Phosphor 图标（`eye`、`code`、`arrow-square-out`、`x`）。其他文字按钮（`Expand all`、`Open in`、`Keep tab`）不是预览列的操作，这次不动。
+- 数值登记在 `design/tokens.json` 的 `paneHeader`。
+
 **往返**（登记在 `design/flows.json`）：预览位（去：单击 / Space；回：× / Esc / 再单击别的文件换内容）；独立 tab（去：双击 / Enter / `Open in tab`；回：关 tab）；单选 ⇄ 多选（去：Ctrl / Shift + 单击，或 Shift + ↑↓、Ctrl+Space；回：Esc、点空白、选择条 ×，或普通单击）。
 **惯例**（`design/conventions.json`）：`preview-slot`：Windows 资源管理器的预览窗格（一个固定位置的窗格，跟着选中的项显示，可开关）、VS Code 的预览编辑器（单击预览、双击固定）、Finder 的 Quick Look（Space）。
 **验证清单**：实现前：隐藏块里的 viewer 不轮询；文件树键盘焦点不被抢。实现后：`herdr-app check` 三个 mod；`ui-check.py`；用 `herdr-app do layout.show` 等模拟，截图确认；`ui-open-check` 核对预览位尺寸不为 0；点击手感请你试（§5.2 的 P2 一行）。

@@ -94,6 +94,29 @@ export function IconButton({
     .child(spinning ? Icon(icon, 15).spin(SPIN_MS) : Icon(icon, small ? 13 : 15));
 }
 
+// Herdr's own pane-header button (mods/pane): a 14px icon in p3, radius 4, dim until the pointer
+// is on it. `active` marks the chosen one of a pair, with the selected fill the file tree's
+// tool buttons use. The icon is a Phosphor one from Awsome Icons, by name.
+export function PaneButton({ id, icon, label, onClick, active = false }) {
+  const t = theme();
+  return div()
+    .id(id)
+    .p(3)
+    .flex_none()
+    .rounded(4)
+    .cursor_pointer()
+    .text_color(active ? t.foreground : t.dim)
+    .when(active, (el) => el.bg(t.selected))
+    .hover((s) => s.bg(t.hover).text_color(t.foreground))
+    .accessibility_label(label)
+    .tooltip(label)
+    .on_click((_e, cx) => {
+      cx.stop_propagation();
+      onClick(cx);
+    })
+    .child(svg(`mods/awsome-icons/ui/${icon}.svg`).size(14));
+}
+
 // A small labelled action, for a row with room to say what it does.
 export function TextButton({ id, icon, label, onClick, disabled = false, active = false }) {
   const t = theme();

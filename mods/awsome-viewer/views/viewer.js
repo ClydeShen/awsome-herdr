@@ -29,7 +29,7 @@ import { viewerEntries } from "../actions/open.js";
 import { BUSY, pickCopyImage, pickFetchImage, pickRm } from "../files/shell.js";
 import { editorId, foundEditors } from "../actions/outside.js";
 import { fileIcon, isLight } from "../files/file-icons.js";
-import { TEXT, FileIcon, IconButton, Markdown, Message, MenuButton, TextButton, codeFont, codeSize } from "./ui.js";
+import { TEXT, FileIcon, IconButton, Markdown, Message, MenuButton, PaneButton, TextButton, codeFont, codeSize } from "./ui.js";
 
 const CHAR_WIDTH = 0.62; // Of the code font's size, to size the sideways scroll.
 const LINE_COLUMNS = 6; // The number column and a margin, in the same units.
@@ -817,8 +817,8 @@ export const viewerMethods = {
           h_flex()
             .id("viewer-view")
             .gap(2)
-            .child(TextButton({ id: "viewer-view-preview", label: "Preview", active: previewing, onClick: showView("preview") }))
-            .child(TextButton({ id: "viewer-view-code", label: "Code", active: !previewing, onClick: showView("code") })),
+            .child(PaneButton({ id: "viewer-view-preview", icon: "eye", label: "Rendered view", active: previewing, onClick: showView("preview") }))
+            .child(PaneButton({ id: "viewer-view-code", icon: "code", label: "Source", active: !previewing, onClick: showView("code") })),
         ),
       )
       .when(openable.length > 0, (el) =>
@@ -834,10 +834,15 @@ export const viewerMethods = {
           }),
         ),
       )
-      .when(this.slot, (el) =>
+      .when(this.slot && this.hovered, (el) =>
         el
-          .child(TextButton({ id: "viewer-slot-tab", label: "Open in tab", onClick: (cx) => this.openInNewTab(file, cx) }))
-          .child(IconButton({ id: "viewer-slot-close", icon: "close", label: "Close preview", small: true, onClick: () => run("layout.hide", { id: SLOT_NODE }) })),
+          .when(markdown, (el) => el.child(div().w(1).h(12).flex_none().bg(theme().border)))
+          .child(
+            h_flex()
+              .gap(2)
+              .child(PaneButton({ id: "viewer-slot-tab", icon: "arrow-square-out", label: "Open in tab", onClick: (cx) => this.openInNewTab(file, cx) }))
+              .child(PaneButton({ id: "viewer-slot-close", icon: "x", label: "Close preview", onClick: () => run("layout.hide", { id: SLOT_NODE }) })),
+          ),
       )
       .when(Boolean(preview), (el) =>
         el.child(
@@ -886,6 +891,10 @@ export const viewerMethods = {
       root.child(
         h_flex()
           .id("viewer-bar")
+          .on_hover((hovered, cx) => {
+            this.hovered = hovered;
+            cx.notify();
+          })
           .h(30)
           .flex_none()
           .px(10)

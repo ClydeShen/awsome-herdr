@@ -156,12 +156,18 @@
               },
               "min": 280,
               "hidden": true,
-              "background": "surface",
+              "background": "background",
               "border": {
                 "width": 1,
                 "color": "border"
               },
-              "radius": 10
+              "radius": 10,
+              "focus": {
+                "border": {
+                  "width": 1,
+                  "color": "accent"
+                }
+              }
             },
             {
               "id": "main",

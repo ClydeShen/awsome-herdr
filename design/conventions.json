@@ -339,6 +339,26 @@
           "slot"
         ]
       }
+    },
+    {
+      "id": "viewer-header-actions",
+      "what": "The actions in a file view's header",
+      "references": [
+        {
+          "app": "Herdr (pane header, mods/pane)",
+          "behavior": "Icon-only buttons, 14px in p3 with radius 4, dim until hovered, shown only while the pointer is on the header; close is an x."
+        },
+        {
+          "app": "VS Code (editor title actions)",
+          "behavior": "Icon buttons on the right of the editor tab row; Markdown's Open Preview is its own icon, separate from the editor's split and close actions."
+        }
+      ],
+      "ours": "The Markdown view (rendered or source) is its own pair of icon buttons, always shown; the preview column's Open in tab and close are a second group, shown while the pointer is on the header, as Herdr's pane header does.",
+      "code": {
+        "awsome-viewer": [
+          "PaneButton("
+        ]
+      }
     }
   ]
 }
