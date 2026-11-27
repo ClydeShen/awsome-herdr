@@ -708,7 +708,7 @@ def main():
         return 0
     if "--hook" in args:
         try:
-            event = json.load(sys.stdin)
+            event = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         except Exception:
             return 0
         path = (event.get("tool_input") or {}).get("file_path") or ""

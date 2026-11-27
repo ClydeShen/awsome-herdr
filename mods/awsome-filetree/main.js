@@ -11,18 +11,32 @@ import { fileIcon as packIcon, followFileIcons } from "./file-icons.js";
 import { menuView, menuHeight, menuWidth, menuKey, keyFor, tidy } from "./menu.js"; // shared awsome-* menu (identical copies in each mod) // identical copy of awsome-icons' loader (mods cannot import across folders)
 import { confirmView, confirmHeight, confirmKey, CONFIRM } from "./confirm.js"; // shared awsome-* confirmation (identical copies in each mod)
 import { gitLetter, gitColor, GIT_WORD, weightier, gitBucket } from "./git-status.js";
-import { spaces, panes, agents, focused, exec, readTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
+import { trashPlan, MESSAGES, validateName } from "./fileops.js";
+import { editRow } from "./editrow.js";
+import { commitEdit } from "./editcommit.js";
+import { undoLast } from "./editundo.js";
+import { loadSettings } from "./settings.js"; // identical copy of awsome-viewer's settings reader
+import { spaces, panes, agents, focused, exec, readTextFile, writeTextFile, watchFolder, theme, settings, window, layout, home, appHome, props, run, notify, openOverlay, closeOverlay, shared, setShared, nextCommand } from "herdr";
 
 const NAME = "awsome-filetree";
 // Names, paths and branches are set in the terminal font so O/0 and I/l/1 stay apart (docs/REQUIREMENTS.md §2.2).
 const codeFont = () => settings().font_family ?? "JetBrains Mono";
 
-// The file tree's context menu, in the shared group order (docs/REQUIREMENTS.md §2.6):
-// open, then organise, then copy and reveal. `self` is null when only sizing it.
+// Why Move to Trash can't run here, or null (docs/REQUIREMENTS.md §4.3c 5): another machine, or
+// Windows, where the Recycle Bin is not verified yet.
+const trashBlock = (platform, local) => (!local ? MESSAGES.remoteDisabled : platform === "windows" ? MESSAGES.windowsDisabled : null);
+
+// The file tree's context menu (docs/REQUIREMENTS.md §4.3c 1, §2.6): a folder's new items first, then
+// open, organise, copy, and Rename and Move to Trash last. `self` is null when only sizing it.
+// New, rename and trash run in the tree itself, which is asked through shared state (`ask`).
 function menuEntries(m, self) {
   const platform = window()?.platform, mac = platform === "macos";
   const reveal = mac ? "Reveal in Finder" : platform === "windows" ? "Reveal in File Explorer" : "Open in file manager";
   const say = (title) => (e) => notify({ title, body: String(e?.message ?? e), level: "error" });
+  const ask = (kind, extra) => setShared(`${NAME}.op`, { kind, root: m.root, n: Date.now(), ...extra });
+  const trash = trashBlock(platform, m.local), trashName = platform === "windows" ? "Recycle Bin" : "Trash";
+  // A dangerous action carries the ellipsis (docs/REQUIREMENTS.md §2.6).
+  const dots = "…";
   // Several rows selected (docs/REQUIREMENTS.md section 4.3b): only what holds for all of them.
   // `copyOnly` is the selection bar's "Copy path" menu.
   if (m.paths) {
@@ -32,26 +46,36 @@ function menuEntries(m, self) {
       !m.copyOnly && "-",
       { id: "rel", label: "Copy relative path", icon: UI("copy"), keys: "Y", run: (cx) => copy(cx, m.paths.join("\n")) },
       { id: "abs", label: "Copy absolute path", icon: UI("copy"), keys: mac ? "⇧Y" : "Shift+Y", run: (cx) => copy(cx, abs.join("\n")) },
+      !m.copyOnly && "-",
+      !m.copyOnly && { id: "trash", label: `Move ${m.paths.length} items to ${trashName}${dots}`, icon: UI("trash"), danger: true, keys: keyFor(`${NAME}.trash`, mac), disabled: Boolean(trash), reason: trash, run: () => ask("trash", { paths: m.paths }) },
     ]);
   }
   return tidy([
+    m.dir && { id: "newFile", label: "New file…", icon: UI("file-plus"), run: () => ask("newFile", { rel: m.rel }) },
+    m.dir && { id: "newFolder", label: "New folder…", icon: UI("folder-plus"), run: () => ask("newFolder", { rel: m.rel }) },
+    m.dir && "-",
     // Space and Enter as in VS Code's explorer: Space previews, Enter opens a tab (§4.4a).
     !m.dir && { id: "preview", label: "Preview", icon: UI("eye"), keys: "Space", run: () => setShared(`${NAME}.preview`, { root: m.root, rel: m.rel, n: Date.now() }) },
     !m.dir && m.tab && { id: "tab", label: "Open in tab", icon: UI("tabs"), keys: "Enter", run: () => setShared(`${NAME}.open`, { root: m.root, rel: m.rel, n: Date.now() }) },
     !m.dir && { id: "open", label: "Open in default app", icon: UI("arrow-square-out"), disabled: !m.local, reason: "The file is on another machine", run: () => openExternal(m.abs).catch(say("Could not open the file")) },
     m.dir && { id: "root", label: "Open as root", icon: UI("tree-structure"), keys: keyFor(`${NAME}.into`, mac), run: () => setShared(`${NAME}.goto`, { root: m.root, rel: m.rel, n: Date.now() }) },
+    { id: "reveal", label: reveal, icon: UI("folder-open"), disabled: !m.local, reason: "The folder is on another machine", run: () => revealExternal(m.abs).catch(say("Could not open the folder")) },
     "-",
     { id: "send", label: "Send to agent", icon: UI("paper-plane-right"), keys: "A", run: (cx) => sendToAgent(cx, m.abs) },
     "-",
     { id: "rel", label: "Copy relative path", icon: UI("copy"), keys: "Y", run: (cx) => copy(cx, m.rel) },
-    { id: "abs", label: "Copy absolute path", icon: UI("copy"), keys: mac ? "\u21e7Y" : "Shift+Y", run: (cx) => copy(cx, m.abs) },
-    { id: "reveal", label: reveal, icon: UI("folder-open"), disabled: !m.local, reason: "The folder is on another machine", run: () => revealExternal(m.abs).catch(say("Could not open the folder")) },
+    { id: "abs", label: "Copy absolute path", icon: UI("copy"), keys: mac ? "⇧Y" : "Shift+Y", run: (cx) => copy(cx, m.abs) },
+    "-",
+    { id: "rename", label: "Rename…", icon: UI("pencil-simple"), keys: keyFor(`${NAME}.rename`, mac), run: () => ask("rename", { rel: m.rel }) },
+    { id: "trash", label: `Move to ${trashName}${dots}`, icon: UI("trash"), danger: true, keys: keyFor(`${NAME}.trash`, mac), disabled: Boolean(trash), reason: trash, run: () => ask("trash", { paths: [m.rel] }) },
   ]);
 }
 const ICON = (name) => `mods/${NAME}/${name}.svg`;
 const UI = (name) => `mods/awsome-icons/ui/${name}.svg`; // Phosphor, shared by every awsome-* mod
 const ic = (name) => svg(UI(name)).size(14);
 const ROW = 22; // VS Code's explorer row height
+const MSG = 22;
+const dbg = (m) => notify({ title: `ft-edit ${m}`, level: "info", timeout: 4000 }); // TEMPORARY debugging
 // docs/REQUIREMENTS.md §2.9: the frame Files and Changes share (design/tokens.json `panel`; C9).
 export const PANEL = { header: 30, px: 10, gap: 8, text: 12, icon: 14, pad: 3, radius: 4, groupGap: 2, separator: 12, inset: 4, rowPx: 6, tree: 22, indent: 12, chevron: 12, fileIcon: 16, treeGap: 4, list: 28, title: 28, titleText: 11, body: 13, secondary: 11, delta: 64, half: 32, box: 84, boxPx: 10, boxPy: 7, button: 32, buttonRadius: 8, trigger: 30, end: 12, section: 12, line: 20 };
 const P = PANEL;
@@ -96,6 +120,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const dirOf = (rel) => (rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "");
 const baseOf = (path) => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
 const join = (root, rel) => (rel ? (/[\\/]$/.test(root) ? root + rel : `${root}/${rel}`) : root);
+const platformOf = (tree) => (tree.on ? "linux" : window()?.platform);
 function ancestors(rel) {
   const out = [];
   for (let d = dirOf(rel); d; d = dirOf(d)) out.push(d);
@@ -177,7 +202,7 @@ function location() {
   return { cwd: pane?.cwd || f?.cwd || space?.folder || null, on, stay };
 }
 const windows = (on) => !on && window()?.platform === "windows";
-const psQuote = (s) => "'" + s.replaceAll("'", "''") + "'";
+const psQuote = (s) => "'" + s.replace(/['\u2018-\u201B]/g, (c) => c + c) + "'";
 
 async function listDir(path, on) {
   if (windows(on)) {
@@ -304,6 +329,12 @@ function sendToAgent(cx, abs) {
   cx.timer.after(600, (cx) => { if (before !== undefined) cx.write_to_clipboard(before); });
 }
 
+// The Move to Trash confirmation (docs/REQUIREMENTS.md §2.6, §4.3c 5), in confirm.js's terms.
+const trashAsk = (rels) => {
+  const names = rels.map(baseOf);
+  return { title: names.length === 1 ? `Move “${names[0]}” to the Trash?` : `Move ${names.length} items to the Trash?`, names, note: "Restore it from the Trash.", action: "Move to Trash", danger: true, dontAsk: false };
+};
+
 // More than this many paths in one message asks first (docs/REQUIREMENTS.md section 4.4a).
 const SEND_LIMIT = 100;
 const sendAsk = (abs) => ({ title: `Send ${abs.length} paths to the agent?`, names: abs.map(baseOf), action: "Send paths", danger: false });
@@ -323,9 +354,12 @@ export default class FileTree extends View {
   init(_props, cx) {
     this.menu = props()?.menu ?? null;
     this.ask = props()?.ask ?? null;
-    if (this.menu || this.ask) { this.handle = cx.focus_handle(); this.handle.focus(); this.at = -1; return; }
+    this.trash = props()?.trash ?? null;
+    if (this.menu || this.ask || this.trash) { this.handle = cx.focus_handle(); this.handle.focus(); this.at = -1; return; }
     this.sel = new Set(); this.anchor = ""; this.lastDown = null;
+    this.edit = null; this.undo = [];
     this.openPreview = "slot"; this.previewDelay = 250; this.waiting = null;
+    this.confirmDelete = true; // confirm.delete in mod.json; read below
     this.handle = cx.focus_handle();
     followFileIcons(this, cx);
     this.scroll = VirtualListScrollHandle.new();
@@ -339,7 +373,7 @@ export default class FileTree extends View {
     this.saved = new Map();
     this.sizes = new Map(); this.sizing = new Set(); this.visible = [];
     this.width = 320; this.query = ""; this.hits = null; this.searchSeq = 0;
-    this.seenPreview = shared(`${NAME}.preview`)?.n ?? 0; this.seenView = shared(`${NAME}.view`)?.n ?? 0; this.seenGoto = shared(`${NAME}.goto`)?.n ?? 0; this.seenOpen = shared(`${NAME}.open`)?.n ?? 0;
+    this.seenPreview = shared(`${NAME}.preview`)?.n ?? 0; this.seenView = shared(`${NAME}.view`)?.n ?? 0; this.seenGoto = shared(`${NAME}.goto`)?.n ?? 0; this.seenOpen = shared(`${NAME}.open`)?.n ?? 0; this.seenOp = shared(`${NAME}.op`)?.n ?? 0;
     this.input = InputState.new({ placeholder: "Filter files" });
     this.input.on("change", (_e, cx) => this.search(this.input.value(), cx));
     this.input.on("submit", (_e, cx) => this.jump(cx));
@@ -359,6 +393,7 @@ export default class FileTree extends View {
       // Local patch: "open": "awsome-viewer" needs Awsome Viewer' viewer; without it, preview here.
       this.hasAwsomeViewer = Boolean(await readTextFile(`${appHome()}/mods/awsome-viewer/mod.json`).catch(() => null));
       this.showSize ??= this.config.column === "size";
+      this.confirmDelete = (await loadSettings(NAME, { confirm: { delete: true } })).settings.confirm.delete;
       cx.notify();
     });
     cx.timer.every(10000, (cx) => this.refresh(cx));
@@ -410,6 +445,7 @@ export default class FileTree extends View {
 
   setView(view, cx) {
     if (view === this.view) return;
+    if (this.edit) this.cancelEdit(cx);
     this.view = view;
     this.cancelWait();
     this.clearSelection(true);
@@ -429,6 +465,7 @@ export default class FileTree extends View {
   }
 
   reset(root, on) {
+    this.edit = null; this.undo = [];
     if (this.ctx?.root) this.saved.set(this.ctx.key, { folders: this.folders, cursor: this.cursor });
     const key = JSON.stringify([root, on]), s = this.saved.get(key);
     this.cancelWait();
@@ -560,6 +597,7 @@ export default class FileTree extends View {
   // ── search ───────────────────────────────────────────────────────────────────────────
   search(query, cx) {
     this.query = query;
+    if (this.edit && query) this.cancelEdit(cx);
     const q = query.trim().toLowerCase();
     if (!q || this.view !== "tree") { this.hits = null; cx.notify(); return; }
     const seq = ++this.searchSeq, ctx = this.ctx;
@@ -618,10 +656,15 @@ export default class FileTree extends View {
       return out;
     }
     const walk = (prefix, depth) => {
+      if (this.edit && this.edit.kind !== "rename" && this.edit.folder === prefix) {
+        out.push({ rel: "\0edit", e: { name: "", dir: this.edit.kind === "newFolder" }, depth, open: false, edit: this.edit });
+      }
       for (const e of this.entries.get(prefix) ?? []) {
         if (!this.showHidden && e.name.startsWith(".")) continue;
         const rel = prefix ? `${prefix}/${e.name}` : e.name, open = e.dir && this.folders.has(rel);
-        out.push({ rel, e, depth, open });
+        const row = { rel, e, depth, open };
+        if (this.edit && this.edit.kind === "rename" && rel === this.edit.orig) row.edit = this.edit;
+        out.push(row);
         if (open && depth < 40) walk(rel, depth + 1);
       }
     };
@@ -796,7 +839,7 @@ export default class FileTree extends View {
   // a second press on the same row within 450 ms is the double-click.
   press(rel, cx) {
     const rows = this.rows(), r = rows.find((x) => x.rel === rel);
-    if (!r) return;
+    if (!r || r.edit) return; // the name row being typed in is not an item
     // The list reports no modifiers, so the mouse-down above it noted them (see render).
     const { mods: m, count } = this.lastDown;
     this.lastDown = null;
@@ -844,9 +887,117 @@ export default class FileTree extends View {
   // Back to following the focused pane: the way back from goUp / enterFolder / Open as root.
   followPane() { this.follow = true; this.pinned = null; }
 
+  // ── Move to Trash, and the requests from the menu and the keys (docs/REQUIREMENTS.md §4.3c) ──
+  // The menu (a popup) and the keys ask this tree for work through shared state; render hands it here.
+  handOff(op, cx) {
+    if (op.kind === "trash") this.trashRequest(op.paths, cx);
+    else if (op.kind === "trashNow") this.trashRun(op.paths, cx, op.forget);
+    else { dbg(`op ${op.kind}`); this.startEdit(op.kind, op.rel, cx); }
+  }
+
+  // Errors here would otherwise vanish (a rejected promise nobody awaits), so they are shown.
+  async startEdit(kind, rel, cx) {
+    dbg(`start ${kind}`);
+    try { await this.startEditNow(kind, rel, cx); }
+    catch (e) { notify({ title: "Could not start the edit", body: String(e?.message ?? e), level: "error" }); }
+  }
+
+  async startEditNow(kind, rel, cx) {
+    if (!this.root || this.hits) { dbg("stop: no root or searching"); return; }
+    if (this.edit) { if (this.edit.busy) return; this.cancelEdit(cx); }
+    if (kind === "rename" && rel === "") return;
+    const folder = kind === "rename" ? dirOf(rel) : rel;
+    const value = kind === "rename" ? baseOf(rel) : "";
+    if (kind !== "rename" && folder !== "" && !this.folders.has(folder)) {
+      await new Promise((done) => this.open([folder], cx, done));
+    }
+    const input = InputState.new({ value });
+    dbg("input made");
+    this.edit = { kind, folder, orig: kind === "rename" ? rel : "", input, error: null, warning: null, touched: false, busy: false, focused: false };
+    input.on("change", (_e, cx2) => this.onEditChange(cx2));
+    input.on("submit", (_e, cx2) => { dbg("submit"); commitEdit(this, cx2); });
+    input.on("blur", (_e, cx2) => this.onEditBlur(input, cx2));
+    cx.notify();
+  }
+
+  onEditChange(cx) {
+    const e = this.edit;
+    if (!e) return;
+    e.touched = true;
+    const own = e.kind === "rename" ? baseOf(e.orig) : null;
+    const taken = (this.entries.get(e.folder) ?? []).map((x) => x.name).filter((n) => n !== own);
+    const v = validateName(e.input.value(), { platform: platformOf(this), taken });
+    e.error = v.error; e.warning = v.warning;
+    cx.notify();
+  }
+
+  onEditBlur(input, cx) {
+    const e = this.edit;
+    dbg(`blur edit=${Boolean(e)} focused=${e?.focused} busy=${e?.busy}`);
+    if (!e || e.input !== input || e.busy || !e.focused) return;
+    const name = input.value();
+    if (!name.trim() || (e.kind === "rename" && name === baseOf(e.orig))) { this.cancelEdit(cx); return; }
+    commitEdit(this, cx).then(() => { if (this.edit?.input === input && this.edit.error) this.cancelEdit(cx); });
+  }
+
+  cancelEdit(cx) { dbg("cancel"); this.edit = null; this.handle.focus(); cx.notify(); }
+
+  // Move to Trash for these rows (paths relative to the root). Asks first while confirm.delete is on.
+  trashRequest(rels, cx) {
+    if (!rels.length || !this.root) return;
+    const why = trashBlock(window()?.platform, !this.on);
+    if (why) { notify({ title: why, level: "warning", timeout: 3000 }); return; }
+    if (!this.confirmDelete) { cx.spawn(async (cx) => this.trashRun(rels, cx)); return; }
+    openOverlay({ mod: NAME, kind: "dialog", frame: "none", width: CONFIRM.width, height: confirmHeight(trashAsk(rels)), props: { trash: { root: this.root, rels } } });
+  }
+
+  // Runs the trash command for each row in turn. The first failure stops the rest, and nothing falls
+  // back to rm (fileops.js). Then the tree follows: the cursor moves to the next row, a closed preview.
+  async trashRun(rels, cx, forget = false) {
+    const ctx = this.ctx, platform = window()?.platform, done = [];
+    for (const rel of rels) {
+      const plan = trashPlan(platform, join(ctx.root, rel));
+      if (plan.disabled) { notify({ title: plan.disabled, level: "warning", timeout: 3000 }); break; }
+      let r;
+      try { r = await exec(plan.program, plan.args, { on: ctx.on, timeout: 20000 }); }
+      catch (e) { r = { code: 1, stdout: "", stderr: String(e?.message ?? e) }; }
+      if (r.code !== 0) { notify({ title: MESSAGES.trashFailed(baseOf(rel)), body: r.stderr || r.stdout, level: "error" }); break; }
+      done.push(rel);
+    }
+    if (done.length) notify({ title: done.length === 1 ? MESSAGES.trashDone(baseOf(done[0])) : `Moved ${done.length} items to the Trash`, level: "info", timeout: 2000 });
+    if (done.length && this.current(ctx)) {
+      const gone = (rel) => done.some((d) => rel === d || rel.startsWith(d + "/"));
+      // The row below the removed ones, or the row above when they were the last.
+      const rows = this.rows(), at = rows.findIndex((x) => gone(x.rel));
+      const next = at < 0 ? "" : (rows.slice(at).find((x) => !gone(x.rel)) ?? rows[at - 1])?.rel ?? "";
+      if (this.file && gone(this.file)) this.closePreview();
+      const slot = shared("awsome-viewer.slot")?.file?.path;
+      if (slot && done.some((d) => { const p = join(ctx.root, d); return slot === p || slot.startsWith(p + "/"); })) this.hideSlot();
+      this.index = null;
+      this.refresh(cx);
+      if (this.query) this.search(this.query, cx);
+      else if (at >= 0) { this.cursor = next; this.anchor = next; }
+    }
+    if (forget) await this.forgetTrash();
+    cx.notify();
+  }
+
+  // "Don't ask again": confirm.delete becomes false in this mod's mod.json, written the way awsome-config
+  // writes it. The snapshot `raw` makes the write refuse a file that changed since it was read.
+  async forgetTrash() {
+    this.confirmDelete = false;
+    const path = `${appHome()}/mods/${NAME}/mod.json`;
+    try {
+      const raw = await readTextFile(path), json = JSON.parse(raw ?? "{}");
+      json.settings = { ...json.settings, confirm: { ...json.settings?.confirm, delete: false } };
+      await writeTextFile(path, `${JSON.stringify(json, null, 2)}\n`, raw);
+    } catch (e) { notify({ title: "Could not save the setting", body: String(e?.message ?? e), level: "error" }); }
+  }
+
   // Key commands bound in keys.json's "mod:awsome-filetree" section (defaults in mod.schema.json).
   command(name, cx) {
     const c = String(name ?? "").replace(/^awsome-filetree[.:]/, "");
+    if (this.edit && ["rename", "trash", "undo"].includes(c)) return;
     if (c === "up") this.goUp();
     else if (c === "follow") this.followPane();
     else if (c === "menu") {
@@ -858,11 +1009,17 @@ export default class FileTree extends View {
     else if (c === "into") {
       const cur = this.rows().find((r) => r.rel === this.cursor);
       if (cur?.e?.dir) this.enterFolder(cur.rel, cx);
-    } else return;
+    }
+    else if (c === "rename") { if (this.cursor) this.startEdit("rename", this.cursor, cx); }
+    // Ignored while typing in the filter box (Delete there edits the text).
+    else if (c === "trash") { if (!this.typing) this.trashRequest(this.sel.size > 1 ? this.paths() : [this.cursor].filter(Boolean), cx); }
+    else if (c === "undo") undoLast(this, cx);
+    else return;
     cx.notify();
   }
 
   key(e, cx) {
+    if (this.edit) { if (e.key === "escape") { this.cancelEdit(cx); cx.stop_propagation(); } return; }
     const k = e.key, rows = this.rows(), cur = rows.find((r) => r.rel === this.cursor);
     if (this.typing) {
       if (k === "escape") { if (this.query) this.clearSearch(cx); else this.handle.focus(); }
@@ -945,6 +1102,7 @@ export default class FileTree extends View {
   }
 
   row(r, t, R, now) {
+    if (r.edit) return editRow(this, r, t, R, { P, ROW, MSG, UI, iconOf, codeFont });
     const { rel, e, depth, open } = r, g = this.git;
     const status = g.status.get(rel) ?? (this.underUntracked(rel) ? "A" : null);
     const ignored = !status && this.isIgnored(rel);
@@ -1042,10 +1200,36 @@ export default class FileTree extends View {
       .child(menuView({ id: "ft-menu", entries, at: this.at, run, mono: codeFont() }));
   }
 
+  // The confirmation for Move to Trash. Confirm hands the work back to the tree (handOff).
+  renderTrash() {
+    const close = () => closeOverlay(props().overlay);
+    const { root, rels } = this.trash;
+    const yes = (cx) => { close(); setShared(`${NAME}.op`, { kind: "trashNow", root, paths: rels, forget: Boolean(this.forget), n: Date.now() }); };
+    return div().size_full().track_focus(this.handle)
+      .on_key_down((ev, cx) => { if (confirmKey(ev.key, () => yes(cx), close)) cx.stop_propagation(); })
+      .child(confirmView({ id: `${NAME}-trash`, ...trashAsk(rels), dontAsk: Boolean(this.forget), onToggle: (cx) => { this.forget = !this.forget; cx.notify(); }, onConfirm: yes, onCancel: close, mono: codeFont() }));
+  }
+
   render(cx) {
     if (this.ask) return this.renderAsk();
+    if (this.trash) return this.renderTrash();
     if (this.menu) return this.renderMenu(cx);
     this.sync(cx);
+    if (this.edit && !this.edit.focused) {
+      const e = this.edit;
+      e.focused = true; e.input.focus(); dbg("focused");
+      if (e.kind === "rename") {
+        const value = e.input.value(), isDir = Boolean(this.entries.get(e.folder)?.find((x) => x.name === baseOf(e.orig))?.dir);
+        const dot = value.lastIndexOf(".");
+        e.input.set_selected_range({ start: 0, end: dot > 0 && !isDir ? dot : value.length });
+      }
+    }
+    // The menu and the keys ask this tree for new items, renames and moves to the Trash (§4.3c).
+    const op = shared(`${NAME}.op`);
+    if (op && op.n !== this.seenOp) {
+      this.seenOp = op.n;
+      if (op.root === this.root) cx.spawn(async (cx) => { this.handOff(op, cx); cx.notify(); });
+    }
     const req = shared(`${NAME}.preview`);
     if (req && req.n !== this.seenPreview) {
       this.seenPreview = req.n;
@@ -1129,9 +1313,9 @@ export default class FileTree extends View {
         })
         // One more item at the end: panel.end of space, so the last row isn't flush with the
         // panel's edge and the end reads as the end (§4.5b B4).
-        .child(v_virtual_list("ft-rows", rows.length + 1, [...rows.map(() => ROW), P.end], (i) => rows[i]?.rel ?? "ft-end", (range) => {
+        .child(v_virtual_list("ft-rows", rows.length + 1, [...rows.map((r) => (r.edit && (r.edit.error || r.edit.warning) ? ROW + MSG : ROW)), P.end], (i) => rows[i]?.rel ?? "ft-end", (range) => {
           const shown = rows.slice(range.start, Math.min(range.end, rows.length));
-          this.visible = shown.filter((r) => r.e?.dir).map((r) => r.rel);
+          this.visible = shown.filter((r) => r.e?.dir && !r.edit).map((r) => r.rel);
           const out = shown.map((r) => this.row(r, t, R, now));
           if (range.end > rows.length) out.push(div().id("ft-end").w_full().h(P.end));
           return out;
@@ -1139,7 +1323,7 @@ export default class FileTree extends View {
           .on_item_click((rel, cx) => this.press(rel, cx))
           .on_item_secondary_click((rel, _e, cx) => {
             const r = this.rows().find((x) => x.rel === rel);
-            if (!r) return;
+            if (!r || r.edit) return;
             if (this.sel.size > 1 && this.sel.has(rel)) this.openManyMenu();
             else { this.cursor = rel; this.anchor = rel; this.openMenu(rel, r.e.dir); }
             cx.notify();

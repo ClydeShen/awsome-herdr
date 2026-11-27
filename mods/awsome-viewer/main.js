@@ -192,7 +192,11 @@ class AwsomeViewer extends View {
     cx.spawn(async (cx) => {
       const { settings, problems } = await loadSettings("awsome-viewer", DEFAULT_SETTINGS);
       for (const problem of problems) console.warn(`awsome-viewer mod.json settings: ${problem}`);
-      this.findEditors(cx, Array.isArray(settings.editors) ? settings.editors : []);
+      // String entries are macOS app IDs (dev.zed.Zed); objects with a bundle or exe are kept as they are.
+      const extra = (Array.isArray(settings.editors) ? settings.editors : [])
+        .map((e) => (typeof e === "string" ? { name: e.split(".").pop(), bundle: e } : e))
+        .filter((e) => e && typeof e === "object" && (e.bundle || e.exe));
+      this.findEditors(cx, extra);
       this.shareFileManager(settings.fileManager);
       cx.timer.every(Math.max(1000, duration(settings.refresh.tree, 10000)), (cx) => this.refresh(cx));
     });

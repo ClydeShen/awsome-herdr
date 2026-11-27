@@ -705,6 +705,51 @@
         "mouse": "click another pane",
         "keys": "Alt+H/J/K/L away from it (pane.go, Herdr's own)"
       }
+    },
+    {
+      "id": "create-in-folder",
+      "mod": "awsome-filetree",
+      "to": "a new file or folder in the tree, inside the chosen folder",
+      "forward": {
+        "mouse": "right-click a folder, New file… or New folder…",
+        "keys": "",
+        "code": []
+      },
+      "back": {
+        "mouse": "before Enter: empty the name and click elsewhere (cancels); after the item exists: right-click it, Move to Trash…",
+        "keys": "Esc before Enter; Ctrl+Z (Cmd+Z) after Enter while the item is still empty",
+        "code": []
+      }
+    },
+    {
+      "id": "rename",
+      "mod": "awsome-filetree",
+      "to": "editing a file's name in its row",
+      "forward": {
+        "mouse": "right-click, Rename…",
+        "keys": "F2 (macOS too)",
+        "code": []
+      },
+      "back": {
+        "mouse": "before Enter: set the old name back and click elsewhere, or empty the name and click elsewhere (cancels); after Enter: right-click, Rename… and type the old name",
+        "keys": "Esc before Enter; Ctrl+Z (Cmd+Z) after Enter; or F2 again to the old name",
+        "code": []
+      }
+    },
+    {
+      "id": "move-to-trash",
+      "mod": "awsome-filetree",
+      "to": "the confirmation 'Move … to the Trash?' (the item goes to the system Trash after Move to Trash)",
+      "forward": {
+        "mouse": "right-click, Move to Trash…",
+        "keys": "Delete (macOS Cmd+Backspace); disabled on Windows for now",
+        "code": []
+      },
+      "back": {
+        "mouse": "Cancel in the dialog; after the move: restore it from the system Trash (outside the app, no in-app undo)",
+        "keys": "Esc in the dialog; after the move: restore it from the system Trash (outside the app)",
+        "code": []
+      }
     }
   ]
 }

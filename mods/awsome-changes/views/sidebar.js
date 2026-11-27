@@ -330,7 +330,7 @@ export const sidebarMethods = {
     // on Windows (no byte-order mark), sh elsewhere and on remote machines. A file that doesn't
     // end in a newline gets one first, so the new line never joins the last one.
     const windows = !on && window()?.platform === "windows";
-    const quote = (s) => `'${s.split("'").join("''")}'`;
+    const quote = (s) => `'${s.replace(/['\u2018-\u201B]/g, (c) => c + c)}'`;
     const [command, args] = windows
       ? [
           "powershell",

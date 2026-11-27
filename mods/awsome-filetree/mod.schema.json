@@ -102,9 +102,47 @@
               "x-action": "awsome-filetree.menu",
               "x-section": "mod:awsome-filetree",
               "default": "shift-f10"
+            },
+            "rename": {
+              "title": "Rename",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-filetree.rename",
+              "x-section": "mod:awsome-filetree",
+              "default": "f2"
+            },
+            "trash": {
+              "title": "Move to Trash",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-filetree.trash",
+              "x-section": "mod:awsome-filetree",
+              "default": "delete",
+              "x-default-macos": "cmd-backspace"
+            },
+            "undo": {
+              "title": "Undo a new file or rename",
+              "type": "string",
+              "format": "key",
+              "x-action": "awsome-filetree.undo",
+              "x-section": "mod:awsome-filetree",
+              "default": "ctrl-z",
+              "x-default-macos": "cmd-z"
             }
           },
           "title": "Shortcuts"
+        },
+        "confirm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "delete": {
+              "title": "Ask before moving to the Trash",
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "title": "Confirm"
         },
         "open": {
           "type": "object",

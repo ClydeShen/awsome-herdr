@@ -9,19 +9,7 @@ const SNAPSHOTS = "refs/awsome-changes/discard";
 // Herdr has no Recycle Bin call, so each system's own: PowerShell's VisualBasic FileIO on Windows,
 // Finder on macOS, gio on Linux (§4.4's platform table). One call per file keeps quoting simple.
 export function trashCommand(platform, path) {
-  if (platform === "windows") {
-    const win = path.split("/").join(String.fromCharCode(92));
-    const quoted = `'${win.split("'").join("''")}'`;
-    return [
-      "powershell",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(${quoted}, 'OnlyErrorDialogs', 'SendToRecycleBin')`,
-      ],
-    ];
-  }
+  if (platform === "windows") return null; // Not yet verified (REQUIREMENTS §4.3c): no command.
   if (platform === "macos") {
     const quoted = path.split(String.fromCharCode(92)).join(String.fromCharCode(92, 92)).split('"').join(String.fromCharCode(92) + '"');
     return ["osascript", ["-e", `tell application "Finder" to delete POSIX file "${quoted}"`]];
@@ -70,6 +58,10 @@ export const discardMethods = {
 
   async discardFiles(files, root, on) {
     const { restore, trash } = discardPlan(files);
+    // A remote machine's system isn't known here; gio is the common one there.
+    const platform = on ? "linux" : window()?.platform;
+    // Not yet verified on Windows (REQUIREMENTS §4.3c): refuse before anything is touched.
+    if (trash.length && platform === "windows") throw Error("Not yet verified on Windows");
     const git = (args) => exec("git", args, { cwd: root, on });
     if (restore.length && this.settings.discard?.snapshot !== false) {
       const snap = await git(["stash", "create", "awsome-changes discard"]);
@@ -81,8 +73,6 @@ export const discardMethods = {
       const result = await git(["--literal-pathspecs", "restore", "--worktree", "--", ...restore.slice(i, i + 200)]);
       if (result.code !== 0) throw Error((result.stderr || result.stdout).trim());
     }
-    // A remote machine's system isn't known here; gio is the common one there.
-    const platform = on ? "linux" : window()?.platform;
     for (const path of trash) {
       const [command, args] = trashCommand(platform, `${root}/${path}`);
       const result = await exec(command, args, { cwd: root, on, timeout: 20000 });

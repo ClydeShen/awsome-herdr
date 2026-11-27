@@ -543,7 +543,7 @@
 
 选择规则见 §2.6。另外：
 - **多选时不打开预览**，预览只跟随单选。
-- 选中 2 项以上，标题栏下出现**选择条**：`3 selected`，三个动作 `Send to agent`、`Copy path ▾`（`Copy relative path` / `Copy absolute path`）、`Delete…`，最右是清除。
+- 选中 2 项以上，标题栏下出现**选择条**：`3 selected`，三个动作 `Send to agent`、`Copy path ▾`（`Copy relative path` / `Copy absolute path`）、`Move to Trash…`，最右是清除。
 - 折叠文件夹不丢里面已选的项；切换 Tree / Recent / Search 视图则清空选择。
 - 拖动任意一个选中项 = 移动全部选中项（§4.4）。
 
@@ -557,10 +557,103 @@
 | `Rename`（F2） | 行内编辑 | 不显示（批量重命名暂缓，§10） |
 | `Send to agent` | 有 | 有，一次发出 N 个路径 |
 | `Copy relative path` / `Copy absolute path` | 各一项 | 仍是两项，每行一个 |
-| `Delete…`（进回收站） | 有 | 有 |
+| `Move to Trash…`（只进回收站，见 §4.3c） | 有 | 有 |
 
 - **Send to agent**：默认发给当前 space 的主 agent，子菜单里可以换；复用 `awsome-viewer` 已有的发送机制，多个路径拼成一条消息。
-- **删除**：确认对话框（§2.6）：`Move 3 items to the Recycle Bin?`，按钮 `Cancel` / `Move to Recycle Bin`，带 `Don’t ask again`；macOS 上写 `Trash`。完成后 toast `Moved 3 items to the Recycle Bin`。设置项 `confirm.delete`（默认开）。
+- **删除**：只进系统回收站，永不永久删除；确认对话框、命令、各系统的做法和 Windows 的限制见 §4.3c。设置项 `confirm.delete`（默认开）。
+
+### 4.3c 文件树右键菜单重排；新建、重命名、移到回收站（2026-11-27）⬜
+
+**决定的经过**（以后重读时不用再查）：用户要求在文件树右键加上删除、新建文件、新建文件夹、重命名，并按 VS Code 的行为重排菜单；又说"删除只进回收站，永远不永久删除"。用户已选：① 名字用**行内输入**（VS Code 做法）；② **F2** 重命名，全平台一样，只在文件树有焦点时生效；③ **只改文件树的菜单顺序**（Rename 和 Move to Trash 放在最后一组），§2.6 对别的菜单不变；④ **Windows 的回收站先禁用**，等在真机验证之后再开。
+
+**来源**（规则 0）：
+- VS Code 源码 `fileActions.contribution.ts`，资源管理器菜单分组：`navigation`（New File、New Folder）→ `3_compare` → `5_cutcopypaste` → `6_copypath` → `7_modification`（Rename…、Delete）。新建在文件夹菜单最上面，改名和删除在最后一组。命令名和验证文案同一文件；删除对话框的文案见 `fileActions.ts`。
+- 别的 Herdr mod：只有 linziyanleo/herdr-mods 的 `files-plus` 做了新建、重命名、删除。借它的**技术**：新建用 noclobber（`set -C`）、重命名用 `mv -n`，都不会覆盖已有文件。**不采用**它的删除：它在 Windows 和 Linux 上是永久删除，违反本仓库规则。
+- Herdr 自带 `confirm`：Cancel 在前、Confirm 在后，Enter 确认、Esc 取消。
+- **已在真窗口验证**（2026-11-27）：`v_virtual_list` 的一行里放 `Input` 能画出来、能用代码（`InputState.focus()`）或点击拿到焦点、能打字。没测：行内 Enter / Esc 的处理、只选中主文件名。
+
+**1. 菜单**（只对 Files 面板；顺序由用户 2026-11-27 选定，偏离 §2.6，见 `design/conventions.json`）
+
+文件夹（单选，本机）：
+```
+New file…            新建类
+New folder…
+──────
+Open as root         打开类（和现在一样）
+Reveal in Finder
+──────
+Send to agent  A     整理类
+──────
+Copy relative path Y 复制类
+Copy absolute path ⇧Y
+──────
+Rename…  F2          修改类：Rename 和 Move to Trash 放最后，Move to Trash 红色
+Move to Trash…  ⌘⌫ / Delete
+```
+文件（单选）：第一组是 `Preview`（Space）、`Open in tab`（Enter）、`Open in default app`、`Reveal in …`；没有 New 和 Open as root；其余和文件夹一样。
+多选（≥2 项，§4.3b 的规则：只显示对全体成立的动作）：`Send to agent` ｜ `Copy relative path` / `Copy absolute path` ｜ `Move N items to Trash…`；New、Rename 不显示。
+
+- 名字：macOS / Linux 写 `Move to Trash`，Windows 写 `Move to Recycle Bin`（和 VS Code 一样）。`Move to Trash…` 一律带 `…`（§2.6：危险动作带 `…`，不随 `confirm.delete` 变化，这样标签只有固定的几种）。`New file…`、`New folder…`、`Rename…` 的 `…` 表示还要输入名字（VS Code 也这么写）。
+- **没有** `Delete permanently`，也没有对应的键。**回收站失败时只报错，不提供"改为永久删除"**（VS Code 在这里会问是否永久删除，我们明确不这样做）。
+- 远程 space（`on` 不为空）：New file / New folder / Rename 用 POSIX `sh` 经 `exec` 执行，可用；`Move to Trash…` 变灰，tooltip 写 `The folder is on another machine`（远程系统不确定，不赌 `gio` 在不在）。
+- Windows：`Move to Recycle Bin…` 变灰，tooltip 写 `Not yet verified on Windows`。**原因**：微软的 `FileSystem.DeleteFile(..., 'OnlyErrorDialogs', 'SendToRecycleBin')` 会设 `FOF_SILENT | FOF_NOCONFIRMATION`（.NET `FileSystem.vb` 第 2040–2042 行），按 Windows 文档，回收站放不下（网络盘、U 盘、文件太大）时可能**静默永久删除**；进程不是交互式时 .NET 直接调 `IO.File.Delete`（同文件第 1235 行）。没有任何文档化的标志组合保证"进回收站，否则失败"。等在真机上验证后再开。
+- **连带影响**：`awsome-changes` 的 discard 对未跟踪文件也用了同一个 Windows 回收站调用（`git/discard.js` 的 `trashCommand`）。在 Windows 上，只要这一批 discard 里有**未跟踪文件**，整批在动手之前就被拒绝（不会只做一半），提示 `Not yet verified on Windows`；只含已跟踪文件的 discard（`git restore`）不受影响。
+
+**2. 快捷键**（只在 Files 有焦点时生效，写在 `mod:awsome-filetree` 区；`F2` 在别处仍是 Herdr 的 `tab.rename`；全部能在 awsome-config 里重绑，`format: "key"` + `x-action`）：
+
+| 动作 | Windows / Linux | macOS |
+|---|---|---|
+| Rename | F2 | F2（不用 VS Code 在 macOS 上的 Enter，Enter 仍是"打开"，§4.4a） |
+| Move to Trash | Delete | Cmd+Backspace |
+| 撤销新建 / 重命名 | Ctrl+Z | Cmd+Z |
+| 输入框里确认 / 取消 | Enter / Esc | Enter / Esc |
+
+New file、New folder 没有默认键（VS Code 的资源管理器也没有）。`Cmd+Backspace` 在 Herdr 的 `terminal` 区是 `send:^U`，所以只有文件树有焦点时才拦。
+
+**3. 新建文件 / 新建文件夹**
+- **目标文件夹**（VS Code 的规则）：右键的是文件夹就用它；是文件就用它的上一级；没有选中就用当前根。
+- 文件夹先展开，**在它的子项最上面**插入一行输入行（22px 行高，图标位用文件 / 文件夹图标，缩进和同级一样），自动拿到焦点。尺寸和颜色全部取自 `design/tokens.json` 的 `panel`：行高 `tree`（22）、字号和现有树行一样（13，`mods/awsome-filetree/main.js` 的根元素；`panel.text` 的 12 只用在过滤框和摘要）、输入框样式同面板的 `Filter files` 输入框（描边 `input`，输入中是 `accent`）。
+- **Enter** 建立；**Esc** 取消；**点到别处**：名字合法就和 Enter 一样建立，名字为空或不合法就取消（VS Code 源码 `inlineEditInputBox.ts` 失焦时调用 `_finish(inputBox.isInputValid())`，和侧边栏现有的改名一致；用户 2026-11-27 选定）。不想建就按 Esc。
+- 名字里有 `/` 就一并建中间文件夹（`a/b/c.txt`，VS Code 一样，用 `mkdir -p`）；**新建文件夹**时名字末尾的 `/` 忽略。名字以 `/` 开头不允许。
+- 不会覆盖：POSIX 用 `set -C; : > "$1"`（已存在则失败）、`mkdir`；PowerShell 用 `New-Item -ItemType File`（已存在则失败，不加 `-Force`）。
+- 建好后：**新文件夹**被选中；**新文件**被选中并在预览位打开（和 VS Code 打开新文件一样，§4.4a 的 `preview`）。
+- **验证文案**（顺序和规则取自 VS Code `validateFileName`；文字按 L10 缩短，`ui-check` C14 不许新增长句；输入时即时显示在输入行下面，**文字用前景色，红色只用在输入框的边框上**，因为浅色主题下 `ansi1` 红字在 `raised` 底上只有 4.18:1，不到 4.5:1；输入行还没改过时不显示）：
+  - 空：`Enter a name`
+  - 以 `/` 开头：`No leading slash`
+  - 已存在：`“{name}” already exists`
+  - 不合法：`“{name}” is not a valid name`
+  - 首尾有空格：`Leading or trailing space`（警告，不挡 Enter）
+- **不合法的字符**（VS Code 的列表没查到，按系统自己的规则）：所有系统：`/` 和 NUL。Windows 另加 `\ : * ? " < > |`、结尾的空格和点、设备名 `CON PRN AUX NUL COM1–9 LPT1–9`（微软文档 *Naming Files, Paths, and Namespaces*；执行前核对原文）。
+
+**4. 重命名**
+- `F2` 或右键 `Rename…`：行内输入**替换**这一行的文件名，已选中**主文件名（不含扩展名）**：`report.final.txt` 选 `report.final`；文件夹或没有点的名字全选（VS Code 的规则）。
+- Enter 确认、Esc 取消；点到别处：名字合法就和 Enter 一样，空或不合法就取消。名字没变 = 什么也不做。验证和新建一样（"已存在"按同一文件夹内）。
+- 不覆盖：POSIX 用 `mv -n -- "$1" "$2"` 再确认原路径已消失；PowerShell 用 `Rename-Item -LiteralPath`（目标存在会报错）。
+- **`mv -n` 的退出码不可信**（2026-11-27 在 macOS 实测）：目标已存在、或只改大小写时，`mv -n` **没有移动也返回 0**。所以一定要在命令后再检查"原路径已不存在、新路径存在"，不能只看退出码；检查不过就当作失败报错。
+- **只改大小写**（`a.txt` → `A.txt`，macOS 和 Windows 的文件系统不分大小写；本机实测为不分大小写）：`mv -n a.txt A.txt` 什么也不做，所以先改成临时名（同一文件夹里不存在的隐藏名）再改成目标名，两步都用 `mv -n` 并各自检查。实测两步法可行。
+- 改名后行仍被选中；如果这个文件正显示在预览位或有对应的 tab，预览位跟随新路径（用现有的 `${NAME}.preview` 共享状态）；已打开的 tab 暂不处理（见"待定"）。
+
+**5. 移到回收站**
+- 命令：**macOS** 用 `osascript -l JavaScript` 调 `NSFileManager.trashItemAtURL`（已实测：成功时进回收站；不存在的路径、只读文件夹里的文件都返回错误且文件原样不动；不触发 Finder 自动化授权）；**Linux** 用 `gio trash -- <路径>`（`g_file_trash` 在没有可用回收站时返回错误，不会删除；不用 `--force`）；**Windows** 先不做（上面）。文件夹同样处理。
+- **永不回退到 `rm`**：命令失败就把错误写进 toast（`Could not move “name” to the Trash`），项原样留着。
+- 确认对话框用 `confirm.js`（§2.6）：标题 `Move “name” to the Trash?`（多选 `Move 3 items to the Trash?`），说明 `Restore it from the Trash.`（按 L10 缩短，C14 不许新增长句；Windows 写 `Recycle Bin`，但 Windows 上这个功能先禁用），红色按钮 `Move to Trash`，Cancel 在前，带 `Don’t ask again`（勾上就把 `confirm.delete` 设为关）。完成后 toast `Moved “name” to the Trash`。
+- 完成后光标落在原位置的下一行（没有下一行就落在上一行）。**删除没有应用内撤销**（§4.4）；在系统回收站里恢复。
+
+**6. 撤销**（`Ctrl+Z` / `Cmd+Z`，只在 Files 有焦点；内存里的栈，最多 20 步，换根或关闭就清空）
+- 撤销**重命名**：`mv -n` 改回原名；原名已被占用就失败并提示。
+- 撤销**新建**：只在建出来的项**仍然是空的**（文件 0 字节、文件夹里没有东西）时才移除，否则不动并提示 `Not empty; left in place`。**移除用 `rm` / `rmdir`，不进回收站**（用户 2026-11-27 同意：空项里没有任何内容，不会丢东西；这是对"从不永久删除"的唯一例外，只限这一处）。
+- 撤销不跨 space。
+
+**7. 这一版不做**：Cut / Copy / Paste、Duplicate、拖拽移动（§4.4）、批量重命名（§10）、永久删除、侧边栏上的 New file / New folder 按钮、重命名输入里 F2 循环选中。
+
+**8. 设置项**：`confirm.delete`（默认开），写在 `mod.schema.json`；快捷键 `awsome-filetree.rename`、`awsome-filetree.trash`、`awsome-filetree.undo` 用 `format: "key"` + `x-action`。
+
+**9. 待定与已定**：
+1. ✅ 撤销新建的移除方式：仍为空才用 `rm` / `rmdir`（用户 2026-11-27 选定）。
+2. ✅ 输入行失焦：名字合法就生效，空或不合法就取消（用户 2026-11-27 改定；先前选的"取消"在查到 VS Code 源码和侧边栏现有惯例后作废）。
+3. 按默认做，用户没反对：重命名后只让预览位跟随新路径，已打开的 tab 暂不处理。
+4. 按默认做，用户没反对：远程 space 的 `Move to Trash…` 变灰。
+5. 已改：`…` 一律显示（§2.6 原有规则），不再随确认开关变化。
 
 ### 4.4 文件操作和打开方式 ⬜
 
@@ -580,7 +673,7 @@
 
 **技术路线**：
 - 新建、重命名、移动：Herdr 的 `fs` 只能写 `~/.config/herdr-app`，所以用 `exec` 调系统命令，按 `window().platform` 选 PowerShell 或 POSIX，一个很薄的"平台适配表"。
-- 删除到回收站：Windows 用 PowerShell 的 `Microsoft.VisualBasic.FileIO`；macOS 用 `osascript` 的 Finder 删除；Linux 用 `gio trash`。执行前先确认 Herdr 没有现成的回收站接口（目前没发现）。
+- 删除到回收站：见 §4.3c 第 5 节（macOS 用 `NSFileManager.trashItem`，Linux 用 `gio trash`，Windows 先禁用；原先写的 Finder 删除和 `Microsoft.VisualBasic` 调用都可能在回收站不可用时永久删除，已作废）。
 
 **设置项**：`confirm.delete`；撤销的开关和键位。
 
