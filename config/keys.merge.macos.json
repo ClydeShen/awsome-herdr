@@ -1,4 +1,9 @@
 {
+  "mod:awsome-filetree": {
+    "f2": "awsome-filetree.rename",
+    "cmd-backspace": "awsome-filetree.trash",
+    "cmd-z": "awsome-filetree.undo"
+  },
   "mod:awsome-viewer": {
     "cmd-s": "awsome-viewer.save",
     "ctrl-g": "awsome-viewer.goto",

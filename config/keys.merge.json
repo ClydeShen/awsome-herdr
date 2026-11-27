@@ -6,7 +6,10 @@
     "ctrl-alt-backspace": "awsome-filetree.up",
     "ctrl-alt-enter": "awsome-filetree.into",
     "ctrl-alt-home": "awsome-filetree.follow",
-    "shift-f10": "awsome-filetree.menu"
+    "shift-f10": "awsome-filetree.menu",
+    "f2": "awsome-filetree.rename",
+    "delete": "awsome-filetree.trash",
+    "ctrl-z": "awsome-filetree.undo"
   },
   "mod:awsome-viewer": {
     "ctrl-s": "awsome-viewer.save",

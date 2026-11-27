@@ -1141,6 +1141,138 @@
         ]
       },
       "deviation": "Herdr, VS Code and Windows Terminal also zoom by a key; we add none, because the user's tuned key bindings must not change (user 2026-11-27)."
+    },
+    {
+      "id": "inline-name-entry",
+      "what": "新建文件、新建文件夹、重命名：在树里的行内输入名字",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer; source: src/vs/workbench/browser/parts/views/inlineEditInputBox.ts, contrib/files/browser/views/explorerViewer.ts)",
+          "behavior": "New File, New Folder and Rename open an input in the tree row. Enter accepts, Esc cancels, and losing focus accepts when the name is valid (inputBox.isInputValid()) and cancels when it is not. On rename the name before the last dot is selected (folders and names without a dot: everything). The validation message shows under the input."
+        },
+        {
+          "app": "Windows File Explorer (support.microsoft.com keyboard shortcuts; learn.microsoft.com 'Naming Files, Paths, and Namespaces')",
+          "behavior": "F2 renames the selected item. Names cannot contain < > : \" / \\ | ? * and cannot end with a space or a period; CON, PRN, AUX, NUL, COM1-9 and LPT1-9 are reserved."
+        },
+        {
+          "app": "macOS Finder (support.apple.com/en-us/102650)",
+          "behavior": "Select the item and press Return to rename it in place."
+        }
+      ],
+      "ours": "New file / New folder: a row input at the top of the chosen folder's children, with the file or folder icon at the item's indent; Rename: the input replaces the row's name with the name before the last dot selected. Enter creates or renames, Esc cancels, and clicking elsewhere does what Enter does when the name is valid and cancels when it is empty or invalid (the same as VS Code and the sidebar's inline-rename). The validation message shows under the row, in ansi1; Enter does nothing until the name is valid.",
+      "herdr": "Reuses the tree's Filter files input look (panel tokens: input border, accent while typing) and the tree row geometry (22px row, same indent). The control is an Input inside a v_virtual_list row; spec §4.3c says this was drawn and typed into in a real window (2026-11-27).",
+      "code": {
+        "awsome-filetree": [
+          "A file or folder name must be provided.",
+          "A file or folder name cannot start with a slash."
+        ]
+      }
+    },
+    {
+      "id": "explorer-menu-order",
+      "what": "The order of the Files right-click menu",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer; source: contrib/files/browser/fileActions.contribution.ts)",
+          "behavior": "ExplorerContext menu groups in order: navigation (New File, New Folder, Open to the Side), 3_compare, 5_cutcopypaste, 6_copypath, 7_modification (Rename…, Delete). Rename and Delete are together in the last group."
+        },
+        {
+          "app": "Windows File Explorer (support.microsoft.com)",
+          "behavior": "Cut, Copy, Paste, Rename, Share and Delete sit together in one edit group at the top of the context menu."
+        }
+      ],
+      "ours": "Folder: New file…, New folder… | Open as root, Reveal in Finder | Send to agent | Copy relative path, Copy absolute path | Rename…, Move to Trash… (red, last). File: Preview, Open in tab, Open in default app, Reveal in … | then Send to agent, copy paths, Rename…, Move to Trash…, with no New and no Open as root. Multi-select: only what applies to every selected item (Send to agent, copy paths, Move N items to Trash…).",
+      "deviation": "Differs from the shared order in docs/REQUIREMENTS.md §2.6 (open, new, edit, arrange, copy, danger). User's choice 2026-11-27, for the Files menu only; other menus keep §2.6.",
+      "herdr": "Reuses the shared menu.js, which follows Herdr's own menu look (§2.6: font 12.8, radius 7, shortcut at the right in a dim colour). Only the order is ours (see deviation).",
+      "code": {
+        "awsome-filetree": [
+          "New file…",
+          "New folder…",
+          "Move to Trash…"
+        ]
+      }
+    },
+    {
+      "id": "move-to-trash",
+      "what": "Moving a file to the Trash (never permanent)",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer; source: contrib/files/browser/fileActions.ts)",
+          "behavior": "Delete moves to the Trash (Recycle Bin on Windows) after a dialog 'Are you sure you want to delete…?' with the detail 'You can restore this file from the Trash.', a 'Move to Trash' button and a 'Do not ask me again' checkbox. If trashing fails it offers 'Delete Permanently'."
+        },
+        {
+          "app": "macOS Finder (support.apple.com/en-us/102650)",
+          "behavior": "Command-Delete moves the selected item to the Trash; Put Back restores it."
+        },
+        {
+          "app": "Windows File Explorer (support.microsoft.com)",
+          "behavior": "Delete moves the item to the Recycle Bin; Shift+Delete deletes it permanently."
+        }
+      ],
+      "ours": "Move to Trash… (Delete, or Cmd+Backspace on macOS; Files only). Confirmation through the shared confirm.js: title 'Move “name” to the Trash?' (several items: 'Move 3 items to the Trash?'), body 'You can restore it from the Trash.', a red 'Move to Trash' button, Cancel first, Enter confirms, Esc cancels, 'Don’t ask again' (turns off confirm.delete). macOS trashes with NSFileManager via osascript; Linux with gio trash. On failure the error goes to a toast ('Could not move “name” to the Trash') and the item stays where it is; never falls back to rm. Windows: greyed out, tooltip 'Not yet verified on Windows'. Remote space: greyed out.",
+      "deviation": "(1) No 'Delete Permanently' fallback when trashing fails, which VS Code offers, and no Shift+Delete: user rule 2026-11-27, nothing is ever deleted permanently. (2) A confirmation dialog (default on, 'Don’t ask again' turns it off), as VS Code and docs/REQUIREMENTS.md §2.6 do. (3) Windows: disabled until verified on a real machine, because the available shell call can delete permanently (spec §4.3c).",
+      "herdr": "Herdr's confirm look and behaviour through the shared confirm.js (Cancel first, Enter confirms, Esc cancels), and Herdr's notify toast for 'Moved “name” to the Trash'.",
+      "code": {
+        "awsome-filetree": [
+          "You can restore it from the Trash.",
+          "Could not move",
+          "Don’t ask again"
+        ]
+      }
+    },
+    {
+      "id": "rename-key",
+      "what": "The key that starts renaming a file",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer; source: contrib/files/browser/fileActions.contribution.ts)",
+          "behavior": "Rename is F2 on Windows and Linux and Enter on macOS (RENAME_ID: primary F2, mac primary Enter)."
+        },
+        {
+          "app": "Windows File Explorer (support.microsoft.com keyboard shortcuts)",
+          "behavior": "F2 renames the selected item."
+        },
+        {
+          "app": "macOS Finder (support.apple.com/en-us/102650)",
+          "behavior": "Return renames the selected item."
+        }
+      ],
+      "ours": "F2 on all three systems, only while the Files panel has the keyboard. Rename… is also in the menu. Enter stays Open (spec §4.4a). The key is bindable in awsome-config as awsome-filetree.rename (format key, x-action).",
+      "deviation": "F2 on macOS too, where VS Code uses Enter; Enter stays Open because Enter is the pinned open key (spec §4.4a).",
+      "herdr": "Herdr's tab.rename is F2 globally. Ours takes F2 only while Files has the keyboard, so Herdr's tab rename still works everywhere else.",
+      "code": {
+        "awsome-filetree": [
+          "awsome-filetree.rename"
+        ]
+      }
+    },
+    {
+      "id": "undo-create-rename",
+      "what": "Undoing a new file, a new folder or a rename",
+      "planned": true,
+      "references": [
+        {
+          "app": "VS Code (Explorer; source: contrib/files/browser/fileCommands / files.contribution.ts)",
+          "behavior": "Undo works only while the explorer has focus and explorer.enableUndo is on; create, rename, move and delete are undoable operations."
+        },
+        {
+          "app": "Windows File Explorer (support.microsoft.com keyboard shortcuts)",
+          "behavior": "Ctrl+Z undoes the previous action (which actions it covers is not documented)."
+        }
+      ],
+      "ours": "Ctrl+Z (Cmd+Z on macOS) undoes a create whose item is still empty (file of 0 bytes, folder with nothing in it) and a rename (mv -n back to the old name). Works only while Files has the keyboard. In-memory stack, up to 20 steps, cleared when the root changes or the panel closes. Not across spaces. Moves and deletes are not undone. A create that is no longer empty is left in place with the toast 'Not empty; left in place'.",
+      "deviation": "Deleting is not undone here (owner rule 2026-11-27: delete has no undo). Windows File Explorer restores a deleted item, so this differs from it.",
+      "herdr": "none: Herdr has no file undo. The stack belongs to the mod and lives in memory, like the other file actions (spec §4.3c section 6).",
+      "code": {
+        "awsome-filetree": [
+          "awsome-filetree.undo",
+          "Not empty; left in place"
+        ]
+      }
     }
   ]
 }
